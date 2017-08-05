@@ -28,7 +28,7 @@ fluxsplit = 3;      % {1} Godunov, {2} Global LF, {3} Local LF  Defines which fl
 
 p_initial =  10^(-3);   %initial hole density
 Ea_min = 1;
-Ea_max = 100;               %maximum applied E
+Ea_max = 2;               %maximum applied E
 increment = 0.01;         %for increasing E
 
 %% Physical Constants
@@ -93,12 +93,12 @@ for Ea = Ea_min:increment:Ea_max
     
     E(nx-1) = E(nx-2);
     E(nx) = E(nx-2);
-    %E
+    E
     
     
 
     
-    for i = 4:nx-2        %only solve for the points inside the boundaries!   start at 4 b/c at 3 E = 0 so divide by 0 issue in p calculation
+    for i = 4:nx-2        %only solve for the points inside the boundaries!
         %dE = weno approx for dE/dx
         dE = residual(E,flux,dflux,dx,nx,fluxsplit);
         %size(dE)   %RIGHT NOW dE has 156 elements and p has 155 have size mathcing  issue.
@@ -110,7 +110,7 @@ for Ea = Ea_min:increment:Ea_max
               %  continue
             %end
      
-        %p(i)   
+        p(i)   
         p(i+1) = p(i) + dx*(-p(i)/E(i))*dE(i);   %THEER'S A DIVIDE BY 0 ISSUE HERE!! FOR WHEN E is 0.
         
         if isnan(p(i))
@@ -118,15 +118,11 @@ for Ea = Ea_min:increment:Ea_max
         end
        
     end
-   
-    Ea 
+    
+     
   
 end
 %% Final Plot
- plot(x(3:152),p(3:152))
- plot(x(3:152),E(3:152))
-
-
 % plot(x,u0,'-x',x(domain),u(domain),'-'); 
 % axis([a,b,min(u0)-0.1,max(u0)+0.1])
 % title('WENO5, Cell Averages plot','interpreter','latex','FontSize',18);

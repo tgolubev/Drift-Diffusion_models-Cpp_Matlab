@@ -17,6 +17,9 @@ function dF = residual(u,flux,dflux,dx,nx,fluxsplit)
 % Allocate arrays
 hn = zeros(size(vn)); hp = zeros(size(vp));
 
+%Define ghost points
+%NEED TO DO THIS
+
 % Reconstruc h+ and h- fluxes
 for i = 3:nx-2      % from cell 3 to nx-2
     sr = i-2:i+2;   % Stencil range
@@ -25,9 +28,9 @@ end
 % Total flux
 h = hn + hp;
 
-% Set Periodic BC
-h(1:2) = h(nx-4:nx-3);
-h(nx-1:nx) = h(3:4);
+% Set BCs   NEED TO FIGURE THESEE OUT
+%h(1:2) = h(nx-4:nx-3);
+%h(nx-1:nx) = h(3:4);
 
 % Formulate Left and Right fluxes, equiv: % h(i)-h(i-1)
 h_right = h; h_left = circshift(h,[0,1]);

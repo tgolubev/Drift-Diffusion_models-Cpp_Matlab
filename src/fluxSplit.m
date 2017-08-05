@@ -12,10 +12,10 @@ switch strategy
         v = f(u); alpha = abs(df(u));
         vp = 0.5.*(v + alpha.*u); %flux^{+}
         vn = 0.5.*(v - alpha.*u); %flux^{-}
-    case{3} % (Global) Lax-Friedrichs
+    case{3} % (Global) Lax-Friedrichs  %This is most commonly used (see pg. 23 Shu paper: weno for convection dominated problems)
         v = f(u); alpha = max(abs(df(u)));
         vp = 0.5.*(v + alpha.*u); %flux^{+}
         vn = 0.5.*(v - alpha.*u); %flux^{-}
     otherwise
-        error('only cases 1 and 2 are available')
+        error('only cases 1,2, and 3 are available')
 end

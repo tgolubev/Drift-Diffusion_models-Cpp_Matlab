@@ -20,10 +20,11 @@ clear all; close all; clc;
 %% Parameters
 L = 10*10^-9;              %device length in meters
 num_cell = 500;            % number of cells
-p_initial =  10^(27);      %initial hole density
+p_initial =  10^27;        %initial hole density
+p_mob = 2.0*10^-8;         %hole mobility
 
-Va_min = 30.0;             %volts
-Va_max = 30.5;    
+Va_min = 3.0;             %volts
+Va_max = 3.5;    
 V_increment = 0.01;        %for increasing V
 Ea_min = Va_min/L;         %V/m
 Ea_max = Va_max/L;         %maximum applied E
@@ -53,25 +54,28 @@ switch fluxtype
         dflux = @(w) w;
 end
 
-% Domain Discretization
+%% Domain Discretization
 a=0; b=L; x0=linspace(a,b,num_cell); dx=(b-a)/num_cell;   %x0 is positions array
-% Depending on the degree of the WENO stencil we are using, 2 more ghost
-% will have to be added to the final domain.
 
+% 2 more ghost pts on each side have to be added to the final domain.
 x= [-2*dx,-dx,x0,b+dx,b+2*dx];   %array of 5 points which will be used to estimate dJ/dx
 nx = length(x)+1;  %number of x points = num_cell + 4 ghost pts + 1 (# of pts = # of cells +1)
 
 %% Initial Conditions
 %matlab indices can't start with 0 so p(x=0) corresponds to i=1
-for i = 1:3
-    p(i) = p_initial;
-end
+% for i = 1:3
+%     p(i) = p_initial;
+% end
 
-for i = nx-1:nx
+p(1) = 0;
+p(2) = 0;
+p(3) = p_initial;
+
+for i = nx-1:nx   %p at right ghost points
     p(i) = 0;
 end
     
-for i = 1:nx-3      
+for i = 3:nx-3      
     %linearly decreasing p
     dp = p_initial/(num_cell+2);
     p(i+1) = p(i)-dp;
@@ -121,33 +125,48 @@ for Ea = Ea_min:increment:Ea_max
         end
         
         %adjust BC's for p
-        %p(1) = 0;
-        %p(2) = 0;
-        %p(3) = p_initial;   %for conservation of particles
-        for i=1:3
-            p(i) = p_initial;
-        end
-           p(nx) = 0;%p(nx-2);
-           p(nx-1) = 0;% p(nx-2)
-           p(nx-2) = 0;
+        p(1) = 0;
+        p(2) = 0;
+        p(3) = p_initial;   %for conservation of particles
+%         for i=1:3
+%             p(i) = p_initial;
+%         end
+        %p(nx) = 0;%p(nx-2);
+        p(nx-1) = 0;% p(nx-2)
+        p(nx-2) = 0;
         
     iter =  iter+1;
         
     end
         for i = 3:nx-2 
-            Jp(i) =  q*p(i)*E(i);
+            Jp(i) =  q*p_mob*p(i)*E(i);
         end
     Ea
     
 end
-%% Final Plot
- %plot(x(3:152),p(3:152))
- plot(x(3:152),E(3:152))
- %plot(x(3:152),Jp(3:152))
+%% Final Plots
+str=sprintf('%s', 'Va =  ', Ea*L, 'V');
 
+ h1 = plot(x(3:152),p(3:152))
+ hold on
+ title(str,'interpreter','latex','FontSize',18);
+ xlabel('Position (m)','interpreter','latex','FontSize',14);
+ ylabel({'Hole density ($1/m^3$)'},'interpreter','latex','FontSize',14);
+ 
+ figure;
+ h2 = plot(x(3:152),E(3:152))
+ hold on
+ title(str,'interpreter','latex','FontSize',18);
+ xlabel('Position (m)','interpreter','latex','FontSize',14);
+ ylabel({'Electric Field (V/m)'},'interpreter','latex','FontSize',14);
+ 
+ 
+ figure;
+ h3 = plot(x(3:152),Jp(3:152))
+ hold on
+ title(str,'interpreter','latex','FontSize',18);
+ xlabel('Position (m)','interpreter','latex','FontSize',14);
+ ylabel({'Current Density ($A/m^2$)'},'interpreter','latex','FontSize',14);
+ 
+hold off
 
-% plot(x,u0,'-x',x(domain),u(domain),'-'); 
-% axis([a,b,min(u0)-0.1,max(u0)+0.1])
-% title('WENO5, Cell Averages plot','interpreter','latex','FontSize',18);
-% xlabel('$\it{x}$','interpreter','latex','FontSize',14);
-% ylabel({'$\it{u(x)}$'},'interpreter','latex','FontSize',14);

@@ -20,17 +20,18 @@ clear all; close all; clc;
 
 %% Parameters
       cfl = 0.30;   % Courant Number
-       L = 32*10^-9;      %device length in meters
-       nx = 300;    % number of cells
+       L = 10*10^-9;      %device length in meters
+       nx = 500;    % number of cells
+       num_cell = nx;  %this is to keep original num_cells since nx gets changed
        tolerance = 10^-12;   %error tolerance
        
   BC_type = 3;      % {1} Dirichlet, {2} Neumann, {3} Periodic   !THIS SEEMS TO BE NEVER USED
 fluxsplit = 3;      % {1} Godunov, {2} Global LF, {3} Local LF  Defines which flux splitting method to be used
 
 p_initial =  10^(27);   %initial hole density
-Va_min = 300.0;    %volts
-Va_max = 310.0;    %volts
-V_increment = 0.11;         %for increasing V
+Va_min = 30.0;    %volts
+Va_max = 30.5;    %volts
+V_increment = 0.01;         %for increasing V
 Ea_min = Va_min/L;            %V/m
 Ea_max = Va_max/L;               %maximum applied E
 increment = V_increment/L;         %for increasing E
@@ -67,8 +68,19 @@ x= [-2*dx,-dx,x0,b+dx,b+2*dx]; nx = length(x)+1;  %THIS ADDS THE GHOST POINTS 2 
 
 
 % Initial Conditions
-for i = 1:nx       %matlab indices can't start with 0
+for i = 1:3
     p(i) = p_initial;
+end
+
+for i = nx-1:nx
+    p(i) = 0;
+end
+    
+for i = 1:nx-3       %matlab indices can't start with 0
+    %try linearly decreasing p
+    dp = p_initial/(num_cell+2);
+    p(i+1) = p(i)-dp;
+   
     %E0(i) = i*dx*Ea/nx;   %Assume linear initial E 
 end
 
@@ -79,7 +91,7 @@ for Ea = Ea_min:increment:Ea_max
     %E(i=3). And E(nx-2) = E(x=L)
     E(1) = 0;
     E(2) = 0;
-    E(3) = 0;
+    E(3) = Ea;
     
     %right side boundary will be determined by Newton's method solving of
     %Poisson eqn.
@@ -131,11 +143,15 @@ for Ea = Ea_min:increment:Ea_max
         end
         
         %adjust BC's for p
+        %p(1) = 0;
+        %p(2) = 0;
+        %p(3) = p_initial;   %for conservation of particles
         for i=1:3
-            p(i) = p(4);
+            p(i) = p_initial;
         end
            p(nx) = 0;%p(nx-2);
            p(nx-1) = 0;% p(nx-2)
+           p(nx-2) = 0;
         
     iter =  iter+1;
     iter
@@ -150,9 +166,9 @@ for Ea = Ea_min:increment:Ea_max
     
 end
 %% Final Plot
- plot(x(3:152),p(3:152))
+ %plot(x(3:152),p(3:152))
  plot(x(3:152),E(3:152))
- plot(x(3:152),Jp(3:152))
+ %plot(x(3:152),Jp(3:152))
 
 
 % plot(x,u0,'-x',x(domain),u(domain),'-'); 

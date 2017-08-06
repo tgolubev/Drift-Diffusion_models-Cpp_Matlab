@@ -20,16 +20,16 @@ clear all; close all; clc;
 
 %% Parameters
       cfl = 0.30;   % Courant Number
-       L = 72*10^-9;      %device length in meters
-       nx = 300;    % number of cells
+       L = 10*10^-9;      %device length in meters
+       nx = 500;    % number of cells
        tolerance = 10^-12;   %error tolerance
        
   BC_type = 3;      % {1} Dirichlet, {2} Neumann, {3} Periodic   !THIS SEEMS TO BE NEVER USED
 fluxsplit = 3;      % {1} Godunov, {2} Global LF, {3} Local LF  Defines which flux splitting method to be used
 
 p_initial =  10^(27);   %initial hole density
-Va_min = 1.0;    %volts
-Va_max = 2.0;    %volts
+Va_min = 3.0;    %volts
+Va_max = 3.5;    %volts
 V_increment = 0.01;         %for increasing V
 Ea_min = Va_min/L;            %V/m
 Ea_max = Va_max/L;               %maximum applied E
@@ -131,8 +131,14 @@ for Ea = Ea_min:increment:Ea_max
         end
         
         %adjust BC's for p
+        p(1) = 0;
+        p(2) = 0;
+        p(3) = p_initial;   %for conservation of particles
         for i=1:3
-            p(i) = max(p);
+            p(i) = p(4);
+        end
+           p(nx) = 0;%p(nx-2);
+           p(nx-1) = 0;% p(nx-2)
         
     iter =  iter+1;
     iter
@@ -145,12 +151,11 @@ for Ea = Ea_min:increment:Ea_max
   
     
     
-     %NEED TO ADD CONVERGENCE CRITEREA1!!!!! DON'T GO TO 
 end
 %% Final Plot
- plot(x(3:152),p(3:152))
+ %plot(x(3:152),p(3:152))
  plot(x(3:152),E(3:152))
- plot(x(3:152),Jp(3:152))
+ %plot(x(3:152),Jp(3:152))
 
 
 % plot(x,u0,'-x',x(domain),u(domain),'-'); 

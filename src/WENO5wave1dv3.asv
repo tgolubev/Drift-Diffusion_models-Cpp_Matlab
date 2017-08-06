@@ -20,21 +20,25 @@ clear all; close all; clc;
 
 %% Parameters
       cfl = 0.30;   % Courant Number
-       L = 70;      %device length 
-       nx = 150;    % number of cells
+       L = 72*10^-9;      %device length in meters
+       nx = 300;    % number of cells
+       tolerance = 10^-12;   %error tolerance
        
   BC_type = 3;      % {1} Dirichlet, {2} Neumann, {3} Periodic   !THIS SEEMS TO BE NEVER USED
 fluxsplit = 3;      % {1} Godunov, {2} Global LF, {3} Local LF  Defines which flux splitting method to be used
 
-p_initial =  10^(-3);   %initial hole density
-Ea_min = 1;
-Ea_max = 2;               %maximum applied E
-increment = 0.01;         %for increasing E
+p_initial =  10^(27);   %initial hole density
+Va_min = 1.0;    %volts
+Va_max = 2.0;    %volts
+V_increment = 0.01;         %for increasing V
+Ea_min = Va_min/L;            %V/m
+Ea_max = Va_max/L;               %maximum applied E
+increment = V_increment/L;         %for increasing E
 
 %% Physical Constants
-q =  1.60*10^-16;
-epsilon_0 =  8.854*10^-12;
-epsilon = 3.8*epsilon_0;
+q =  1.60217646*10^-19;         %elementary charge, C
+epsilon_0 =  8.85418782*10^-12; %F/m
+epsilon = 3.8*epsilon_0;        %dielectric constant of P3HT:PCBM
 
 
 %% Define our Flux function
@@ -86,43 +90,69 @@ for Ea = Ea_min:increment:Ea_max
 %     plotrange = [a,b,min(u0)-0.1,max(u0)+0.1];
 
     %% Solver Loop
-    %Poisson equation with Newton's method
-    for i = 3:nx-2       %only solve for E inside the device (points 1,2, nx-1, and nx are outside device. point 3 is used to enforce E(x=0) = 0 BC.
-        E(i+1) = E(i) + (q/epsilon)*p(i)*dx;   %means with initial constant p(i), this will be linear
-    end
+    iter = 0;
+    error_p =  1.0;
+    while error_p > tolerance
     
-    E(nx-1) = E(nx-2);
-    E(nx) = E(nx-2);
-    E
-    
-    
-
-    
-    for i = 4:nx-2        %only solve for the points inside the boundaries!
-        %dE = weno approx for dE/dx
-        dE = residual(E,flux,dflux,dx,nx,fluxsplit);
-        %size(dE)   %RIGHT NOW dE has 156 elements and p has 155 have size mathcing  issue.
         
-        %to fix divide by 0 issue
-       % for j =  1:nx
-            %if dE(i) == 0
-             %   p(i+1) = p(i);
-              %  continue
-            %end
-     
-        p(i)   
-        p(i+1) = p(i) + dx*(-p(i)/E(i))*dE(i);   %THEER'S A DIVIDE BY 0 ISSUE HERE!! FOR WHEN E is 0.
-        
-        if isnan(p(i))
-            stopstatement
+        %Poisson equation with Newton's method
+        for i = 3:nx-3       %only solve for E inside the device (points 1,2, nx-1, and nx are outside device. point 3 is used to enforce E(x=0) = 0 BC.
+            E(i+1) = E(i) + (q/epsilon)*p(i)*dx;   %means with initial constant p(i), this will be linear
         end
-       
+
+        E(nx-1) = E(nx-2);
+        E(nx) = E(nx-2);
+        %E
+
+
+        for i = 4:nx-3        %only solve for the points inside the boundaries!   start at 4 b/c at 3 E = 0 so divide by 0 issue in p calculation
+            %dE = weno approx for dE/dx
+            dE = residual(E,flux,dflux,dx,nx,fluxsplit);
+            %size(dE)   %RIGHT NOW dE has 156 elements and p has 155 have size mathcing  issue.
+
+            %to fix divide by 0 issue
+           % for j =  1:nx
+                %if dE(i) == 0
+                 %   p(i+1) = p(i);
+                  %  continue
+                %end
+            old_p = p;
+            %p(i)   
+            p(i+1) = p(i) + dx*(-p(i)/E(i))*dE(i);   %THEER'S A DIVIDE BY 0 ISSUE HERE!! FOR WHEN E is 0.
+            
+            
+            
+            error_p = max(abs(p-old_p)/old_p);
+
+            if isnan(p(i))
+                stopstatement
+            end
+
+        end
+        
+        %adjust BC's for p
+        for i=1:3
+            p(i) = max(p);
+        
+    iter =  iter+1;
+    iter
+        
     end
-    
-     
+        for i = 3:nx-2 
+            Jp(i) =  q*p(i)*E(i);
+        end
+        Ea
   
+    
+    
+     %NEED TO ADD CONVERGENCE CRITEREA1!!!!! DON'T GO TO 
 end
 %% Final Plot
+ plot(x(3:152),p(3:152))
+ plot(x(3:152),E(3:152))
+ plot(x(3:152),Jp(3:152))
+
+
 % plot(x,u0,'-x',x(domain),u(domain),'-'); 
 % axis([a,b,min(u0)-0.1,max(u0)+0.1])
 % title('WENO5, Cell Averages plot','interpreter','latex','FontSize',18);

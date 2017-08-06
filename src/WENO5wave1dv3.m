@@ -23,8 +23,8 @@ num_cell = 500;            % number of cells
 p_initial =  10^27;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
-Va_min = 3.0;             %volts
-Va_max = 3.5;    
+Va_min = 0.9;             %volts
+Va_max = 1.0;    
 V_increment = 0.01;        %for increasing V
 Ea_min = Va_min/L;         %V/m
 Ea_max = Va_max/L;         %maximum applied E
@@ -136,6 +136,7 @@ for Ea = Ea_min:increment:Ea_max
         p(nx-2) = 0;
         
     iter =  iter+1;
+    iter
         
     end
         for i = 3:nx-2 
@@ -145,27 +146,28 @@ for Ea = Ea_min:increment:Ea_max
     
 end
 %% Final Plots
-str=sprintf('%s', 'Va =  ', Ea*L, 'V');
+Va_final = Ea*L;
+str=sprintf('%.3f', Va_final)   %.3 precision operator sets 3 decimals
 
- h1 = plot(x(3:152),p(3:152))
+ h1 = plot(x(3:num_cell),p(3:num_cell))
  hold on
- title(str,'interpreter','latex','FontSize',18);
- xlabel('Position (m)','interpreter','latex','FontSize',14);
+ title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
+ xlabel('Position ($m$)','interpreter','latex','FontSize',14);
  ylabel({'Hole density ($1/m^3$)'},'interpreter','latex','FontSize',14);
  
  figure;
- h2 = plot(x(3:152),E(3:152))
+ h2 = plot(x(3:num_cell),E(3:num_cell))
  hold on
- title(str,'interpreter','latex','FontSize',18);
- xlabel('Position (m)','interpreter','latex','FontSize',14);
+ title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
+ xlabel('Position ($m$)','interpreter','latex','FontSize',14);
  ylabel({'Electric Field (V/m)'},'interpreter','latex','FontSize',14);
  
  
  figure;
- h3 = plot(x(3:152),Jp(3:152))
+ h3 = plot(x(3:num_cell),Jp(3:num_cell))
  hold on
- title(str,'interpreter','latex','FontSize',18);
- xlabel('Position (m)','interpreter','latex','FontSize',14);
+ title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
+ xlabel('Position ($m$)','interpreter','latex','FontSize',14);
  ylabel({'Current Density ($A/m^2$)'},'interpreter','latex','FontSize',14);
  
 hold off

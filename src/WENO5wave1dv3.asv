@@ -23,8 +23,8 @@ num_cell = 500;            % number of cells
 p_initial =  10^27;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
-Va_min = 30.0;             %volts
-Va_max = 30.5;    
+Va_min = 1.0;             %volts
+Va_max = 1.1;    
 V_increment = 0.01;        %for increasing V
 Ea_min = Va_min/L;         %V/m
 Ea_max = Va_max/L;         %maximum applied E
@@ -63,15 +63,19 @@ nx = length(x)+1;  %number of x points = num_cell + 4 ghost pts + 1 (# of pts = 
 
 %% Initial Conditions
 %matlab indices can't start with 0 so p(x=0) corresponds to i=1
-for i = 1:3
-    p(i) = p_initial;
-end
+% for i = 1:3
+%     p(i) = p_initial;
+% end
 
-for i = nx-1:nx
+p(1) = 0;
+p(2) = 0;
+p(3) = p_initial;
+
+for i = nx-1:nx   %p at right ghost points
     p(i) = 0;
 end
     
-for i = 1:nx-3      
+for i = 3:nx-3      
     %linearly decreasing p
     dp = p_initial/(num_cell+2);
     p(i+1) = p(i)-dp;
@@ -124,12 +128,12 @@ for Ea = Ea_min:increment:Ea_max
         p(1) = 0;
         p(2) = 0;
         p(3) = p_initial;   %for conservation of particles
-        for i=1:3
-            p(i) = p_initial;
-        end
-           p(nx) = 0;%p(nx-2);
-           p(nx-1) = 0;% p(nx-2)
-           p(nx-2) = 0;
+%         for i=1:3
+%             p(i) = p_initial;
+%         end
+        %p(nx) = 0;%p(nx-2);
+        p(nx-1) = 0;% p(nx-2)
+        p(nx-2) = 0;
         
     iter =  iter+1;
         
@@ -141,15 +145,20 @@ for Ea = Ea_min:increment:Ea_max
     
 end
 %% Final Plots
+format short      %set number display format
+Va_final = Ea*L;
+str=sprintf('%.3f', Va_final)   %.3 precision operator sets 3 decimals
+
  h1 = plot(x(3:152),p(3:152))
  hold on
- %title('Hole density','interpreter','latex','FontSize',18);
+ title(['Va =', str],'FontSize',18);
  xlabel('Position (m)','interpreter','latex','FontSize',14);
  ylabel({'Hole density ($1/m^3$)'},'interpreter','latex','FontSize',14);
  
  figure;
  h2 = plot(x(3:152),E(3:152))
  hold on
+ title(str,'interpreter','latex','FontSize',18);
  xlabel('Position (m)','interpreter','latex','FontSize',14);
  ylabel({'Electric Field (V/m)'},'interpreter','latex','FontSize',14);
  
@@ -157,6 +166,7 @@ end
  figure;
  h3 = plot(x(3:152),Jp(3:152))
  hold on
+ title(str,'interpreter','latex','FontSize',18);
  xlabel('Position (m)','interpreter','latex','FontSize',14);
  ylabel({'Current Density ($A/m^2$)'},'interpreter','latex','FontSize',14);
  

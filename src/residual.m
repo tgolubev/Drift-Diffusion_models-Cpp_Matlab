@@ -1,13 +1,13 @@
 function dF = residual(u,flux,dflux,dx,nx,fluxsplit)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%       Compute the Residual for 1d wave equation using WENO5
+%                   Compute the Residual using WENO5
 %
-%                      Residual = dF/dx
-%             where F = is our WENO Flux across cells
+%                         Residual = dF/dx
+%             where  F= is our WENO Flux across cells
 %
-%        THIS IS THE WENO finite diff. approximation of the 1st derivative
+%   This is the WENO finite diff. approximation of the 1st derivative
 %
-%              coded by Manuel Diaz, NTU, 2012.08.20
+%  Slightly modified from original code by Manuel Diaz, NTU, 2012.08.20
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -26,7 +26,7 @@ end
 % Total flux
 h = hn + hp;
 
-% Set BCs   NEED TO FIGURE THESEE OUT
+% Set BCs   
 h(2) = 0;     %to enforce conservation, h(2) is hi-1/2 for the x = 0 point. 
 h(nx-1) = 0;   % is hi+1/2 for the x=L point
 

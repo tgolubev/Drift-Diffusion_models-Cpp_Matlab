@@ -18,14 +18,15 @@
 clear all; close all; clc;
 
 %% Parameters
-L = 10*10^-9;              %device length in meters
-num_cell = 500;            % number of cells
+L = 100*10^-9;              %device length in meters
+num_cell = 200;            % number of cells
 p_initial =  10^27;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
-Va_min = 0.9;             %volts
-Va_max = 1.0;    
-V_increment = 0.01;        %for increasing V
+
+Va_min = 1;             %volts
+Va_max = 100;    
+V_increment = 1;        %for increasing V
 Ea_min = Va_min/L;         %V/m
 Ea_max = Va_max/L;         %maximum applied E
 increment = V_increment/L; %for increasing E
@@ -58,7 +59,7 @@ end
 a=0; b=L; x0=linspace(a,b,num_cell); dx=(b-a)/num_cell;   %x0 is positions array
 
 % 2 more ghost pts on each side have to be added to the final domain.
-x= [-2*dx,-dx,x0,b+dx,b+2*dx];   %array of 5 points which will be used to estimate dJ/dx
+x= [-2*dx,-dx,x0,b+dx,b+2*dx];   
 nx = length(x)+1;  %number of x points = num_cell + 4 ghost pts + 1 (# of pts = # of cells +1)
 
 %% Initial Conditions
@@ -136,39 +137,68 @@ for Ea = Ea_min:increment:Ea_max
         p(nx-2) = 0;
         
     iter =  iter+1;
-    iter
+    
         
     end
         for i = 3:nx-2 
             Jp(i) =  q*p_mob*p(i)*E(i);
         end
-    Ea
+    %Ea
+    
+    %Save data
+    str = sprintf('%.2f',Ea*L);
+    filename = [str 'V.txt'] 
+    fid = fopen(fullfile('C:\Users\Tim\Documents\Duxbury group research\WENO\Mott-Gurney_law_WENO\Benchmarks\',filename),'w');   %w: Open or create new file for writing
+    %fullfile allows to make filename from parts
+    for i = 3:nx-2
+        fprintf(fid,'%.8e %.8e %.8e %.8e\r\n ',x(i), p(i), E(i), Jp(i)); 
+        %f means scientific notation, \r\n: start new line for each value
+        %for each new desired column, put its own % sign
+      
+    end
+    fclose(fid);
     
 end
-%% Final Plots
-Va_final = Ea*L;
-str=sprintf('%.3f', Va_final)   %.3 precision operator sets 3 decimals
 
- h1 = plot(x(3:num_cell),p(3:num_cell))
+
+%% Final Plots
+
+%Analytic Result Calculation
+for i=3:nx-3
+    E_theory1(i) = sqrt(2*x(i)*Jp(nx-3)/(epsilon*p_mob));
+    E_theory2(i)= sqrt(2*x(i)*Jp(i)/(epsilon*p_mob));
+    
+%     E_theory1(i) = sqrt(2*x(i)*Jp(nx-3)/(epsilon*p_mob)+Ea^2);
+%     E_theory2(i)= sqrt(2*x(i)*Jp(i)/(epsilon*p_mob)+Ea^2);
+end
+
+Va_final = Ea*L;
+str=sprintf('%.3f', Va_final);   %.3 precision operator sets 3 decimals
+
+ h1 = plot(x(3:num_cell),p(3:num_cell));
  hold on
  title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
  ylabel({'Hole density ($1/m^3$)'},'interpreter','latex','FontSize',14);
  
  figure;
- h2 = plot(x(3:num_cell),E(3:num_cell))
+ h2 = plot(x(3:num_cell),E(3:num_cell));
  hold on
+ plot(x(3:num_cell),E_theory1(3:num_cell));
+ plot(x(3:num_cell),E_theory2(3:num_cell));
  title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
  ylabel({'Electric Field (V/m)'},'interpreter','latex','FontSize',14);
  
  
  figure;
- h3 = plot(x(3:num_cell),Jp(3:num_cell))
+ h3 = plot(x(3:num_cell),Jp(3:num_cell));
  hold on
  title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
  ylabel({'Current Density ($A/m^2$)'},'interpreter','latex','FontSize',14);
+ 
+ 
  
 hold off
 

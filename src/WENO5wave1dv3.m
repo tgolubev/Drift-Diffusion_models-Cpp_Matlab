@@ -19,7 +19,7 @@ clear all; close all; clc;
 
 %% Parameters
 L = 100*10^-9;              %device length in meters
-num_cell = 200;            % number of cells
+num_cell = 200.000;            % number of cells
 p_initial =  10^27;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
@@ -56,11 +56,11 @@ switch fluxtype
 end
 
 %% Domain Discretization
-a=0; b=L; x0=linspace(a,b,num_cell); dx=(b-a)/num_cell;   %x0 is positions array
+a=0; b=L; x0=linspace(a,b,num_cell+1); dx=(b-a)/num_cell;   %x0 is positions array, +1 necessary b/c linspace needs (# of pts = # of cells +1)
 
 % 2 more ghost pts on each side have to be added to the final domain.
 x= [-2*dx,-dx,x0,b+dx,b+2*dx];   
-nx = length(x)+1;  %number of x points = num_cell + 4 ghost pts + 1 (# of pts = # of cells +1)
+nx = length(x);  
 
 %% Initial Conditions
 %matlab indices can't start with 0 so p(x=0) corresponds to i=1

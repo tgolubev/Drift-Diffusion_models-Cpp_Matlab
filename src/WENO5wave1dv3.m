@@ -19,13 +19,13 @@ clear all; close all; clc;
 
 %% Parameters
 L = 100*10^-9;              %device length in meters
-num_cell = 200.000;            % number of cells
+num_cell = 200;            % number of cells
 p_initial =  10^27;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
 
 Va_min = 1;             %volts
-Va_max = 100;    
+Va_max = 10;    
 V_increment = 1;        %for increasing V
 Ea_min = Va_min/L;         %V/m
 Ea_max = Va_max/L;         %maximum applied E
@@ -108,6 +108,7 @@ for Ea = Ea_min:increment:Ea_max
         E(nx-1) = E(nx-2);
         E(nx) = E(nx-2);
 
+        %Solve for new p
         for i = 4:nx-3        %only solve for the points inside the boundaries!   start at 4 b/c at 3 E = 0 so divide by 0 issue in p calculation
             %dE = weno approx for dE/dx
             dE = residual(E,flux,dflux,dx,nx,fluxsplit);
@@ -129,17 +130,13 @@ for Ea = Ea_min:increment:Ea_max
         p(1) = 0;
         p(2) = 0;
         p(3) = p_initial;   %for conservation of particles
-%         for i=1:3
-%             p(i) = p_initial;
-%         end
-        %p(nx) = 0;%p(nx-2);
-        p(nx-1) = 0;% p(nx-2)
-        p(nx-2) = 0;
-        
-    iter =  iter+1;
+        p(nx) = 0;
+        p(nx-1) = 0;
     
-        
+       iter =  iter+1;    
     end
+    
+        %Calculate Jp
         for i = 3:nx-2 
             Jp(i) =  q*p_mob*p(i)*E(i);
         end

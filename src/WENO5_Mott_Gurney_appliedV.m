@@ -19,20 +19,21 @@ clear all; close all; clc;
 
 %% Parameters
 L = 100*10^-9;              %device length in meters
-num_cell = 200;            % number of cells
+num_cell = 500;            % number of cells
 p_initial =  10^27;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
 
-Va_min = 1;             %volts
-Va_max = 10;    
-V_increment = 1;        %for increasing V
-Ea_min = Va_min/L;         %V/m
-Ea_max = Va_max/L;         %maximum applied E
-increment = V_increment/L; %for increasing E
+Va_min = 190;             %volts
+Va_max = 200;    
+increment = 1;        %for increasing V
+%Ea_min = Va_min/L;         %V/m
+%Ea_max = Va_max/L;         %maximum applied E
+%increment = V_increment/L; %for increasing E
 
 %Simulation parameters
 tolerance = 10^-14;   %error tolerance       
+constant_p_i = true;
 fluxsplit = 3;        % {1} Godunov, {2} Global LF, {3} Local LF  Defines which flux splitting method to be used
 
 %% Physical Constants
@@ -68,21 +69,23 @@ nx = length(x);
 %     p(i) = p_initial;
 % end
 
-p(1) = 0;
-p(2) = 0;
-p(3) = p_initial;
-
-for i = nx-1:nx   %p at right ghost points
-    p(i) = 0;
-end
-    
-for i = 3:nx-3      
+if(constant_p_i)
+    for i = 3:nx-3
+        p(i) = p_initial;
+    end
+else
     %linearly decreasing p
-    dp = p_initial/(num_cell+2);
-    p(i+1) = p(i)-dp;
+    p(3) = p_initial;
+    for i = 3:nx-3     
+        
+        dp = p_initial/(num_cell+1);
+        p(i+1) = p(i)-dp;
+    end
 end
 
-for Ea = Ea_min:increment:Ea_max
+    Ea_cnt = 0;
+for Va = Va_min:increment:Va_max
+    Ea_cnt = Ea_cnt +1;
     
     %Boundary conditions
     %because need 2 ghost points to left and right and matlab indices arrays from 1, means that E(x=0) =
@@ -107,17 +110,30 @@ for Ea = Ea_min:increment:Ea_max
         %Define E at right side ghost points
         E(nx-1) = E(nx-2);
         E(nx) = E(nx-2);
+        
+        %dE = weno approx for dE/dx
+        dE = residual(E,flux,dflux,dx,nx,fluxsplit);     %this calculates the entire dE array
+        
+        %RIGHT NOW HAVING ISSUE THAT THE dE(3) is too large: having
+        %issue doing the boundary derivative estimate properly
 
+        %try for i=3 to estimate derivative by  standard finite
+        %difference:  THIS SOLVED BOTH THE KINK IN E GRAPH AND ISSUE OF STARTING AT I=3 NOT WORKING!
+
+        dE(3) = (E(4)-E(3))/dx;
+        
         %Solve for new p
-        for i = 4:nx-3        %only solve for the points inside the boundaries!   start at 4 b/c at 3 E = 0 so divide by 0 issue in p calculation
-            %dE = weno approx for dE/dx
-            dE = residual(E,flux,dflux,dx,nx,fluxsplit);
- 
+        for i = 3:nx-3        %only solve for the points inside the boundaries!  
+          
+            %attempt upwind standard derivatives for entire region
+            %dE(i) = (E(i+1)-E(i))/dx;       %THIS WORKS!
+           
             old_p = p;
   
             p(i+1) = p(i) + dx*(-p(i)/E(i))*dE(i);   %there's divide by 0 issue here if E(i) = 0
             
-            error_p = max(abs(p-old_p)/old_p);
+            error_p = max(abs(p-old_p)/abs(old_p));
+         
 
             %stop run if NaN
             if isnan(p(i))
@@ -134,12 +150,15 @@ for Ea = Ea_min:increment:Ea_max
         p(nx-1) = 0;
     
        iter =  iter+1;    
+       iter
     end
     
-        %Calculate Jp
-        for i = 3:nx-2 
-            Jp(i) =  q*p_mob*p(i)*E(i);
-        end
+    %Calculate Jp
+    for i = 3:nx-2 
+        Jp(i) =  q*p_mob*p(i)*E(i);
+    end
+    Jp_final(Ea_cnt) = Jp(nx-2)        %take rightmost Jp value as the constant final value
+    V(Ea_cnt) = L*Ea;    %ISSUE IS THAT CAN'T DO THIS since V = integral(E*dx): so to be able to get JV curve need to initially specify in terms of V not E.
     %Ea
     
     %Save data
@@ -194,6 +213,9 @@ str=sprintf('%.3f', Va_final);   %.3 precision operator sets 3 decimals
  title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
  ylabel({'Current Density ($A/m^2$)'},'interpreter','latex','FontSize',14);
+ 
+ figure
+ h4 = plot(V,Jp_final);
  
  
  

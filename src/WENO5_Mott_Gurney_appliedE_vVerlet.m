@@ -27,7 +27,7 @@ p_initial =  10^27;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
 Va_min = 5;              %volts
-Va_max = 6;    
+Va_max = 100;    
 V_increment = 1;           %for increasing V
 Ea_min = Va_min/L;         %V/m
 Ea_max = Va_max/L;         %maximum applied E
@@ -35,7 +35,7 @@ increment = V_increment/L; %for increasing E
 
 %Simulation parameters
 constant_p_i = true;
-tolerance = 10^-15;   %error tolerance       
+tolerance = 10^-14;   %error tolerance       
 fluxsplit = 3;        % {1} Godunov, {2} Global LF, {3} Local LF  Defines which flux splitting method to be used
 
 %% Physical Constants
@@ -148,7 +148,7 @@ for Ea = Ea_min:increment:Ea_max
         %difference:  
         dE(3) = (E(4)-E(3))/dx;
 
-        %Solve for new p
+        % Solve for new p
         old_p = p;    %for computing error
         for i = 3:nx-3        %only solve for the points inside the boundaries!  
           
@@ -184,11 +184,18 @@ for Ea = Ea_min:increment:Ea_max
   
     %Ea
     
-    %Save data
-    %Calculate Va_final for each Ea by integrating analytic expression for E: E =
+    %Calculations for JV curve
+    %Calculate Va_final for each Ea by integrating E
+    V(Ea_cnt) = 0;
+    Jp_final(Ea_cnt) = Jp(nx-3);  %just pick Jp at the right side
+    for i = 3:nx-2
+        V(Ea_cnt) = V(Ea_cnt) + E(i)*dx;
+    end    
+    
     %sqrt(2Jx/p_mob*epsilon)). THIS GIVES HUGE NUMBERS!
     %Va_final(Ea_cnt) = (2/3)*sqrt(2*Jp(nx-3)/(epsilon*p_mob))*L^(2/3)
     
+    % Save data
     %str = sprintf('%.2f',Ea*L);
     str = sprintf('%.2g',Ea);
     filename = [str 'V.txt'] 
@@ -211,9 +218,11 @@ end
 for i=3:nx-3
     E_theory1(i) = sqrt(2*x(i)*Jp(nx-3)/(epsilon*p_mob));
     E_theory2(i)= sqrt(2*x(i)*Jp(i)/(epsilon*p_mob));
-    
 %     E_theory1(i) = sqrt(2*x(i)*Jp(nx-3)/(epsilon*p_mob)+Ea^2);
 %     E_theory2(i)= sqrt(2*x(i)*Jp(i)/(epsilon*p_mob)+Ea^2);
+end
+for j = 1:Ea_cnt
+    Jp_theory(j) = (9*p_mob*epsilon*(V(j))^2)/(8*L^3);
 end
 
 %Va_final = Ea*L;
@@ -243,10 +252,18 @@ str = sprintf('%.2g', Ea);
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
  ylabel({'Current Density ($A/m^2$)'},'interpreter','latex','FontSize',14);
  
+ %JV curve
+ figure
+ h4 = plot(V,Jp_final);
+ hold on
+ plot(V, Jp_theory);
+ xlabel('Voltage (V)','interpreter','latex','FontSize',14);
+ ylabel({'Current Density ($A/m^2$)'},'interpreter','latex','FontSize',14);
+ 
  %convergence analysis
  iterations = 1:iter;
  figure
- h4 = plot(iterations, E_solution);
+ h5 = plot(iterations, E_solution);
  title(['E convergence', str, 'V/m'],'interpreter','latex','FontSize',16);
  xlabel('Iterations','interpreter','latex','FontSize',14);
  ylabel({'Electric Field (V/m)'},'interpreter','latex','FontSize',14);

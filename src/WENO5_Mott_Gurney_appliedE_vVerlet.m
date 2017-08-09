@@ -22,18 +22,19 @@ clear all; close all; clc;
 
 %% Parameters
 L = 100*10^-9;             %device length in meters
-num_cell = 5000;            % number of cells
+num_cell = 4000;            % number of cells
 p_initial =  10^27;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
 Va_min = 5;              %volts
-Va_max = 100;    
+Va_max = 6;    
 V_increment = 1;           %for increasing V
 Ea_min = Va_min/L;         %V/m
 Ea_max = Va_max/L;         %maximum applied E
 increment = V_increment/L; %for increasing E
 
 %Simulation parameters
+w= 0.1;      %weighting factor
 constant_p_i = true;
 tolerance = 10^-14;   %error tolerance       
 fluxsplit = 3;        % {1} Godunov, {2} Global LF, {3} Local LF  Defines which flux splitting method to be used
@@ -134,9 +135,14 @@ for Ea = Ea_min:increment:Ea_max
             E(i+1) = E(i) + (q/epsilon)*p_calc(i)*dx+ 0.5*dx^2*(q/epsilon)*dp(i);   
         end
         
+       
         %Define E at right side ghost points
         E(nx-1) = E(nx-2);
         E(nx) = E(nx-2);
+        
+        %weight E
+        old_E = E;
+        E = w*E + (1.-w)*old_E;
         
         %dE = weno approx for dE/dx
         dE = residual(E,flux,dflux,dx,nx,fluxsplit);     %this calculates the entire dE array
@@ -147,6 +153,8 @@ for Ea = Ea_min:increment:Ea_max
         %try for i=3 to estimate derivative by  standard finite
         %difference:  
         dE(3) = (E(4)-E(3))/dx;
+        
+      
 
         % Solve for new p
         old_p = p;    %for computing error
@@ -164,13 +172,15 @@ for Ea = Ea_min:increment:Ea_max
             end
         end
         
+        %try weighting
+        p = w*p + (1.-w)*old_p;
+        
         error_p = max(abs(p-old_p)/abs(old_p))
         
         %adjust BC's for p: IS NOT NECESSARY B/C p(3) is never recalculated
         %p(3) = p_initial;   %for conservation of particles
     
-       iter =  iter+1;    
-       iter
+       iter =  iter+1   
        
        if(Ea == Ea_max) %only for last run
             E_solution(iter) = E(50);    % save E at random point for each iter for convergence analysis

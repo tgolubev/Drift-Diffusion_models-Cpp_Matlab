@@ -19,13 +19,13 @@ clear all; close all; clc;
 
 %% Parameters
 L = 100*10^-9;              %device length in meters
-num_cell = 500;            % number of cells
+num_cell = 5000;            % number of cells
 p_initial =  10^27;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
 
-Va_min = 190;             %volts
-Va_max = 200;    
+Va_min = 500;             %volts
+Va_max = 510;    
 increment = 1;        %for increasing V
 %Ea_min = Va_min/L;         %V/m
 %Ea_max = Va_max/L;         %maximum applied E
@@ -69,12 +69,13 @@ nx = length(x);
 %     p(i) = p_initial;
 % end
 
+
 if(constant_p_i)
     for i = 3:nx-3
         p(i) = p_initial;
     end
 else
-    %linearly decreasing p
+    %linearly decreasing p: this doesn't work well
     p(3) = p_initial;
     for i = 3:nx-3     
         
@@ -83,16 +84,16 @@ else
     end
 end
 
-    Ea_cnt = 0;
+    Va_cnt = 0;
 for Va = Va_min:increment:Va_max
-    Ea_cnt = Ea_cnt +1;
+    Va_cnt = Va_cnt +1;
     
     %Boundary conditions
     %because need 2 ghost points to left and right and matlab indices arrays from 1, means that E(x=0) =
     %E(i=3). And E(nx-2) = E(x=L)
-    E(1) = 0;
-    E(2) = 0;
-    E(3) = Ea;
+    %E(1) = 0;
+    %E(2) = 0;
+    %E(3) = Ea;
     
     %right side boundary will be determined by Newton's method solving of
     %Poisson eqn.
@@ -100,66 +101,105 @@ for Va = Va_min:increment:Va_max
     %% Solver Loop
     iter = 0;
     error_p =  1.0;
+    
+    %set up AV_val: these never change so do outside of loop
+    %set up using sparse matrix (just store the lower diag, main diag,upper
+    %diag in num_pts x 3 matrix AV_val.
+    num_pts = nx-3-4+1; %(=# no;  %setup the matrix
+    A = zeros(num_pts,3);
+    A(:,1) = 1.;
+    A(:,3) = 1.;
+    A(:,2) = -2.;
+    
+    %setup  sparse matrix
+    AV = spdiags(A,-1:1,num_pts,num_pts);  %A = spdiags(B,d,m,n) creates an m-by-n sparse matrix by taking the columns of B and placing them along the diagonals specified by d.
+    
+    
+    
+    %allocate matrices/arrays
+    V = zeros(num_pts,1);
+    bV = zeros(num_pts,1);
+    
+    %This sets up an entire matrix: is inefficient
+%     num_pts = nx-3-4+1; %(=# nodes inside bndrys +1) ;
+%     %define indices as integers so i==j works
+%     %i = int8;
+%     %j = int8;
+%     for i = 1:num_pts
+%         for j  = 1:num_pts
+%             if i==j
+%                 AV_val(i,j) = -2.;
+%             else if abs(i-j) == 1
+%                 AV_val(i,j) = 1;
+%             else
+%                 AV_val(i,j) = 0;
+%             end
+%             end
+%         end
+%     end        
+    %AV_val
+                    
+    
     while error_p > tolerance
         
-        %Poisson equation with Euler's method
-        for i = 3:nx-3       %only solve for E inside the device (points 1,2, nx-1, and nx are outside device. point 3 is used to enforce E(x=0) = 0 BC.
-            E(i+1) = E(i) + (q/epsilon)*p(i)*dx;   %means with initial constant p(i), this will be linear
+        %Poisson equation with tridiagonal solver
+    
+        % setup bV
+        for i = 1: num_pts
+            bV(i,1) = -dx^2*(q/epsilon)*p(i+3);    %bV(i) corresponds to 1st point inside device which is 4 so i+3
         end
+        %for bndrys (AV and bV will be solved on range 4:nx-3)
+        bV(1,1) = bV(1,1) - Va;%V(3);
+        bV(num_pts,1) = bV(num_pts,1) - 0;%V(nx-2);
         
-        %Define E at right side ghost points
-        E(nx-1) = E(nx-2);
-        E(nx) = E(nx-2);
+        %call solver, solve for V
+        V =  AV\bV;
         
-        %dE = weno approx for dE/dx
-        dE = residual(E,flux,dflux,dx,nx,fluxsplit);     %this calculates the entire dE array
+        %make V with ghost points and bndry pts
+        fullV = [0; 0; Va; V; 0; 0; 0];
         
+        %Define psi at right side ghost points
+        %V(nx-1) = V(nx-2);
+        %V(nx) = V(nx-2);
+        
+        %dV = weno approx for dV/dx
+        dV = residual(fullV,flux,dflux,dx,nx,fluxsplit);     %this calculates the entire dE array
+        
+        E = -dV;
+        
+        %now solve eqn for p
+        dE = residual(E,flux,dflux,dx,nx,fluxsplit);
         %RIGHT NOW HAVING ISSUE THAT THE dE(3) is too large: having
         %issue doing the boundary derivative estimate properly
 
         %try for i=3 to estimate derivative by  standard finite
-        %difference:  THIS SOLVED BOTH THE KINK IN E GRAPH AND ISSUE OF STARTING AT I=3 NOT WORKING!
+        %difference:  
 
         dE(3) = (E(4)-E(3))/dx;
         
         %Solve for new p
-        for i = 3:nx-3        %only solve for the points inside the boundaries!  
-          
+        old_p = p;
+        for i = 3:nx-3        %only solve for the points inside the boundaries!          
             %attempt upwind standard derivatives for entire region
-            %dE(i) = (E(i+1)-E(i))/dx;       %THIS WORKS!
-           
-            old_p = p;
+            %dE(i) = (E(i+1)-E(i))/dx;       
   
             p(i+1) = p(i) + dx*(-p(i)/E(i))*dE(i);   %there's divide by 0 issue here if E(i) = 0
-            
-            error_p = max(abs(p-old_p)/abs(old_p));
-         
-
+   
             %stop run if NaN
             if isnan(p(i))
                 stopstatement
             end
-
         end
         
-        %adjust BC's for p
-        p(1) = 0;
-        p(2) = 0;
-        p(3) = p_initial;   %for conservation of particles
-        p(nx) = 0;
-        p(nx-1) = 0;
+        error_p = max(abs(p-old_p)/abs(old_p));
     
-       iter =  iter+1;    
-       iter
+       iter =  iter+1    
     end
     
     %Calculate Jp
     for i = 3:nx-2 
         Jp(i) =  q*p_mob*p(i)*E(i);
     end
-    Jp_final(Ea_cnt) = Jp(nx-2)        %take rightmost Jp value as the constant final value
-    V(Ea_cnt) = L*Ea;    %ISSUE IS THAT CAN'T DO THIS since V = integral(E*dx): so to be able to get JV curve need to initially specify in terms of V not E.
-    %Ea
     
     %Save data
     str = sprintf('%.2f',Ea*L);
@@ -188,8 +228,7 @@ for i=3:nx-3
 %     E_theory2(i)= sqrt(2*x(i)*Jp(i)/(epsilon*p_mob)+Ea^2);
 end
 
-Va_final = Ea*L;
-str=sprintf('%.3f', Va_final);   %.3 precision operator sets 3 decimals
+str = sprintf('%.2g', Va);
 
  h1 = plot(x(3:num_cell),p(3:num_cell));
  hold on
@@ -214,10 +253,20 @@ str=sprintf('%.3f', Va_final);   %.3 precision operator sets 3 decimals
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
  ylabel({'Current Density ($A/m^2$)'},'interpreter','latex','FontSize',14);
  
+%  %JV curve
+%  figure
+%  h4 = plot(V,Jp_final);
+%  hold on
+%  plot(V, Jp_theory);
+%  xlabel('Voltage (V)','interpreter','latex','FontSize',14);
+%  ylabel({'Current Density ($A/m^2$)'},'interpreter','latex','FontSize',14);
+ 
+ %convergence analysis
+ iterations = 1:iter;
  figure
- h4 = plot(V,Jp_final);
+ h5 = plot(iterations, E_solution);
+ title(['E convergence', str, 'V/m'],'interpreter','latex','FontSize',16);
+ xlabel('Iterations','interpreter','latex','FontSize',14);
+ ylabel({'Electric Field (V/m)'},'interpreter','latex','FontSize',14);
  
- 
- 
-hold off
-
+ hold off

@@ -2,9 +2,11 @@
 %     Solving Poisson + Mott-Gurney limit system (for holes) with 5th order
 %             Weighted Essentially Non-Oscilatory (WENO5)
 %
-%                E*dp/dx + p*dE/dx = 0  for x in [0,L]
+%                       dE/dx = (q/epsilon)*p
+%                    E*dp/dx + p*dE/dx = 0  for x in [0,L]
 %                  
 %          This version directly applies an E to one electrode.
+%                Uses Euler's method for Poisson equation
 %            
 % Modified by Timofey Golubev (2017.08.06) based on original 1D wave eqn
 %              code by Manuel Diaz, manuel.ade'at'gmail.com 
@@ -20,7 +22,7 @@ clear all; close all; clc;
 
 %% Parameters
 L = 100*10^-9;             %device length in meters
-num_cell = 5000;            % number of cells
+num_cell = 10000;            % number of cells
 p_initial =  10^27;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
@@ -33,7 +35,7 @@ increment = V_increment/L; %for increasing E
 
 %Simulation parameters
 constant_p_i = true;
-tolerance = 10^-15;   %error tolerance       
+tolerance = 10^-14;   %error tolerance       
 fluxsplit = 3;        % {1} Godunov, {2} Global LF, {3} Local LF  Defines which flux splitting method to be used
 
 %% Physical Constants
@@ -68,13 +70,14 @@ nx = length(x);
 %Note: p(1), p(2),p(nx-1), and p(nx) values are not needed b/c they are never used (by
 %default are 0).
 
-
+%Doesn't seem to make difference whether use constant_p_i or linearlrly
+%decreasing
 if(constant_p_i)
     for i = 3:nx-2
         p(i) = p_initial;
     end
 else
-    %linearly decreasing p: THIS DOEN
+    %linearly decreasing p
     p(3) = p_initial;
     for i = 3:nx-3     
         dp = p_initial/(num_cell+1);
@@ -90,47 +93,21 @@ for Ea = Ea_min:increment:Ea_max
     %Boundary conditions
     %because need 2 ghost points to left and right and matlab indices arrays from 1, means that E(x=0) =
     %E(i=3). And E(nx-2) = E(x=L)
-    %NOTE: IF SET THESE TO = Ea , then have convergence issues
     E(1) = 0;
     E(2) = 0;
-    E(nx-1) = 0;
-    E(nx) = 0;
-    
-    %initial condition: make E be constant
-    for i = 3:nx-2
-        E(i) = Ea;
-    end
-    
-    %these are needed for using WENO to find dp/dx
-    %NOTE: IF SET THESE TO = P_INITIAL , then have convergence issues
-    p(1) = 0;
-    p(2) = 0;
-    p(nx) = 0;
-    p(nx-1) = 0;
+    E(3) = Ea;
     
     %right side boundary will be determined by Newton's method solving of
     %Poisson eqn.
 
     %% Solver Loop
-    iter = 1;
+    iter = 0;
     error_p =  1.0;
     while error_p > tolerance
         
-        %Poisson equation with velocity Verlet method
-        
-        %use WENO to estimate dp/dx
-        dp = residual(p,flux,dflux,dx,nx,fluxsplit);
-        
-        dp(3) = (p(4)-p(3))/dx;
-        dp(nx-2) = (p(nx-2)-p(nx-3))/dx;
-       
-        p_calc(3) = p(2) + 0.5*dx*(dp(3) + dp(2));
-        
-        for i = 3:nx-3       %only solve for E inside the device (points 1,2, nx-1, and nx are outside device. 
-            %dp(i) = (p(i+1)-p(i))/dx;  %try using finite differences
-            %E(i+1) = E(i) + (q/epsilon)*p(i);    %Euler method
-            p_calc(i+1) = p(i) + 0.5*dx*(dp(i+1) + dp(i));
-            E(i+1) = E(i) + (q/epsilon)*p_calc(i)*dx+ 0.5*dx^2*(q/epsilon)*dp(i);   
+        %Poisson equation with Euler's method
+        for i = 3:nx-3       %only solve for E inside the device (points 1,2, nx-1, and nx are outside device. point 3 is used to enforce E(x=0) = 0 BC.
+            E(i+1) = E(i) + (q/epsilon)*p(i)*dx;   %means with initial constant p(i), this will be linear
         end
         
         %Define E at right side ghost points
@@ -144,36 +121,40 @@ for Ea = Ea_min:increment:Ea_max
         %issue doing the boundary derivative estimate properly
 
         %try for i=3 to estimate derivative by  standard finite
-        %difference:  
-        dE(3) = (E(4)-E(3))/dx;
+        %difference:  THIS SOLVED BOTH THE KINK IN E GRAPH AND ISSUE OF STARTING AT I=3 NOT WORKING!
 
+        dE(3) = (E(4)-E(3))/dx;
+        
+        
         %Solve for new p
-        old_p = p;    %for computing error
+        old_p = p;
         for i = 3:nx-3        %only solve for the points inside the boundaries!  
           
             %attempt upwind standard derivatives for entire region
-            %dE(i) = (E(i+1)-E(i))/dx;       %THIS WORKS but takes more iterations 
-            %for convergence and approach to convergence is oscillatory
+            %dE(i) = (E(i+1)-E(i))/dx;       %THIS WORKS!
+           
+           
   
             p(i+1) = p(i) + dx*(-p(i)/E(i))*dE(i);   %there's divide by 0 issue here if E(i) = 0
-             
+                     
+
             %stop run if NaN
             if isnan(p(i))
                 stopstatement
             end
+
         end
         
-        error_p = max(abs(p-old_p)/abs(old_p))
-        
-        %adjust BC's for p: IS NOT NECESSARY B/C p(3) is never recalculated
-        %p(3) = p_initial;   %for conservation of particles
+        error_p = max(abs(p-old_p)/abs(old_p));
+        %adjust BC's for p
+        p(1) = 0;
+        p(2) = 0;
+        p(3) = p_initial;   %for conservation of particles
+        p(nx) = 0;
+        p(nx-1) = 0;
     
        iter =  iter+1;    
        iter
-       
-       if(Ea == Ea_max) %only for last run
-            E_solution(iter) = E(50);    % save E at random point for each iter for convergence analysis
-       end
     end
     
     %Calculate Jp
@@ -241,14 +222,7 @@ str = sprintf('%.2g', Ea);
  title(['Ea =', str, 'V/m'],'interpreter','latex','FontSize',16);
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
  ylabel({'Current Density ($A/m^2$)'},'interpreter','latex','FontSize',14);
+
  
- %convergence analysis
- iterations = 1:iter;
- figure
- h4 = plot(iterations, E_solution);
- title(['E convergence', str, 'V/m'],'interpreter','latex','FontSize',16);
- xlabel('Iterations','interpreter','latex','FontSize',14);
- ylabel({'Electric Field (V/m)'},'interpreter','latex','FontSize',14);
- 
- hold off
+hold off
 

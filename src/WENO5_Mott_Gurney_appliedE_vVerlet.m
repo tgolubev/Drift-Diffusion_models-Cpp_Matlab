@@ -2,9 +2,11 @@
 %     Solving Poisson + Mott-Gurney limit system (for holes) with 5th order
 %             Weighted Essentially Non-Oscilatory (WENO5)
 %
+%                        dE/dx = (q/epsilon)*p
 %                E*dp/dx + p*dE/dx = 0  for x in [0,L]
 %                  
 %          This version directly applies an E to one electrode.
+%       Uses modified velocity Verlet (with WENO) for Poisson eqn.
 %            
 % Modified by Timofey Golubev (2017.08.06) based on original 1D wave eqn
 %              code by Manuel Diaz, manuel.ade'at'gmail.com 

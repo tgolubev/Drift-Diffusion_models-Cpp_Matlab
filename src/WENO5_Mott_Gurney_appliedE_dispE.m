@@ -20,12 +20,12 @@ clear all; close all; clc;
 
 %% Parameters
 L = 100*10^-9;             %device length in meters
-num_cell = 500;            % number of cells
+num_cell = 7000;            % number of cells
 p_initial =  10^27;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
-Va_min = 190;              %volts
-Va_max = 200;    
+Va_min = 5;              %volts
+Va_max = 6;    
 V_increment = 1;           %for increasing V
 Ea_min = Va_min/L;         %V/m
 Ea_max = Va_max/L;         %maximum applied E
@@ -166,8 +166,8 @@ for Ea = Ea_min:increment:Ea_max
     %sqrt(2Jx/p_mob*epsilon)). THIS GIVES HUGE NUMBERS!
     %Va_final(Ea_cnt) = (2/3)*sqrt(2*Jp(nx-3)/(epsilon*p_mob))*L^(2/3)
     
-    str = sprintf('%.2f',Ea*L);
-    %str = sprintf('%.2g',Ea);
+    %str = sprintf('%.2f',Ea*L);
+    str = sprintf('%.2g',Ea);
     filename = [str 'V.txt'] 
     fid = fopen(fullfile('C:\Users\Tim\Documents\Duxbury group research\WENO\Mott-Gurney_law_WENO\Benchmarks\',filename),'w');   %w: Open or create new file for writing
     %fullfile allows to make filename from parts
@@ -193,12 +193,13 @@ for i=3:nx-3
 %     E_theory2(i)= sqrt(2*x(i)*Jp(i)/(epsilon*p_mob)+Ea^2);
 end
 
-Va_final = Ea*L;
-str=sprintf('%.3f', Va_final);   %.3 precision operator sets 3 decimals
+%Va_final = Ea*L;
+%str=sprintf('%.3f', Va_final);   %.3 precision operator sets 3 decimals
+str = sprintf('%.2g', Ea);
 
  h1 = plot(x(3:num_cell),p(3:num_cell));
  hold on
- title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
+ title(['Ea =', str, 'V/m'],'interpreter','latex','FontSize',16);
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
  ylabel({'Hole density ($1/m^3$)'},'interpreter','latex','FontSize',14);
  
@@ -207,7 +208,7 @@ str=sprintf('%.3f', Va_final);   %.3 precision operator sets 3 decimals
  hold on
  plot(x(3:num_cell),E_theory1(3:num_cell));
  plot(x(3:num_cell),E_theory2(3:num_cell));
- title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
+ title(['Ea =', str, 'V/m'],'interpreter','latex','FontSize',16);
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
  ylabel({'Electric Field (V/m)'},'interpreter','latex','FontSize',14);
  
@@ -215,7 +216,7 @@ str=sprintf('%.3f', Va_final);   %.3 precision operator sets 3 decimals
  figure;
  h3 = plot(x(3:num_cell),Jp(3:num_cell));
  hold on
- title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
+ title(['Ea =', str, 'V/m'],'interpreter','latex','FontSize',16);
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
  ylabel({'Current Density ($A/m^2$)'},'interpreter','latex','FontSize',14);
 

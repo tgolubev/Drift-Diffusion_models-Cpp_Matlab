@@ -102,7 +102,7 @@ for Va = Va_min:increment:Va_max
     error_p =  1.0;
     while error_p > tolerance
         
-        %Poisson equation with Newton's method
+        %Poisson equation with Euler's method
         for i = 3:nx-3       %only solve for E inside the device (points 1,2, nx-1, and nx are outside device. point 3 is used to enforce E(x=0) = 0 BC.
             E(i+1) = E(i) + (q/epsilon)*p(i)*dx;   %means with initial constant p(i), this will be linear
         end

@@ -31,6 +31,7 @@ h(2) = 0;     %to enforce conservation, h(2) is hi-1/2 for the x = 0 point.
 h(nx-2) = 0;   % is hi+1/2 for the x=L point: note the i+1/2 are defined as hn(i) and i-1/2 as hp(i-1)
 
 
+
 % Formulate Left and Right fluxes, equiv: % h(i)-h(i-1)
 h_right = h; h_left = circshift(h,[0,1]);
 

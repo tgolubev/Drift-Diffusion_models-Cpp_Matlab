@@ -68,12 +68,13 @@ nx = length(x);
 %Note: p(1), p(2),p(nx-1), and p(nx) values are not needed b/c they are never used (by
 %default are 0).
 
+
 if(constant_p_i)
     for i = 3:nx-2
         p(i) = p_initial;
     end
 else
-    %linearly decreasing p: THIS DOESN'T WORK as well
+    %linearly decreasing p: THIS DOEN
     p(3) = p_initial;
     for i = 3:nx-3     
         dp = p_initial/(num_cell+1);
@@ -123,12 +124,12 @@ for Ea = Ea_min:increment:Ea_max
         dp(3) = (p(4)-p(3))/dx;
         dp(nx-2) = (p(nx-2)-p(nx-3))/dx;
        
-        p_calc(3) = p(2) + dx*dp(3);    %0.5*dx*(dp(3) + dp(2)); if use WENO this averaging will be wrong b/c dp(2) = 0, so taking only 1/2 of the slope
+        p_calc(3) = p(2) + 0.5*dx*(dp(3) + dp(2));
         
         for i = 3:nx-3       %only solve for E inside the device (points 1,2, nx-1, and nx are outside device. 
             %dp(i) = (p(i+1)-p(i))/dx;  %try using finite differences
             %E(i+1) = E(i) + (q/epsilon)*p(i);    %Euler method
-            p_calc(i+1) = p(i) + dx*dp(i); %  0.5*dx*(dp(i+1) + dp(i));  %not necessary to do the 1/2 averaging if use WENO since our dp(i) is calculated more sophisticated.
+            p_calc(i+1) = p(i) + 0.5*dx*(dp(i+1) + dp(i));
             E(i+1) = E(i) + (q/epsilon)*p_calc(i)*dx+ 0.5*dx^2*(q/epsilon)*dp(i);   
         end
         

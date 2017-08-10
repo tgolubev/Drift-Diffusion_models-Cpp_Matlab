@@ -22,19 +22,19 @@ clear all; close all; clc;
 
 %% Parameters
 L = 100*10^-9;             %device length in meters
-num_cell = 4000;            % number of cells
+num_cell = 200000;            % number of cells
 p_initial =  10^27;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
-Va_min = 5;              %volts
-Va_max = 6;    
-V_increment = 1;           %for increasing V
-Ea_min = Va_min/L;         %V/m
-Ea_max = Va_max/L;         %maximum applied E
-increment = V_increment/L; %for increasing E
+%Va_min = 0.5;              %volts
+%Va_max = 0.5;    
+%V_increment = 1;           %for increasing V
+Ea_min = 2*10^5;%Va_min/L;         %V/m
+Ea_max = 2*10^5; %Va_max/L;         %maximum applied E
+increment = 0.1*10^8;%V_increment/L; %for increasing E
 
 %Simulation parameters
-w= 0.1;      %weighting factor
+w= 1.;      %weighting factor
 constant_p_i = true;
 tolerance = 10^-14;   %error tolerance       
 fluxsplit = 3;        % {1} Godunov, {2} Global LF, {3} Local LF  Defines which flux splitting method to be used
@@ -89,20 +89,26 @@ for Ea = Ea_min:increment:Ea_max
     
     Ea_cnt = Ea_cnt+1;
     
-    %Boundary conditions
-    %because need 2 ghost points to left and right and matlab indices arrays from 1, means that E(x=0) =
-    %E(i=3). And E(nx-2) = E(x=L)
-    %NOTE: IF SET THESE TO = Ea , then have convergence issues
-    E(1) = 0;
-    E(2) = 0;
-    E(nx-1) = 0;
-    E(nx) = 0;
-    
     %initial condition: make E be constant
     for i = 3:nx-2
         E(i) = Ea;
     end
     
+     %Boundary conditions
+    %because need 2 ghost points to left and right and matlab indices arrays from 1, means that E(x=0) =
+    %E(i=3). And E(nx-2) = E(x=L)
+    %NOTE: IF SET THESE TO = Ea , then have convergence issues
+    %E(1) = 0;
+    %E(2) = 0;
+    %E(nx-1) = 0;
+    %E(nx) = 0;
+  
+    
+    %E(1) = E(3);
+    %E(2) = E(3);
+    E(nx) = E(nx-2);
+    E(nx-1) = E(nx-2);
+   
     %these are needed for using WENO to find dp/dx
     %NOTE: IF SET THESE TO = P_INITIAL , then have convergence issues
     p(1) = 0;
@@ -113,6 +119,9 @@ for Ea = Ea_min:increment:Ea_max
     %right side boundary will be determined by Newton's method solving of
     %Poisson eqn.
 
+    %timing
+    tic
+    
     %% Solver Loop
     iter = 1;
     error_p =  1.0;
@@ -135,27 +144,25 @@ for Ea = Ea_min:increment:Ea_max
             E(i+1) = E(i) + (q/epsilon)*p_calc(i)*dx+ 0.5*dx^2*(q/epsilon)*dp(i);   
         end
         
-       
-        %Define E at right side ghost points
-        E(nx-1) = E(nx-2);
-        E(nx) = E(nx-2);
-        
         %weight E
-        old_E = E;
-        E = w*E + (1.-w)*old_E;
+        %old_E = E;
+        %E = w*E + (1.-w)*old_E;
         
         %dE = weno approx for dE/dx
         dE = residual(E,flux,dflux,dx,nx,fluxsplit);     %this calculates the entire dE array
         
         %RIGHT NOW HAVING ISSUE THAT THE dE(3) is too large: having
         %issue doing the boundary derivative estimate properly
-
-        %try for i=3 to estimate derivative by  standard finite
-        %difference:  
-        dE(3) = (E(4)-E(3))/dx;
         
+        
+        %adding the BELOW COMMENTED EQUATIONS ACTUALLY MESSES UP THE
+        %CONVERGENCE!!
+        dE(3) = (E(4)-E(3))/dx;     %IF DON'T IMPOSE THIS BC, IT REALLY FAILS!
+        %dE(4) = (E(5)-E(4))/dx; 
+        %dE(5) = (E(6)-E(5))/dx;  
+        dE(nx-2) = (E(nx-2)-E(nx-3))/dx;
+        %dE(nx-3) = (E(nx-3)-E(nx-4))/dx;
       
-
         % Solve for new p
         old_p = p;    %for computing error
         for i = 3:nx-3        %only solve for the points inside the boundaries!  
@@ -219,6 +226,7 @@ for Ea = Ea_min:increment:Ea_max
     end
     fclose(fid);
     
+    toc
 end
 
 

@@ -19,21 +19,21 @@ clear all; close all; clc;
 
 %% Parameters
 L = 100*10^-9;              %device length in meters
-num_cell = 200;            % number of cells
+num_cell = 100;            % number of cells
 p_initial =  10^27;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
 
-Va_min = 50;             %volts
-Va_max = 51;    
+Va_min = 200;             %volts
+Va_max = 200;    
 increment = 1.;        %for increasing V
 %Ea_min = Va_min/L;         %V/m
 %Ea_max = Va_max/L;         %maximum applied E
 %increment = V_increment/L; %for increasing E
 
 %Simulation parameters
-w = 0.001;              %weighting factor
-tolerance = 10^-11;   %error tolerance       
+w = .001;              %weighting factor
+tolerance = 10^-14;   %error tolerance       
 constant_p_i = true;
 fluxsplit = 3;        % {1} Godunov, {2} Global LF, {3} Local LF  Defines which flux splitting method to be used
 
@@ -95,7 +95,8 @@ p(nx) = 0;
 for Va = Va_min:increment:Va_max
     Va_cnt = Va_cnt +1;
   
-
+%timing
+tic
     %% Solver Loop
     iter = 0;
     error_p =  1.0;
@@ -162,6 +163,8 @@ for Va = Va_min:increment:Va_max
         %synthax for transpose of A
         fullV = fullV.';
         dV = residual(fullV,flux,dflux,dx,nx,fluxsplit);     %this calculates the entire dE array
+        %ALL OF THE BELOW ARE NECESSARY TO ENSURE GOOD CONVERGENCE: I
+        %tested by removing some of them: then really has issues.
         dV(3) = (fullV(4)-fullV(3))/dx;    %taking care of boundary issue
         dV(4) = (fullV(5)-fullV(4))/dx; 
         dV(nx-2) = (fullV(nx-2)-fullV(nx-3))/dx;
@@ -184,13 +187,15 @@ for Va = Va_min:increment:Va_max
         %RIGHT NOW HAVING ISSUE THAT THE dE(3) is too large: having
         %issue doing the boundary derivative estimate properly
 
-        dE(3) = (E(4)-E(3))/dx;     %IF DON'T IMPOSE THIS BC, IT REALLY FAILS!
-        dE(4) = (E(5)-E(4))/dx;  %ADDING THIS ONE IMPROVED IT FURTHER!: SO HAVE ISSUES WITH WENO AND GETTING dE NEAR GHOST POINTS
-        dE(5) = (E(6)-E(5))/dx;  
+        %ADDING THE COMMENTED EQUATIONS SIGNIFICANTLY WORSENS THE
+        %CONVERGENCE!!!!
+        dE(3) = (E(4)-E(3))/dx;     %IF DON'T IMPOSE THIS BC, IT gives completely wrong results
+        %dE(4) = (E(5)-E(4))/dx;  
+        %dE(5) = (E(6)-E(5))/dx;  
         dE(nx-2) = (E(nx-2)-E(nx-3))/dx;
-        dE(nx-3) = (E(nx-3)-E(nx-4))/dx;
+        %dE(nx-3) = (E(nx-3)-E(nx-4))/dx;
         %dE(nx-4) = (E(nx-4)-E(nx-5))/dx;
-        dE(nx-1) = 0;  %this isn't used anyway, so doesn't matter
+        %dE(nx-1) = 0;  %this isn't used anyway, so doesn't matter
        
         %Solve for new p
         old_p = p;
@@ -212,6 +217,10 @@ for Va = Va_min:increment:Va_max
         error_p = max(abs(p-old_p)/abs(old_p))
     
        iter =  iter+1    
+       
+       if(Va == Va_max) %only for last run
+          E_solution(iter) = E(46);    % save E at random point for each iter for convergence analysis
+       end
     end
     
     %Calculate Jp
@@ -232,8 +241,16 @@ for Va = Va_min:increment:Va_max
     end
     fclose(fid);
     
+    toc
+    
 end
 
+%sanity check: calculate V by integrating E
+V_final(Va_cnt) = 0;
+    for i = 3:nx-2
+        V_final(Va_cnt) = V_final(Va_cnt) + E(i)*dx;
+    end  
+    V_final
 
 %% Final Plots
 
@@ -283,7 +300,7 @@ str = sprintf('%.2g', Va);
  iterations = 1:iter;
  figure
  h5 = plot(iterations, E_solution);
- title(['E convergence', str, 'V/m'],'interpreter','latex','FontSize',16);
+ title(['E convergence', str, 'V'],'interpreter','latex','FontSize',16);
  xlabel('Iterations','interpreter','latex','FontSize',14);
  ylabel({'Electric Field (V/m)'},'interpreter','latex','FontSize',14);
  

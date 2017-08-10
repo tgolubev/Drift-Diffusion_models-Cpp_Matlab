@@ -24,8 +24,8 @@ p_initial =  10^27;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
 Va_min = 10;             %volts
-Va_max = 20;    
-increment = 1.;        %for increasing V
+Va_max = 100;    
+increment = 10.;        %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;
 
 %Simulation parameters
@@ -86,20 +86,35 @@ for Va_cnt = 1:num_V
     
     Va = Va_max-increment*(Va_cnt-1);    %decrease Va by increment in each iteration
     
-    %for low Va_max (start point), use lower 1st w, for medium Va, use
-    %lower w.
-    if(Va_max<200.)
+    %for low Va_max (start point), use lower 1st w
+    if(Va_max<200. & Va_cnt != 1)
         if(Va_cnt==1)
             w= 0.0001;
-        elseif(Va_max<30.)  %need to figureout what this value limit is
-            w = 0.0001;
         else
-            w = 0.001;
+           w = 0.001;
         end
-    elseif(Va<200.)
+    end
+    
+    %for medium V
+    if(Va<200. )
         w = 0.001;
     end
     
+%     if(Va<40.)
+%         w = 0.0001;
+%     end
+    
+    %for low V only
+%     if(Va < 50.)
+%         if(Va_cnt == 1)  %weighting for 1st Va
+%             w = 0.0001;  %It seems that need to use 0.0001
+%         elseif (Va >30.)
+%             w = 0.001;      %weighting for all other Va 
+%         else
+%             w = 0.0001;
+%         end
+%     end
+
     %timing
     tic
     

@@ -27,9 +27,12 @@ end
 h = hn + hp;
 
 % Set BCs   
-h(2) = 0;     %to enforce conservation, h(2) is hi-1/2 for the x = 0 point. 
-h(nx-2) = 0;   % is hi+1/2 for the x=L point: note the i+1/2 are defined as hn(i) and i-1/2 as hp(i-1)
+%h(1:2) = 0;     %to enforce conservation, h(2) is hi-1/2 for the x = 0 point. 
+%h(nx-1:nx) = 0;   % is hi+1/2 for the x=L point: note the i+1/2 are defined as hn(i) and i-1/2 as hp(i-1)
 
+% Set Periodic BC
+%h(1:2) = h(nx-4:nx-3);
+%h(nx-1:nx) = h(3:4);
 
 
 % Formulate Left and Right fluxes, equiv: % h(i)-h(i-1)

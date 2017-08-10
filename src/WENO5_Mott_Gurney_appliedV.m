@@ -19,20 +19,21 @@ clear all; close all; clc;
 
 %% Parameters
 L = 100*10^-9;              %device length in meters
-num_cell = 50;            % number of cells
+num_cell = 200;            % number of cells
 p_initial =  10^27;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
 
-Va_min = 50000;             %volts
-Va_max = 50010;    
-increment = 1;        %for increasing V
+Va_min = 50;             %volts
+Va_max = 51;    
+increment = 1.;        %for increasing V
 %Ea_min = Va_min/L;         %V/m
 %Ea_max = Va_max/L;         %maximum applied E
 %increment = V_increment/L; %for increasing E
 
 %Simulation parameters
-tolerance = 10^-13;   %error tolerance       
+w = 0.001;              %weighting factor
+tolerance = 10^-11;   %error tolerance       
 constant_p_i = true;
 fluxsplit = 3;        % {1} Godunov, {2} Global LF, {3} Local LF  Defines which flux splitting method to be used
 
@@ -162,10 +163,11 @@ for Va = Va_min:increment:Va_max
         fullV = fullV.';
         dV = residual(fullV,flux,dflux,dx,nx,fluxsplit);     %this calculates the entire dE array
         dV(3) = (fullV(4)-fullV(3))/dx;    %taking care of boundary issue
+        dV(4) = (fullV(5)-fullV(4))/dx; 
         dV(nx-2) = (fullV(nx-2)-fullV(nx-3))/dx;
+        dV(nx-3) = (fullV(nx-3)-fullV(nx-4))/dx; %this is necessary to ensure smooth monotonous dV
        
-        %find that adding the below conditions makes it WORSE!
-        %dV(4) = (fullV(5)-fullV(4))/dx;  
+        %below condition doensn't seem to do anything
         %dV(5) = (fullV(6)-fullV(5))/dx;  
    
         E = -dV;
@@ -184,10 +186,11 @@ for Va = Va_min:increment:Va_max
 
         dE(3) = (E(4)-E(3))/dx;     %IF DON'T IMPOSE THIS BC, IT REALLY FAILS!
         dE(4) = (E(5)-E(4))/dx;  %ADDING THIS ONE IMPROVED IT FURTHER!: SO HAVE ISSUES WITH WENO AND GETTING dE NEAR GHOST POINTS
-        dE(5) = (E(6)-E(5))/dx;  %this improved it even more
+        dE(5) = (E(6)-E(5))/dx;  
         dE(nx-2) = (E(nx-2)-E(nx-3))/dx;
         dE(nx-3) = (E(nx-3)-E(nx-4))/dx;
-         dE(nx-4) = (E(nx-4)-E(nx-5))/dx;
+        %dE(nx-4) = (E(nx-4)-E(nx-5))/dx;
+        dE(nx-1) = 0;  %this isn't used anyway, so doesn't matter
        
         %Solve for new p
         old_p = p;
@@ -202,6 +205,9 @@ for Va = Va_min:increment:Va_max
                 stopstatement
             end
         end
+        
+        %weighting
+        p = p*w + old_p*(1-w);
         
         error_p = max(abs(p-old_p)/abs(old_p))
     

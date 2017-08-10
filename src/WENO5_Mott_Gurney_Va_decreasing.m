@@ -19,16 +19,17 @@ clear all; close all; clc;
 
 %% Parameters
 L = 100*10^-9;              %device length in meters
-num_cell = 100;            % number of cells
+num_cell = 300;            % number of cells
 p_initial =  10^27;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
-Va_min = 30;             %volts
-Va_max = 30;    
+Va_min = 490;             %volts
+Va_max = 500;    
 increment = 1.;        %for increasing V
+num_V = floor((Va_max-Va_min)/increment)+1;
 
 %Simulation parameters
-w = .001;              %weighting factor
+w = 1.;              %set up of weighting factor
 tolerance = 10^-14;   %error tolerance       
 constant_p_i = true;
 fluxsplit = 3;        % {1} Godunov, {2} Global LF, {3} Local LF  Defines which flux splitting method to be used
@@ -87,9 +88,20 @@ p(2) = 0;
 p(nx-1) = 0;
 p(nx) = 0;
 
-    Va_cnt = 0;
-for Va = Va_min:increment:Va_max
-    Va_cnt = Va_cnt +1;
+    Va_cnt = 1;
+for Va_cnt = 1:increment:num_V
+    
+    Va = Va_max-increment*(Va_cnt-1);    %decrease Va by increment in each iteration
+    
+    if(Va_cnt == 1)  %weighting for 1st Va
+        w = 0.0001;  %It seems that need to use 0.0001
+    elseif (Va >30.)
+        w = 0.001;      %weighting for all other Va 
+    else
+        w = 0.0001;
+    end
+    
+    %Va_cnt = Va_cnt +1;
   
 %timing
 tic
@@ -213,7 +225,7 @@ tic
     
        iter =  iter+1    
        
-       if(Va == Va_max) %only for last run
+       if(Va == Va_min) %only for last run
           E_solution(iter) = E(46);    % save E at random point for each iter for convergence analysis
        end
     end
@@ -222,6 +234,11 @@ tic
     for i = 3:nx-2 
         Jp(i) =  q*p_mob*p(i)*E(i);
     end
+    
+     %Calculations for JV curve
+    V_values(Va_cnt) = Va;
+    Jp_final(Va_cnt) = Jp(nx-3);  %just pick Jp at the right side
+      
     
     %Save data
     str = sprintf('%.2f',Va);
@@ -241,11 +258,11 @@ tic
 end
 
 %sanity check: calculate V by integrating E
-V_final(Va_cnt) = 0;
-    for i = 3:nx-2
-        V_final(Va_cnt) = V_final(Va_cnt) + E(i)*dx;
-    end  
-    V_final
+% V_final(Va_cnt) = 0;
+%     for i = 3:nx-2
+%         V_final(Va_cnt) = V_final(Va_cnt) + E(i)*dx;
+%     end  
+%     V_final
 
 %% Final Plots
 
@@ -256,6 +273,9 @@ for i=3:nx-3
     
 %     E_theory1(i) = sqrt(2*x(i)*Jp(nx-3)/(epsilon*p_mob)+Ea^2);
 %     E_theory2(i)= sqrt(2*x(i)*Jp(i)/(epsilon*p_mob)+Ea^2);
+end
+for j = 1:Va_cnt
+    Jp_theory(j) = (9*p_mob*epsilon*(V_values(j))^2)/(8*L^3);
 end
 
 str = sprintf('%.2g', Va);
@@ -283,13 +303,13 @@ str = sprintf('%.2g', Va);
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
  ylabel({'Current Density ($A/m^2$)'},'interpreter','latex','FontSize',14);
  
-%  %JV curve
-%  figure
-%  h4 = plot(V,Jp_final);
-%  hold on
-%  plot(V, Jp_theory);
-%  xlabel('Voltage (V)','interpreter','latex','FontSize',14);
-%  ylabel({'Current Density ($A/m^2$)'},'interpreter','latex','FontSize',14);
+ %JV curve
+ figure
+ h4 = plot(V_values,Jp_final);
+ hold on
+ plot(V_values, Jp_theory);
+ xlabel('Voltage (V)','interpreter','latex','FontSize',14);
+ ylabel({'Current Density ($A/m^2$)'},'interpreter','latex','FontSize',14);
  
  %convergence analysis
  iterations = 1:iter;

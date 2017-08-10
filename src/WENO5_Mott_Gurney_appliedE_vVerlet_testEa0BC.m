@@ -22,20 +22,20 @@ clear all; close all; clc;
 
 %% Parameters
 L = 100*10^-9;             %device length in meters
-num_cell = 200000;            % number of cells
+num_cell = 5000;            % number of cells
 p_initial =  10^27;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
-%Va_min = 0.5;              %volts
-%Va_max = 0.5;    
-%V_increment = 1;           %for increasing V
-Ea_min = 2*10^5;%Va_min/L;         %V/m
-Ea_max = 2*10^5; %Va_max/L;         %maximum applied E
-increment = 0.1*10^8;%V_increment/L; %for increasing E
+Va_min = 190;              %volts
+Va_max = 200;    
+V_increment = 1;           %for increasing V
+Ea_min = Va_min/L;         %V/m
+Ea_max = Va_max/L;         %maximum applied E
+%increment = 0.1*10^8;%V_increment/L; %for increasing E
 
 %Simulation parameters
 w= 1.;      %weighting factor
-constant_p_i = true;
+constant_p_i = false;
 tolerance = 10^-14;   %error tolerance       
 fluxsplit = 3;        % {1} Godunov, {2} Global LF, {3} Local LF  Defines which flux splitting method to be used
 
@@ -84,18 +84,17 @@ else
     end
 end
 
-%initial condition: make E be constant: SET IC ONLY ONCE!
+%initial condition: make E be constant
 for i = 3:nx-2
     E(i) = Ea_min;
 end
 
-
 Ea_cnt = 0;    
-for Ea = Ea_min:increment:Ea_max
+for Va = Va_min:V_increment:Va_max
     
     Ea_cnt = Ea_cnt+1;
-  
-     %Boundary conditions
+    
+    %Boundary conditions
     %because need 2 ghost points to left and right and matlab indices arrays from 1, means that E(x=0) =
     %E(i=3). And E(nx-2) = E(x=L)
     %NOTE: IF SET THESE TO = Ea , then have convergence issues
@@ -103,12 +102,19 @@ for Ea = Ea_min:increment:Ea_max
     E(2) = 0;
     %E(nx-1) = 0;
     %E(nx) = 0;
-  
+    
+    
+    %CAN'T FORCE E(3) to be 0: b/c will result in blowup issues later: so
+    %need to set E(3) to equal (V(4)-V(3))/dx: see below
+    
+    E(3) = 0;   %ONLY INITIALLY WE ASSUME THIS, THEN WE RESET E
     
     %E(1) = E(3);
     %E(2) = E(3);
     E(nx) = E(nx-2);
     E(nx-1) = E(nx-2);
+    
+  
    
     %these are needed for using WENO to find dp/dx
     %NOTE: IF SET THESE TO = P_INITIAL , then have convergence issues
@@ -145,6 +151,22 @@ for Ea = Ea_min:increment:Ea_max
             E(i+1) = E(i) + (q/epsilon)*p_calc(i)*dx+ 0.5*dx^2*(q/epsilon)*dp(i);   
         end
         
+        % need to set E(3) by using that V = -integral (E*dx)
+        %so V(4) = integragral (E*dx) from i = 3 to 4
+        %and V(3) we know is Va
+        % then use E(3) = (V(4)-V(3))/dx
+        %assume initially  E(3) = 0 as set above
+        E(3) = -(E(4)*dx-Va)/dx;
+     sdfsdf   
+        
+       %integrate E to enforce the applied V condition
+        V_actual = 0;
+        for i = 3:nx-2
+            V_actual = V_actual + E(i)*dx;
+        end 
+        E = E*Va/V_actual  %normalizes E so have correct applied voltage
+    
+        
         %weight E
         %old_E = E;
         %E = w*E + (1.-w)*old_E;
@@ -155,7 +177,9 @@ for Ea = Ea_min:increment:Ea_max
         %RIGHT NOW HAVING ISSUE THAT THE dE(3) is too large: having
         %issue doing the boundary derivative estimate properly
         
-       %I'M NOT SURE ABOUT COMMENTED QNS: IF HELP OR HURT.
+        
+        %adding the BELOW COMMENTED EQUATIONS ACTUALLY MESSES UP THE
+        %CONVERGENCE!!
         dE(3) = (E(4)-E(3))/dx;     %IF DON'T IMPOSE THIS BC, IT REALLY FAILS!
         %dE(4) = (E(5)-E(4))/dx; 
         %dE(5) = (E(6)-E(5))/dx;  
@@ -164,7 +188,7 @@ for Ea = Ea_min:increment:Ea_max
       
         % Solve for new p
         old_p = p;    %for computing error
-        for i = 3:nx-3        %only solve for the points inside the boundaries!  
+        for i = 3:nx-4        %only solve for the points inside the boundaries!  
           
             %attempt upwind standard derivatives for entire region
             %dE(i) = (E(i+1)-E(i))/dx;       %THIS WORKS but takes more iterations 
@@ -188,7 +212,7 @@ for Ea = Ea_min:increment:Ea_max
     
        iter =  iter+1   
        
-       if(Ea == Ea_max) %only for last run
+       if(Va == Va_max) %only for last run
             E_solution(iter) = E(50);    % save E at random point for each iter for convergence analysis
        end
     end
@@ -213,7 +237,7 @@ for Ea = Ea_min:increment:Ea_max
     
     % Save data
     %str = sprintf('%.2f',Ea*L);
-    str = sprintf('%.2g',Ea);
+    str = sprintf('%.2g',Va);
     filename = [str 'V.txt'] 
     fid = fopen(fullfile('C:\Users\Tim\Documents\Duxbury group research\WENO\Mott-Gurney_law_WENO\Benchmarks\',filename),'w');   %w: Open or create new file for writing
     %fullfile allows to make filename from parts

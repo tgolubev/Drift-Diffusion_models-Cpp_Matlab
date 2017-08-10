@@ -23,12 +23,12 @@ num_cell = 100;            % number of cells
 p_initial =  10^27;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
-Va_min = 30;             %volts
+Va_min = 10;             %volts
 Va_max = 30;    
 increment = 1.;        %for increasing V
 
 %Simulation parameters
-w = .001;              %weighting factor
+w = 1.;              %set up of weighting factor
 tolerance = 10^-14;   %error tolerance       
 constant_p_i = true;
 fluxsplit = 3;        % {1} Godunov, {2} Global LF, {3} Local LF  Defines which flux splitting method to be used
@@ -89,6 +89,13 @@ p(nx) = 0;
 
     Va_cnt = 0;
 for Va = Va_min:increment:Va_max
+    
+    if(Va == Va_min)  %weighting for 1st Va
+        w = 0.0001;
+    else
+        w = 0.001;      %weighting for all other Va 
+    end
+    
     Va_cnt = Va_cnt +1;
   
 %timing

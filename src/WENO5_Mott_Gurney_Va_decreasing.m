@@ -19,18 +19,18 @@ clear all; close all; clc;
 
 %% Parameters
 L = 100*10^-9;              %device length in meters
-num_cell = 100;            % number of cells
+num_cell = 2000;            % number of cells
 p_initial =  10^27;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
-Va_min = 10;             %volts
-Va_max = 20;    
-increment = 1.;        %for increasing V
+Va_min = 1900;             %volts
+Va_max = 2000;    
+increment = 10.;        %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;
 
 %Simulation parameters
 w = .01;              %set up of weighting factor
-tolerance = 10^-14;   %error tolerance       
+tolerance = 10^-12;   %error tolerance       
 constant_p_i = true;
 fluxsplit = 3;        % {1} Godunov, {2} Global LF, {3} Local LF  Defines which flux splitting method to be used
 
@@ -84,6 +84,7 @@ p(nx) = 0;
     Va_cnt = 1;
 for Va_cnt = 1:num_V
     
+    %Va = Va_min+increment*(Va_cnt-1);    %increase Va
     Va = Va_max-increment*(Va_cnt-1);    %decrease Va by increment in each iteration
     
     %for low Va_max (start point), use lower 1st w, for medium Va, use
@@ -153,6 +154,11 @@ for Va_cnt = 1:num_V
         dV(nx-2) = (fullV(nx-2)-fullV(nx-3))/dx;
         dV(nx-3) = (fullV(nx-3)-fullV(nx-4))/dx; 
       
+        %finite differences: for comparison
+%         for i = 3:nx-3
+%             dV(i) = (fullV(i+1)-fullV(i))/dx;
+%         end      
+        
         E = -dV;
         
         %BCs: set E's to equal the values that they are right inside the
@@ -173,7 +179,7 @@ for Va_cnt = 1:num_V
         dE(nx-2) = (E(nx-2)-E(nx-3))/dx;
        %dE(nx-3) = (E(nx-3)-E(nx-4))/dx;
        %dE(nx-4) = (E(nx-4)-E(nx-5))/dx;
-        dE(nx-1) = 0;  %this isn't used anyway, so doesn't matter
+        dE(nx-1) = 0;  
        
         %Solve for new p
         old_p = p;
@@ -203,7 +209,7 @@ for Va_cnt = 1:num_V
     
     %Calculate Jp
     for i = 3:nx-2 
-        Jp(i) =  q*p_mob*p(i)*E(i);
+        Jp(i) = q*p_mob*p(i)*E(i);
     end
     
     %Setup for JV curve

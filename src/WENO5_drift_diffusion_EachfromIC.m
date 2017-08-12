@@ -1,11 +1,8 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%     Solving Poisson + Mott-Gurney limit system (for holes) with 5th order
+%     Solving Poisson + Drift Diffusion eqns (for holes) with 5th order
 %             Weighted Essentially Non-Oscilatory (WENO5)
-%
-%         
-%                  
-%            
-% Modified by Timofey Golubev (2017.08.06) based on original 1D wave eqn
+%    
+%    Coded by Timofey Golubev (2017.08.11) based on original 1D wave eqn
 %              code by Manuel Diaz, manuel.ade'at'gmail.com 
 %              Institute of Applied Mechanics, 2012.08.20
 %                               
@@ -24,7 +21,7 @@ p_initial =  10^27;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
 Va_min = 1;             %volts
-Va_max = 1000;    
+Va_max = 10;    
 increment = 1;       %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;
 

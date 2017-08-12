@@ -1,11 +1,8 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%     Solving Poisson + Mott-Gurney limit system (for holes) with 5th order
+%     Solving Poisson + Drift Diffusion eqns (for holes) with 5th order
 %             Weighted Essentially Non-Oscilatory (WENO5)
-%
-%         
-%                  
-%            
-% Modified by Timofey Golubev (2017.08.06) based on original 1D wave eqn
+%    
+%    Coded by Timofey Golubev (2017.08.11) based on original 1D wave eqn
 %              code by Manuel Diaz, manuel.ade'at'gmail.com 
 %              Institute of Applied Mechanics, 2012.08.20
 %                               
@@ -87,21 +84,7 @@ p(nx) = 0;
 
     Va_cnt = 1;
 for Va_cnt = 1:num_V
-    
-    %% Initial Conditions
-    if(constant_p_i)
-        for i = 3:nx-2
-            p(i) = p_initial;
-        end
-    else
-        %linearly decreasing p: this doesn't work well
-        p(3) = p_initial;
-        for i = 3:nx-2      
-            dp = p_initial/(num_cell+1);
-            p(i+1) = p(i)-dp;
-        end
-    end
-
+  
     Va = Va_min+increment*(Va_cnt-1);    %increase Va
     %Va = Va_max-increment*(Va_cnt-1);    %decrease Va by increment in each iteration
     

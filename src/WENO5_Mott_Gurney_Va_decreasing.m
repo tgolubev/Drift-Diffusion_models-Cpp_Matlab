@@ -19,11 +19,11 @@ clear all; close all; clc;
 
 %% Parameters
 L = 100*10^-9;              %device length in meters
-num_cell = 2000;            % number of cells
+num_cell = 100;            % number of cells
 p_initial =  10^27;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
-Va_min = 1900;             %volts
+Va_min = 1990;             %volts
 Va_max = 2000;    
 increment = 10.;        %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;
@@ -242,8 +242,8 @@ end
 %% Final Plots
 
 %Analytic Result Calculation
-for i=3:nx-3
-    E_theory1(i) = sqrt(2*x(i)*Jp(nx-3)/(epsilon*p_mob));
+for i=3:nx-2
+    E_theory1(i) = sqrt(2*x(i)*Jp(nx-2)/(epsilon*p_mob));
     E_theory2(i)= sqrt(2*x(i)*Jp(i)/(epsilon*p_mob));
     
 %     E_theory1(i) = sqrt(2*x(i)*Jp(nx-3)/(epsilon*p_mob)+Ea^2);
@@ -255,24 +255,24 @@ end
 
 str = sprintf('%.2g', Va);
 
- h1 = plot(x(3:num_cell),p(3:num_cell));
+ h1 = plot(x(3:num_cell+3),p(3:num_cell+3));
  hold on
  title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
  ylabel({'Hole density ($1/m^3$)'},'interpreter','latex','FontSize',14);
  
  figure;
- h2 = plot(x(3:num_cell),E(3:num_cell));
+ h2 = plot(x(3:num_cell+3),E(3:num_cell+3));
  hold on
- plot(x(3:num_cell),E_theory1(3:num_cell));
- plot(x(3:num_cell),E_theory2(3:num_cell));
+ plot(x(3:num_cell+3),E_theory1(3:num_cell+3));
+ plot(x(3:num_cell+3),E_theory2(3:num_cell+3));
  title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
  ylabel({'Electric Field (V/m)'},'interpreter','latex','FontSize',14);
  
  
  figure;
- h3 = plot(x(3:num_cell),Jp(3:num_cell));
+ h3 = plot(x(3:num_cell+3),Jp(3:num_cell+3));
  hold on
  title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);

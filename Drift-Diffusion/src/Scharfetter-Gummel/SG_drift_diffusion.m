@@ -1,16 +1,9 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%     Solving Poisson + Drift Diffusion eqns (for holes) with 5th order
-%             Weighted Essentially Non-Oscilatory (WENO5)
-%    
-%    Coded by Timofey Golubev (2017.08.11) based on original 1D wave eqn
-%              code by Manuel Diaz, manuel.ade'at'gmail.com 
-%              Institute of Applied Mechanics, 2012.08.20
-%                               
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Ref: Jiang & Shu; Efficient Implementation of Weighted ENO Schemes
-% JCP. vol 126, 202-228 (1996)
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Notes: Finite Difference Implementation of WENO5 
+%     Solving Poisson + Drift Diffusion eqns (for holes) using
+%                   Scharfetter-Gummel discretization
+%
+%                  Coded by Timofey Golubev (2017.08.11)
+%             NOTE: i=1 corresponds to x=0, i=nx to x=L
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 clear all; close all; clc;
 
@@ -20,8 +13,8 @@ num_cell = 100;            % number of cells
 p_initial =  10^27;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
-Va_min = 1;             %volts
-Va_max = 10;    
+Va_min = 1000;             %volts
+Va_max = 1000;    
 increment = 1;       %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;
 
@@ -40,60 +33,36 @@ epsilon = 3.8*epsilon_0;        %dielectric constant of P3HT:PCBM
 
 Vt = (kb*T)/q;
 
-%% Define our Flux function
-fluxtype = 'linear';
-
-%These @(w) define flux and dflux as function handles, allowing to call
-%functions indirectly within arguments of calls to other functions as done
-%in residual().
-switch fluxtype
-    case 'linear'
-        c=1; flux = @(w) c*w;
-        dflux = @(w) c*ones(size(w));
-    case 'nonlinear' % Burgers'
-        flux = @(w) w.^2/2;
-        dflux = @(w) w;
-end
-
 %% Domain Discretization
-a=0; b=L; x0=linspace(a,b,num_cell+1); dx=(b-a)/num_cell;   %x0 is positions array, +1 necessary b/c linspace needs (# of pts = # of cells +1)
-
-% 2 more ghost pts on each side have to be added to the final domain.
-x= [-2*dx,-dx,x0,b+dx,b+2*dx];   
+a=0; b=L; x=linspace(a,b,num_cell+1); dx=(b-a)/num_cell;   %x is positions array, +1 necessary b/c linspace needs (# of pts = # of cells +1)  
 nx = length(x);  
 
 %% Initial Conditions
 if(constant_p_i)
-    for i = 3:nx-2
+    for i = 1:nx
         p(i) = p_initial;
     end
 else
     %linearly decreasing p: this doesn't work well
     p(3) = p_initial;
-    for i = 3:nx-2      
+    for i = 1:nx      
         dp = p_initial/(num_cell+1);
         p(i+1) = p(i)-dp;
     end
 end
-
-%%Boundary conditions: define ghost points
-p(1) = 0;
-p(2) = 0;
-p(nx-1) = 0;
-p(nx) = 0;
 
     Va_cnt = 1;
 for Va_cnt = 1:num_V
     
     %% Initial Conditions
     if(constant_p_i)
-        for i = 3:nx-2
+        for i = 1:nx
             p(i) = p_initial;
         end
     else
         %linearly decreasing p: this doesn't work well
         p(3) = p_initial;
-        for i = 3:nx-2      
+        for i = 1:nx      
             dp = p_initial/(num_cell+1);
             p(i+1) = p(i)-dp;
         end
@@ -126,18 +95,18 @@ for Va_cnt = 1:num_V
     %set up AV: these never change so do outside of loop
     %set up using sparse matrix (just store the lower diag, main diag,upper
     %diag in num_pts x 3 matrix AV_val.
-    num_pts = nx-3-4+1;          %(=# number nodes inside device +1);  
-    AV = zeros(num_pts,3);
+    
+    AV = zeros(num_cell-1,3);
     AV(:,1) = 1.;
     AV(:,3) = 1.;
     AV(:,2) = -2.;
-    AV_val = spdiags(AV,-1:1,num_pts,num_pts);  %A = spdiags(B,d,m,n) creates an m-by-n sparse matrix by taking the columns of B and placing them along the diagonals specified by d.
+    AV_val = spdiags(AV,-1:1,num_cell-1,num_cell-1);  %A = spdiags(B,d,m,n) creates an m-by-n sparse matrix by taking the columns of B and placing them along the diagonals specified by d.
     
     %allocate matrices/arrays
-    V = zeros(num_pts,1);
-    Ap =  zeros(num_pts,3);
-    bV = zeros(num_pts,1);
-    bp = zeros(num_pts,1);
+    V = zeros(num_cell-1,1);
+   
+    bV = zeros(num_cell-1,1);
+    bp = zeros(num_cell-1,1);
     
     %% Solver Loop                
     while error_p > tolerance
@@ -145,37 +114,26 @@ for Va_cnt = 1:num_V
         %Poisson equation with tridiagonal solver
     
         % setup bV
-        for i = 1: num_pts
-            bV(i,1) = -dx^2*(q/epsilon)*p(i+3);    %bV(i) corresponds to 1st point inside device which is 4 so i+3
+        for i = 2: num_cell-2
+            bV(i,1) = -dx^2*(q/epsilon)*p(i);   
         end
-        %for bndrys (AV and bV will be solved on range 4:nx-3)
+        %for bndrys 
         bV(1,1) = bV(1,1) - Va;
-        bV(num_pts,1) = bV(num_pts,1) - 0;
+        bV(num_cell-1,1) = bV(num_cell-1,1) - 0;
         
         %call solver, solve for V
         V =  AV_val\bV;
         
-        %make V with ghost points and bndry pts
-        fullV = [0; 0; Va; V; 0; 0; 0];   %THIS SHOULD BE FORCED TO 0 AT RIGHT BOUNDARY! FIND THAT THIS GIVES SMOOTHER CURVE AND IS CORRECT
-        %NOT SURE IF ALL LEFT POINTS SHOULD BE Va or should left 2 points
-        %be 0: doesn't seem to make much  difference but probably b/c not
-        %using Weno at boundarises anyway.
-        
-        %dV = weno approx for dV/dx
+        %make V with bndry pts
+        fullV = [Va; V; 0];   %THIS SHOULD BE FORCED TO 0 AT RIGHT BOUNDARY! 
+
         fullV = fullV.';             %transpose to be able to put into residual
-        dV = residual(fullV,flux,dflux,dx,nx,fluxsplit);     %this calculates the entire dV array
-        %ALL OF THE BELOW ARE NECESSARY FOR THE RESULTS TO BE CORRECT
-        %tested by removing some of them: then really has issues.
-        dV(3) = (fullV(4)-fullV(3))/dx;   
-        dV(4) = (fullV(5)-fullV(4))/dx; 
-        dV(nx-2) = (fullV(nx-2)-fullV(nx-3))/dx;
-        dV(nx-3) = (fullV(nx-3)-fullV(nx-4))/dx; 
-      
-        %finite differences: for comparison
-%         for i = 3:nx-3
-%             dV(i) = (fullV(i+1)-fullV(i))/dx;
-%         end      
         
+%------------------------------------------------------------------------------------------------        
+       Ap_val = SetAp_val(num_cell, fullV,p,Vt);      
+
+sddfasdf
+
         E = -dV;
         
         %BCs: set E's to equal the values that they are right inside the
@@ -186,23 +144,26 @@ for Va_cnt = 1:num_V
         E(nx-1) = E(nx-2);
         
         %% now solve eqn for p
-        dE = residual(E,flux,dflux,dx,nx,fluxsplit);
+
+        %finite differences for dp and dE
+        for i = 3:nx-3
+            dE(i) = (E(i+1)-E(i))/dx;
+            dp(i) = (p(i+1)-p(i))/dx;
+        end
+        
         %Take care of boundaries:
         dE(3) = (E(4)-E(3))/dx;     %IF DON'T IMPOSE THIS BC, IT gives completely wrong results    
         dE(nx-2) = (E(nx-2)-E(nx-3))/dx;
         dE(nx-1) = 0;
         
-        dp = residual(p,flux,dflux,dx,nx,fluxsplit);
         dp(3) = (p(4)-p(3))/dx;
         dp(nx-2) = (p(nx-2)-p(nx-3))/dx;
         dp(nx-1) = 0;
-        
+           
         old_p = p;
         
         %setup matrices
-        Ap = zeros(num_pts,3);
-        Ap(:,1) = 1.;
-        Ap(:,3) = 1.;
+       
     
         Cp = dx^2/Vt;
         for k = 1:num_pts
@@ -217,7 +178,6 @@ for Va_cnt = 1:num_V
         fullp = [0;0;p_initial; p_sol;0; 0;0];
         newp = fullp.';  %transpose so matches with other matrices (horizontal array, 1 row).
         
- 
         %weighting
         %p = newp;
         p = newp*w + old_p*(1-w);
@@ -233,7 +193,9 @@ for Va_cnt = 1:num_V
     
     %Calculate drift diffusion Jp
     %update dp
-    dp = residual(p,flux,dflux,dx,nx,fluxsplit);
+    for i = 3:nx-3
+         dp(i) = (p(i+1)-p(i))/dx;
+    end
     dp(3) = (p(4)-p(3))/dx;
     dp(nx-2) = (p(nx-2)-p(nx-3))/dx;
     dp(nx-1) = 0;

@@ -1,26 +1,21 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%     Solving Poisson + Drift Diffusion eqns (for holes) with 5th order
-%             Weighted Essentially Non-Oscilatory (WENO5)
-%    
-%    Coded by Timofey Golubev (2017.08.11) based on original 1D wave eqn
-%              code by Manuel Diaz, manuel.ade'at'gmail.com 
-%              Institute of Applied Mechanics, 2012.08.20
-%                               
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Ref: Jiang & Shu; Efficient Implementation of Weighted ENO Schemes
-% JCP. vol 126, 202-228 (1996)
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Notes: Finite Difference Implementation of WENO5 
+%     Solving Poisson + Drift Diffusion eqns (for holes) with finite 
+%           differences. Used to compare with WENO
+%
+%NOTE: MUCH  SMALLER MESH SIZES (THAN WENO) ARE NEEDED FOR FINITE DIFF. 
+%                            METHOD TO WORK
+%
+%                  Coded by Timofey Golubev (2017.08.11)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 clear all; close all; clc;
 
 %% Parameters
 L = 100*10^-9;              %device length in meters
-num_cell = 100;            % number of cells
+num_cell = 10000;            % number of cells
 p_initial =  10^27;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
-Va_min = 1;             %volts
+Va_min = 1000;             %volts
 Va_max = 1000;    
 increment = 1;       %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;
@@ -39,21 +34,6 @@ epsilon_0 =  8.85418782*10^-12; %F/m
 epsilon = 3.8*epsilon_0;        %dielectric constant of P3HT:PCBM
 
 Vt = (kb*T)/q;
-
-%% Define our Flux function
-fluxtype = 'linear';
-
-%These @(w) define flux and dflux as function handles, allowing to call
-%functions indirectly within arguments of calls to other functions as done
-%in residual().
-switch fluxtype
-    case 'linear'
-        c=1; flux = @(w) c*w;
-        dflux = @(w) c*ones(size(w));
-    case 'nonlinear' % Burgers'
-        flux = @(w) w.^2/2;
-        dflux = @(w) w;
-end
 
 %% Domain Discretization
 a=0; b=L; x0=linspace(a,b,num_cell+1); dx=(b-a)/num_cell;   %x0 is positions array, +1 necessary b/c linspace needs (# of pts = # of cells +1)
@@ -84,7 +64,21 @@ p(nx) = 0;
 
     Va_cnt = 1;
 for Va_cnt = 1:num_V
-  
+    
+    %% Initial Conditions
+    if(constant_p_i)
+        for i = 3:nx-2
+            p(i) = p_initial;
+        end
+    else
+        %linearly decreasing p: this doesn't work well
+        p(3) = p_initial;
+        for i = 3:nx-2      
+            dp = p_initial/(num_cell+1);
+            p(i+1) = p(i)-dp;
+        end
+    end
+
     Va = Va_min+increment*(Va_cnt-1);    %increase Va
     %Va = Va_max-increment*(Va_cnt-1);    %decrease Va by increment in each iteration
     
@@ -145,11 +139,14 @@ for Va_cnt = 1:num_V
         fullV = [0; 0; Va; V; 0; 0; 0];   %THIS SHOULD BE FORCED TO 0 AT RIGHT BOUNDARY! FIND THAT THIS GIVES SMOOTHER CURVE AND IS CORRECT
         %NOT SURE IF ALL LEFT POINTS SHOULD BE Va or should left 2 points
         %be 0: doesn't seem to make much  difference but probably b/c not
-        %using Weno at boundarises anyway.
-        
-        %dV = weno approx for dV/dx
+
         fullV = fullV.';             %transpose to be able to put into residual
-        dV = residual(fullV,flux,dflux,dx,nx,fluxsplit);     %this calculates the entire dV array
+        
+        %finite differences: for comparison
+        for i = 3:nx-3
+            dV(i) = (fullV(i+1)-fullV(i))/dx;
+        end  
+  
         %ALL OF THE BELOW ARE NECESSARY FOR THE RESULTS TO BE CORRECT
         %tested by removing some of them: then really has issues.
         dV(3) = (fullV(4)-fullV(3))/dx;   
@@ -157,11 +154,6 @@ for Va_cnt = 1:num_V
         dV(nx-2) = (fullV(nx-2)-fullV(nx-3))/dx;
         dV(nx-3) = (fullV(nx-3)-fullV(nx-4))/dx; 
       
-        %finite differences: for comparison
-%         for i = 3:nx-3
-%             dV(i) = (fullV(i+1)-fullV(i))/dx;
-%         end      
-        
         E = -dV;
         
         %BCs: set E's to equal the values that they are right inside the
@@ -172,17 +164,22 @@ for Va_cnt = 1:num_V
         E(nx-1) = E(nx-2);
         
         %% now solve eqn for p
-        dE = residual(E,flux,dflux,dx,nx,fluxsplit);
+
+        %finite differences for dp and dE
+        for i = 3:nx-3
+            dE(i) = (E(i+1)-E(i))/dx;
+            dp(i) = (p(i+1)-p(i))/dx;
+        end
+        
         %Take care of boundaries:
         dE(3) = (E(4)-E(3))/dx;     %IF DON'T IMPOSE THIS BC, IT gives completely wrong results    
         dE(nx-2) = (E(nx-2)-E(nx-3))/dx;
         dE(nx-1) = 0;
         
-        dp = residual(p,flux,dflux,dx,nx,fluxsplit);
         dp(3) = (p(4)-p(3))/dx;
         dp(nx-2) = (p(nx-2)-p(nx-3))/dx;
         dp(nx-1) = 0;
-        
+           
         old_p = p;
         
         %setup matrices
@@ -203,7 +200,6 @@ for Va_cnt = 1:num_V
         fullp = [0;0;p_initial; p_sol;0; 0;0];
         newp = fullp.';  %transpose so matches with other matrices (horizontal array, 1 row).
         
- 
         %weighting
         %p = newp;
         p = newp*w + old_p*(1-w);
@@ -219,7 +215,9 @@ for Va_cnt = 1:num_V
     
     %Calculate drift diffusion Jp
     %update dp
-    dp = residual(p,flux,dflux,dx,nx,fluxsplit);
+    for i = 3:nx-3
+         dp(i) = (p(i+1)-p(i))/dx;
+    end
     dp(3) = (p(4)-p(3))/dx;
     dp(nx-2) = (p(nx-2)-p(nx-3))/dx;
     dp(nx-1) = 0;

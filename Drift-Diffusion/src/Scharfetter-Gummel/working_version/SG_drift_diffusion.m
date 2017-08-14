@@ -9,19 +9,20 @@ clear all; close all; clc;
 
 %% Parameters
 L = 100*10^-9;              %device length in meters
-num_cell = 100;            % number of cells
+num_cell = 1000;            % number of cells
 p_initial =  10^27;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
-Va_min = 1;             %volts
-Va_max = 1;    
-increment = 1;       %for increasing V
+Va_min = 0.01;             %volts
+Va_max = 0.1;    
+increment = 0.01;       %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;
 
 %Simulation parameters
-w = 0.5;              %set up of weighting factor
+w = 0.01;              %set up of weighting factor
 tolerance = 10^-14;   %error tolerance       
 constant_p_i = true;
+fluxsplit = 3;        % {1} Godunov, {2} Global LF, {3} Local LF  Defines which flux splitting method to be used
 
 %% Physical Constants
 q =  1.60217646*10^-19;         %elementary charge, C
@@ -37,37 +38,37 @@ a=0; b=L; x=linspace(a,b,num_cell+1); dx=(b-a)/num_cell;   %x is positions array
 nx = length(x);  
 
 %% Initial Conditions
-fullp = zeros(nx,1);     %make it vertical column vector for convienicne with matrix operations
 if(constant_p_i)
     for i = 1:nx
-        fullp(i,1) = p_initial;
+        p(i) = p_initial;
     end
 else
-
     %linearly decreasing p: this doesn't work well
-%     fullp(3) = p_initial;
-%     for i = 1:nx      
-%         dp = p_initial/(num_cell+1);
-%         p(i+1) = p(i)-dp;
-%     end
+    p(3) = p_initial;
+    for i = 1:nx      
+        dp = p_initial/(num_cell+1);
+        p(i+1) = p(i)-dp;
+    end
 end
 
     Va_cnt = 1;
 for Va_cnt = 1:num_V
     
-%     %% Initial Conditions
-%     if(constant_p_i)
-%         for i = 1:nx
-%             p(i) = p_initial;
-%         end
-%     else
-%         %linearly decreasing p: this doesn't work well
-%         p(3) = p_initial;
-%         for i = 1:nx      
-%             dp = p_initial/(num_cell+1);
-%             p(i+1) = p(i)-dp;
-%         end
-%     end
+      %clear p_solution     %so that next one could be different lenght and doesn't cause issues.
+    
+    %% Initial Conditions
+    if(constant_p_i)
+        for i = 1:nx
+            p(i) = p_initial;
+        end
+    else
+        %linearly decreasing p: this doesn't work well
+        p(3) = p_initial;
+        for i = 1:nx      
+            dp = p_initial/(num_cell+1);
+            p(i+1) = p(i)-dp;
+        end
+    end
 
     Va = Va_min+increment*(Va_cnt-1);    %increase Va
     %Va = Va_max-increment*(Va_cnt-1);    %decrease Va by increment in each iteration
@@ -90,7 +91,7 @@ for Va_cnt = 1:num_V
     tic
     
     %% Setup the solver
-    iter = 0;
+    iter = 1;
     error_p =  1.0;
     
     %set up AV: these never change so do outside of loop
@@ -110,9 +111,6 @@ for Va_cnt = 1:num_V
     B = zeros(2, nx-1);
     bp = zeros(nx-2,1);
     
-    
-   
-    
     %% Solver Loop        
     num_elements = nx-2;
     while error_p > tolerance
@@ -121,7 +119,7 @@ for Va_cnt = 1:num_V
     
         % setup bV
         for i = 1: num_elements
-            bV(i,1) = -dx^2*(q/epsilon)*fullp(i+1);   
+            bV(i,1) = -dx^2*(q/(epsilon*Vt))*p(i);   
         end
         %for bndrys 
         bV(1,1) = bV(1,1) - Va;
@@ -129,58 +127,60 @@ for Va_cnt = 1:num_V
         
         %call solver, solve for V
         V =  AV_val\bV;
-     
+        
         %make V with bndry pts
         fullV = [Va; V; 0];   %THIS SHOULD BE FORCED TO 0 AT RIGHT BOUNDARY! 
 
         fullV = fullV.';             %transpose to be able to put into residual
-        
+     
 %------------------------------------------------------------------------------------------------        
        %% now solve eqn for p           
         %B = BernoulliFnc(nx, fullV, Vt);
-        
-        fullp(nx) = fullp(nx-1);
        
-        %Ap_val = SetAp_val(num_elements, B, fullV,p,Vt);      
+        %Ap_val = SetAp_val(num_cell, B, fullV,p,Vt);      
  for i = 1:nx-1               %so dV(100) = dV(101: is at x=L) - dV(100, at x= l-dx).
-    dV(i) = fullV(i+1)-fullV(i);
+    dV(i) = (fullV(i+1)-fullV(i))/Vt;     %MUST USE Vt b/c it's not just scaling: it's pulled out of equation of diff terms.
     B(1,i) = dV(i)/(exp(dV(i))-1.0);    %B(+dV)
     B(2,i) = B(1)*exp(dV(i));          %B(-dV)
  end
-        
+         
 
- for i=1:num_elements
-    Ap(i,1) = B(1,i);     %lower diagonal
-    Ap(i,2) = -(B(2,i) + B(1,i+1));  %main diagonal
-    Ap(i,3) = B(2,i+1);     %upper diagonal   CHECK MAKE SURE THIS IS RIGHT!
+ for i=1:num_elements     %I verified that ordering of columns is correct!
+    Ap(i,1) = B(1,i);    
+    Ap(i,2) = -(B(2,i) + B(1,i+1));  
+    Ap(i,3) = B(2,i+1);    
  end
 
  
 Ap_val = spdiags(Ap,-1:1,num_elements,num_elements); %A = spdiags(B,d,m,n) creates an m-by-
 
-
+        
+        if(iter == 1 && Va_cnt ==1)
+            old_p = p(2:nx-1);
+        end
+        
         %enforce boundary conditions through bp
-        bp(1) = bp(1) - B(1,1)*fullp(1);
-        bp(num_elements) = bp(num_elements) - B(2,nx-1)*fullp(nx);           %NOTE I'M USING DIFFERENT NOTATION THAN DD-BI CODE!!: B's are defined from the left side!
-
+        bp(1) = -B(1,1)*p_initial;
+        bp(num_elements) = 0;       %ENFORCE RIGHT SIDE P IS 0    %NOTE I'M USING DIFFERENT NOTATION THAN DD-BI CODE!!: B's are defined from the left side!
+   
         p_sol = Ap_val\bp;   
-
-       error_p = max(abs(p_sol-fullp(2:nx-1))/abs(fullp(2:nx-1)));
+        
+        %fullp = [p_initial; p_sol;0];
+        %newp = fullp.';  %transpose so matches with other matrices (horizontal array, 1 row).
         
         %weighting
-        oldp = fullp(2:nx-1);
-        p = p_sol*w + oldp*(1-w);      %fullp is soln. from  previous iter
-  
+        newp = p_sol.';    %tranpsose
+        p = newp*w + old_p*(1.-w);
+      
+        error_p = max(abs(p-old_p)/abs(old_p))
         
-        fullp = [p_initial; p];  %leave right side unforced
-        %fullp = fullp.';  %transpose so matches with other matrices (horizontal array, 1 row).
-
-        iter =  iter+1    
+        old_p = p;
+    
+       iter =  iter+1    
        
-       if(Va == Va_min) %only for last run
-          p_solution(iter) = fullp(46);    % save E at random point for each iter for convergence analysis
+       if(Va == Va_max) %only for last run
+          p_solution(iter) = p(20);    % save E at random point for each iter for convergence analysis
        end
-
     end
     
 %     %Calculate drift diffusion Jp
@@ -205,15 +205,15 @@ Ap_val = spdiags(Ap,-1:1,num_elements,num_elements); %A = spdiags(B,d,m,n) creat
     filename = [str 'V.txt'] 
     fid = fopen(fullfile('C:\Users\Tim\Documents\Duxbury group research\WENO\results_output\',filename),'w');   %w: Open or create new file for writing
     %fullfile allows to make filename from parts
-    for i = 1:nx-1
-        fprintf(fid,'%.8e %.8e\r\n ',x(i), fullp(i)); 
+    for i = 3:nx-2
+        fprintf(fid,'%.8e %.8e\r\n ',x(i), p(i)); 
         %f means scientific notation, \r\n: start new line for each value
         %for each new desired column, put its own % sign    
     end
     fclose(fid);
     
     toc
-    
+  
 end
 
 %sanity check: calculate V by integrating E
@@ -227,8 +227,7 @@ end
 
 str = sprintf('%.2g', Va);
 
-plotp = fullp.';   %transpose to be able to plot
- h1 = plot(x(1:nx-1),plotp);
+ h1 = plot(x(2:nx-1),p);
  hold on
  title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);

@@ -1,8 +1,8 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %     Solving Poisson + Drift Diffusion eqns (for holes) with finite 
-%           differences. Used to compare with WENO
+%           differences. 
 %
-%NOTE: MUCH  SMALLER MESH SIZES (THAN WENO) ARE NEEDED FOR FINITE DIFF. 
+%NOTE: MUCH  SMALLER MESH SIZES ARE NEEDED FOR FINITE DIFF. 
 %                            METHOD TO WORK
 %
 %                  Coded by Timofey Golubev (2017.08.11)
@@ -24,7 +24,6 @@ num_V = floor((Va_max-Va_min)/increment)+1;
 w = .01;              %set up of weighting factor
 tolerance = 10^-14;   %error tolerance       
 constant_p_i = true;
-fluxsplit = 3;        % {1} Godunov, {2} Global LF, {3} Local LF  Defines which flux splitting method to be used
 
 %% Physical Constants
 q =  1.60217646*10^-19;         %elementary charge, C
@@ -81,20 +80,6 @@ for Va_cnt = 1:num_V
 
     Va = Va_min+increment*(Va_cnt-1);    %increase Va
     %Va = Va_max-increment*(Va_cnt-1);    %decrease Va by increment in each iteration
-    
-    %for low Va_max (start point), use lower 1st w, for medium Va, use
-    %lower w.
-%     if(Va_max<200.)
-%         if(Va_cnt==1)
-%             w= 0.0001;
-%         elseif(Va_max<30.)  %need to figureout what this value limit is
-%             w = 0.0001;
-%         else
-%             w = 0.001;
-%         end
-%     elseif(Va<200.)
-%         w = 0.001;
-%     end
     
     %timing
     tic

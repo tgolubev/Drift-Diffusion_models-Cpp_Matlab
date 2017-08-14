@@ -12,20 +12,20 @@ clear all; close all; clc;
 %% Parameters
 L = 100*10^-9;              %device length in meters
 num_cell = 100;            % number of cells
-p_initial =  10^27;        %initial hole density
+p_initial =  10^25;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
-N = 10^27;    %scaling factor for p
+N = 10^25;    %scaling factor for p
 
 p_initial = p_initial/N;
 
-Va_min = 100;             %volts
-Va_max = 100;    
+Va_min = 100.;             %volts
+Va_max = 100.;    
 increment = 0.01;       %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;
 
 %Simulation parameters
-w = 0.001;              %set up of weighting factor
+w = 0.01;              %set up of weighting factor
 tolerance = 10^-14;   %error tolerance       
 constant_p_i = true;   
 
@@ -163,8 +163,6 @@ for Va_cnt = 1:num_V
     %WHAT IF I USE WENO HERE???
     
  end
- %add injection step
- dV(1) = dV(1) + 1./Vt;    %the # = phi_a in ddbi code
     
  for i = 1:nx-1
     B(1,i) = dV(i)/(exp(dV(i))-1.0);    %B(+dV)
@@ -174,7 +172,7 @@ for Va_cnt = 1:num_V
 
  for i=1:num_elements     %I verified that ordering of columns is correct!
     Ap(i,1) = B(1,i);    
-    Ap(i,2) = (B(2,i) + B(1,i+1));  
+    Ap(i,2) = -(B(2,i) + B(1,i+1));  
     Ap(i,3) = B(2,i+1);    
  end
 

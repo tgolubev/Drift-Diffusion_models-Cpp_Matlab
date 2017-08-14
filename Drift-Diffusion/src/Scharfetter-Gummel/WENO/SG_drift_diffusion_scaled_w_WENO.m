@@ -2,26 +2,32 @@
 %     Solving Poisson + Drift Diffusion eqns (for holes) using
 %                   Scharfetter-Gummel discretization
 %
-%                  Coded by Timofey Golubev (2017.08.11)
+%                  Coded by Timofey Golubev (2017.08.13)
 %             NOTE: i=1 corresponds to x=0, i=nx to x=L
+
+%RECALL THAT fullV = V/Vt: is scaled!. Same with p = p/N
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 clear all; close all; clc;
 
 %% Parameters
 L = 100*10^-9;              %device length in meters
-num_cell = 1000;            % number of cells
+num_cell = 10000;            % number of cells
 p_initial =  10^27;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
-Va_min = 0.01;             %volts
-Va_max = 0.1;    
+N = 10^27;    %scaling factor for p
+
+p_initial = p_initial/N;
+
+Va_min = 100;             %volts
+Va_max = 100;    
 increment = 0.01;       %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;
 
 %Simulation parameters
-w = 0.01;              %set up of weighting factor
+w = 0.001;              %set up of weighting factor
 tolerance = 10^-14;   %error tolerance       
-constant_p_i = true;
+constant_p_i = true;   
 fluxsplit = 3;        % {1} Godunov, {2} Global LF, {3} Local LF  Defines which flux splitting method to be used
 
 %% Physical Constants
@@ -33,42 +39,66 @@ epsilon = 3.8*epsilon_0;        %dielectric constant of P3HT:PCBM
 
 Vt = (kb*T)/q;
 
+%% Define our Flux function
+fluxtype = 'linear';
+
+%These @(w) define flux and dflux as function handles, allowing to call
+%functions indirectly within arguments of calls to other functions as done
+%in residual().
+switch fluxtype
+    case 'linear'
+        c=1; flux = @(w) c*w;
+        dflux = @(w) c*ones(size(w));
+    case 'nonlinear' % Burgers'
+        flux = @(w) w.^2/2;
+        dflux = @(w) w;
+end
+
 %% Domain Discretization
-a=0; b=L; x=linspace(a,b,num_cell+1); dx=(b-a)/num_cell;   %x is positions array, +1 necessary b/c linspace needs (# of pts = # of cells +1)  
+a=0; b=L; x0=linspace(a,b,num_cell+1); dx=(b-a)/num_cell;   %x is positions array, +1 necessary b/c linspace needs (# of pts = # of cells +1)  
+
+% 2 more ghost pts on each side have to be added to the final domain.
+x = [-2*dx,-dx,x0,b+dx,b+2*dx];   
 nx = length(x);  
 
 %% Initial Conditions
 if(constant_p_i)
-    for i = 1:nx
+    for i = 3:nx-2
         p(i) = p_initial;
     end
 else
     %linearly decreasing p: this doesn't work well
-    p(3) = p_initial;
-    for i = 1:nx      
-        dp = p_initial/(num_cell+1);
-        p(i+1) = p(i)-dp;
-    end
+%     p(1) = p_initial;
+%     for i = 1:nx      
+%         dp = p_initial/(num_cell+1);
+%         p(i+1) = p(i)-dp;
+%     end
 end
+
+  %redefine p's to be only those inside device
+    p = p(4:nx-3);
 
     Va_cnt = 1;
 for Va_cnt = 1:num_V
     
       %clear p_solution     %so that next one could be different lenght and doesn't cause issues.
     
-    %% Initial Conditions
-    if(constant_p_i)
-        for i = 1:nx
-            p(i) = p_initial;
-        end
-    else
-        %linearly decreasing p: this doesn't work well
-        p(3) = p_initial;
-        for i = 1:nx      
-            dp = p_initial/(num_cell+1);
-            p(i+1) = p(i)-dp;
-        end
-    end
+    % Initial Conditions
+%     if(constant_p_i)
+%         for i = 1:nx
+%             p(i) = p_initial;
+%         end
+%     else
+%         %linearly decreasing p: this doesn't work well
+%         p(1) = p_initial;
+%         for i = 1:nx      
+%             dp = p_initial/(num_cell+1);
+%             p(i+1) = p(i)-dp;
+%         end
+%     end
+    
+  %redefine p's to be only those inside device
+%     p = p(2:num_cell);
 
     Va = Va_min+increment*(Va_cnt-1);    %increase Va
     %Va = Va_max-increment*(Va_cnt-1);    %decrease Va by increment in each iteration
@@ -98,71 +128,85 @@ for Va_cnt = 1:num_V
     %set up using sparse matrix (just store the lower diag, main diag,upper
     %diag in num_pts x 3 matrix AV_val.
     
-    AV = zeros(nx-2,3);
+    AV = zeros(nx-6,3);  %4 ghost points + 2 bndry pts so nx-6 gives pts inside of device
     AV(:,1) = 1.;
     AV(:,3) = 1.;
     AV(:,2) = -2.;
-    AV_val = spdiags(AV,-1:1,nx-2,nx-2);  %A = spdiags(B,d,m,n) creates an m-by-n sparse matrix by taking the columns of B and placing them along the diagonals specified by d.
+    AV_val = spdiags(AV,-1:1,nx-6,nx-6);  %A = spdiags(B,d,m,n) creates an m-by-n sparse matrix by taking the columns of B and placing them along the diagonals specified by d.
     
     %allocate matrices/arrays
-    V = zeros(nx-2,1);
-    bV = zeros(nx-2,1);
+    V = zeros(nx-6,1);
+    bV = zeros(nx-6,1);
     
-    B = zeros(2, nx-1);
-    bp = zeros(nx-2,1);
+    B = zeros(2, nx-5);
+    bp = zeros(nx-6,1);
     
     %% Solver Loop        
-    num_elements = nx-2;
+    num_elements = nx-6;
     while error_p > tolerance
         
         %Poisson equation with tridiagonal solver
     
         % setup bV
         for i = 1: num_elements
-            bV(i,1) = -dx^2*(q/(epsilon*Vt))*p(i);   
+            bV(i,1) = -N*dx^2*(q/(epsilon*Vt))*p(i);   
         end
         %for bndrys 
-        bV(1,1) = bV(1,1) - Va;
+        bV(1,1) = bV(1,1) - Va/Vt;         %must scale this too, since all others are scaled
         bV(num_elements,1) = bV(num_elements,1) - 0;
         
         %call solver, solve for V
         V =  AV_val\bV;
+        %SO THIS ACTUALLY IS SOLVING FOR PSI PRIME: A SCALED PSI! --> so
+        %later in Bernoulli: don't need to devide by VT again: b/c this
+        %here is already scaled!
         
-        %make V with bndry pts
-        fullV = [Va; V; 0];   %THIS SHOULD BE FORCED TO 0 AT RIGHT BOUNDARY! 
+        %make V with bndry pts and ghost points
+        fullV = [0;0; Va/Vt; V; 0; 0 ;0 ];   %THIS SHOULD BE FORCED TO 0 AT RIGHT BOUNDARY! 
 
         fullV = fullV.';             %transpose to be able to put into residual
+        
+        %scaling to prevent blowup
+        fullV = fullV/1000;
+        
      
 %------------------------------------------------------------------------------------------------        
        %% now solve eqn for p           
         %B = BernoulliFnc(nx, fullV, Vt);
        
         %Ap_val = SetAp_val(num_cell, B, fullV,p,Vt);      
- for i = 1:nx-1               %so dV(100) = dV(101: is at x=L) - dV(100, at x= l-dx).
-    dV(i) = (fullV(i+1)-fullV(i))/Vt;     %MUST USE Vt b/c it's not just scaling: it's pulled out of equation of diff terms.
+
+dV = dx*residual(fullV,flux,dflux,dx,nx,fluxsplit);  %recall that these dV's are defined as just psi(i+1) - psi(i)
+dV(3) = fullV(4)-fullV(3);
+dV(nx-3) = fullV(nx-2)-fullV(nx-3);
+    
+
+
+ %add injection step
+ %dV(1) = dV(1) + 1./Vt;    %the # = phi_a in ddbi code
+    
+ for i = 3:nx-3
     B(1,i) = dV(i)/(exp(dV(i))-1.0);    %B(+dV)
     B(2,i) = B(1)*exp(dV(i));          %B(-dV)
  end
-         
+
 
  for i=1:num_elements     %I verified that ordering of columns is correct!
     Ap(i,1) = B(1,i);    
-    Ap(i,2) = -(B(2,i) + B(1,i+1));  
+    Ap(i,2) = (B(2,i) + B(1,i+1));  
     Ap(i,3) = B(2,i+1);    
  end
 
- 
-Ap_val = spdiags(Ap,-1:1,num_elements,num_elements); %A = spdiags(B,d,m,n) creates an m-by-
 
-        
-        if(iter == 1 && Va_cnt ==1)
-            old_p = p(2:nx-1);
-        end
+Ap_val = spdiags(Ap,-1:1,num_elements,num_elements); %A = spdiags(B,d,m,n) creates an m-by-
+         old_p = p;
         
         %enforce boundary conditions through bp
-        bp(1) = -B(1,1)*p_initial;
+        bp(1) = -B(1,3)*p_initial;
         bp(num_elements) = 0;       %ENFORCE RIGHT SIDE P IS 0    %NOTE I'M USING DIFFERENT NOTATION THAN DD-BI CODE!!: B's are defined from the left side!
-   
+        
+        
+        
         p_sol = Ap_val\bp;   
         
         %fullp = [p_initial; p_sol;0];
@@ -174,10 +218,11 @@ Ap_val = spdiags(Ap,-1:1,num_elements,num_elements); %A = spdiags(B,d,m,n) creat
       
         error_p = max(abs(p-old_p)/abs(old_p))
         
-        old_p = p;
+      %rescale fullV
+      fullV = fullV*1000;
     
        iter =  iter+1    
-       
+  
        if(Va == Va_max) %only for last run
           p_solution(iter) = p(20);    % save E at random point for each iter for convergence analysis
        end
@@ -215,6 +260,10 @@ Ap_val = spdiags(Ap,-1:1,num_elements,num_elements); %A = spdiags(B,d,m,n) creat
     toc
   
 end
+
+%output to screen for testing
+p(10);
+p(11);
 
 %sanity check: calculate V by integrating E
 % V_final(Va_cnt) = 0;

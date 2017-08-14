@@ -2,7 +2,7 @@
 %     Solving Poisson + Drift Diffusion eqns (for holes) using
 %                   Scharfetter-Gummel discretization
 %
-%                  Coded by Timofey Golubev (2017.08.11)
+%                  Coded by Timofey Golubev (2017.08.13)
 %             NOTE: i=1 corresponds to x=0, i=nx to x=L
 
 %RECALL THAT fullV = V/Vt: is scaled!. Same with p = p/N
@@ -19,13 +19,13 @@ N = 10^27;    %scaling factor for p
 
 p_initial = p_initial/N;
 
-Va_min = 1;             %volts
-Va_max = 1;    
+Va_min = 100;             %volts
+Va_max = 100;    
 increment = 0.01;       %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;
 
 %Simulation parameters
-w = 0.01;              %set up of weighting factor
+w = 0.001;              %set up of weighting factor
 tolerance = 10^-14;   %error tolerance       
 constant_p_i = true;   
 
@@ -159,9 +159,12 @@ for Va_cnt = 1:num_V
         %Ap_val = SetAp_val(num_cell, B, fullV,p,Vt);      
  for i = 1:nx-1               %so dV(100) = dV(101: is at x=L) - dV(100, at x= l-dx).
     dV(i) = fullV(i+1)-fullV(i);     %these fullV's ARE ACTUALLY PSI PRIME; ALREADY = V/Vt, when solved poisson.
+    
+    %WHAT IF I USE WENO HERE???
+    
  end
  %add injection step
- dV(1) = dV(1) + 0.9/Vt;    %the # = phi_a in ddbi code
+ dV(1) = dV(1) + 1./Vt;    %the # = phi_a in ddbi code
     
  for i = 1:nx-1
     B(1,i) = dV(i)/(exp(dV(i))-1.0);    %B(+dV)
@@ -182,6 +185,8 @@ Ap_val = spdiags(Ap,-1:1,num_elements,num_elements); %A = spdiags(B,d,m,n) creat
         %enforce boundary conditions through bp
         bp(1) = -B(1,1)*p_initial;
         bp(num_elements) = 0;       %ENFORCE RIGHT SIDE P IS 0    %NOTE I'M USING DIFFERENT NOTATION THAN DD-BI CODE!!: B's are defined from the left side!
+        
+        
         
         p_sol = Ap_val\bp;   
         

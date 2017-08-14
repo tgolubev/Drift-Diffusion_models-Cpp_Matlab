@@ -4,12 +4,14 @@
 %
 %                  Coded by Timofey Golubev (2017.08.11)
 %             NOTE: i=1 corresponds to x=0, i=nx to x=L
+
+%RECALL THAT fullV = V/Vt: is scaled!. Same with p = p/N
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 clear all; close all; clc;
 
 %% Parameters
 L = 100*10^-9;              %device length in meters
-num_cell = 10000;            % number of cells
+num_cell = 100;            % number of cells
 p_initial =  10^27;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
@@ -23,9 +25,9 @@ increment = 0.01;       %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;
 
 %Simulation parameters
-w = 0.001;              %set up of weighting factor
+w = 0.01;              %set up of weighting factor
 tolerance = 10^-14;   %error tolerance       
-constant_p_i = true;   % NEED LINEARLY DECREASING P INITIALLY TO HAVE BETTER INITIAL V RESULT--> better stability
+constant_p_i = true;   
 
 
 %% Physical Constants
@@ -48,7 +50,7 @@ if(constant_p_i)
     end
 else
     %linearly decreasing p: this doesn't work well
-    p(3) = p_initial;
+    p(1) = p_initial;
     for i = 1:nx      
         dp = p_initial/(num_cell+1);
         p(i+1) = p(i)-dp;
@@ -70,7 +72,7 @@ for Va_cnt = 1:num_V
         end
     else
         %linearly decreasing p: this doesn't work well
-        p(3) = p_initial;
+        p(1) = p_initial;
         for i = 1:nx      
             dp = p_initial/(num_cell+1);
             p(i+1) = p(i)-dp;
@@ -145,6 +147,10 @@ for Va_cnt = 1:num_V
         fullV = [Va/Vt; V; 0];   %THIS SHOULD BE FORCED TO 0 AT RIGHT BOUNDARY! 
 
         fullV = fullV.';             %transpose to be able to put into residual
+        
+        %scaling to prevent blowup
+        fullV = fullV/1000;
+        
      
 %------------------------------------------------------------------------------------------------        
        %% now solve eqn for p           
@@ -155,7 +161,7 @@ for Va_cnt = 1:num_V
     dV(i) = fullV(i+1)-fullV(i);     %these fullV's ARE ACTUALLY PSI PRIME; ALREADY = V/Vt, when solved poisson.
  end
  %add injection step
- dV(1) = dV(1) + 1./Vt;    %the # = phi_a in ddbi code
+ dV(1) = dV(1) + 0.9/Vt;    %the # = phi_a in ddbi code
     
  for i = 1:nx-1
     B(1,i) = dV(i)/(exp(dV(i))-1.0);    %B(+dV)
@@ -174,9 +180,9 @@ Ap_val = spdiags(Ap,-1:1,num_elements,num_elements); %A = spdiags(B,d,m,n) creat
          old_p = p;
         
         %enforce boundary conditions through bp
-        bp(1) = B(1,1)*p_initial;
+        bp(1) = -B(1,1)*p_initial;
         bp(num_elements) = 0;       %ENFORCE RIGHT SIDE P IS 0    %NOTE I'M USING DIFFERENT NOTATION THAN DD-BI CODE!!: B's are defined from the left side!
-   
+        
         p_sol = Ap_val\bp;   
         
         %fullp = [p_initial; p_sol;0];
@@ -188,7 +194,8 @@ Ap_val = spdiags(Ap,-1:1,num_elements,num_elements); %A = spdiags(B,d,m,n) creat
       
         error_p = max(abs(p-old_p)/abs(old_p))
         
-     
+      %rescale fullV
+      fullV = fullV*1000;
     
        iter =  iter+1    
   
@@ -229,6 +236,10 @@ Ap_val = spdiags(Ap,-1:1,num_elements,num_elements); %A = spdiags(B,d,m,n) creat
     toc
   
 end
+
+%output to screen for testing
+p(10);
+p(11);
 
 %sanity check: calculate V by integrating E
 % V_final(Va_cnt) = 0;

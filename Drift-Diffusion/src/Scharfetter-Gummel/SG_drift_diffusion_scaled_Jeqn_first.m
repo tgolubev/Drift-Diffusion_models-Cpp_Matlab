@@ -9,7 +9,7 @@ clear all; close all; clc;
 
 %% Parameters
 L = 100*10^-9;              %device length in meters
-num_cell = 10000;            % number of cells
+num_cell = 20000;            % number of cells
 p_initial =  10^27;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
@@ -42,60 +42,26 @@ a=0; b=L; x=linspace(a,b,num_cell+1); dx=(b-a)/num_cell;   %x is positions array
 nx = length(x);  
 
 %% Initial Conditions
-if(constant_p_i)
-    for i = 1:nx
-        p(i) = p_initial;
-    end
-else
-    %linearly decreasing p: this doesn't work well
-    p(3) = p_initial;
-    for i = 1:nx      
-        dp = p_initial/(num_cell+1);
-        p(i+1) = p(i)-dp;
-    end
+
+
+dv = Va_min/(Vt*(num_cell+1));
+fullV(1) = Va_min/Vt;
+for i = 1:nx-1
+    fullV(i+1) = fullV(i) - dv;
+    p(i) = p_initial;                    %make p_initial just constantt throughout
 end
 
-  %redefine p's to be only those inside device
-    p = p(2:num_cell);
 
     Va_cnt = 1;
 for Va_cnt = 1:num_V
     
-      %clear p_solution     %so that next one could be different lenght and doesn't cause issues.
-    
-    % Initial Conditions
-    if(constant_p_i)
-        for i = 1:nx
-            p(i) = p_initial;
-        end
-    else
-        %linearly decreasing p: this doesn't work well
-        p(3) = p_initial;
-        for i = 1:nx      
-            dp = p_initial/(num_cell+1);
-            p(i+1) = p(i)-dp;
-        end
-    end
+
     
   %redefine p's to be only those inside device
     p = p(2:num_cell);
 
     Va = Va_min+increment*(Va_cnt-1);    %increase Va
     %Va = Va_max-increment*(Va_cnt-1);    %decrease Va by increment in each iteration
-    
-    %for low Va_max (start point), use lower 1st w, for medium Va, use
-    %lower w.
-%     if(Va_max<200.)
-%         if(Va_cnt==1)
-%             w= 0.0001;
-%         elseif(Va_max<30.)  %need to figureout what this value limit is
-%             w = 0.0001;
-%         else
-%             w = 0.001;
-%         end
-%     elseif(Va<200.)
-%         w = 0.001;
-%     end
     
     %timing
     tic
@@ -125,29 +91,8 @@ for Va_cnt = 1:num_V
     num_elements = nx-2;
     while error_p > tolerance
         
-        %Poisson equation with tridiagonal solver
-    
-        % setup bV
-        for i = 1: num_elements
-            bV(i,1) = -N*dx^2*(q/(epsilon*Vt))*p(i);   
-        end
-        %for bndrys 
-        bV(1,1) = bV(1,1) - Va/Vt;         %must scale this too, since all others are scaled
-        bV(num_elements,1) = bV(num_elements,1) - 0;
         
-        %call solver, solve for V
-        V =  AV_val\bV;
-        %SO THIS ACTUALLY IS SOLVING FOR PSI PRIME: A SCALED PSI! --> so
-        %later in Bernoulli: don't need to devide by VT again: b/c this
-        %here is already scaled!
-        
-        %make V with bndry pts
-        fullV = [Va/Vt; V; 0];   %THIS SHOULD BE FORCED TO 0 AT RIGHT BOUNDARY! 
-
-        fullV = fullV.';             %transpose to be able to put into residual
-     
-%------------------------------------------------------------------------------------------------        
-       %% now solve eqn for p           
+        %% Solve eqn for p first        
         %B = BernoulliFnc(nx, fullV, Vt);
        
         %Ap_val = SetAp_val(num_cell, B, fullV,p,Vt);      
@@ -188,8 +133,29 @@ Ap_val = spdiags(Ap,-1:1,num_elements,num_elements); %A = spdiags(B,d,m,n) creat
       
         error_p = max(abs(p-old_p)/abs(old_p))
         
-     
+      
+        
+        %Poisson equation with tridiagonal solver
     
+        % setup bV
+        for i = 1: num_elements
+            bV(i,1) = -N*dx^2*(q/(epsilon*Vt))*p(i);   
+        end
+        %for bndrys 
+        bV(1,1) = bV(1,1) - Va/Vt;         %must scale this too, since all others are scaled
+        bV(num_elements,1) = bV(num_elements,1) - 0;
+        
+        %call solver, solve for V
+        V =  AV_val\bV;
+        %SO THIS ACTUALLY IS SOLVING FOR PSI PRIME: A SCALED PSI! --> so
+        %later in Bernoulli: don't need to devide by VT again: b/c this
+        %here is already scaled!
+        
+        %make V with bndry pts
+        fullV = [Va/Vt; V; 0];   %THIS SHOULD BE FORCED TO 0 AT RIGHT BOUNDARY! 
+
+        fullV = fullV.';             %transpose to be able to put into residual 
+
        iter =  iter+1    
   
        if(Va == Va_max) %only for last run

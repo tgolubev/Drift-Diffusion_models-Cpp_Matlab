@@ -15,6 +15,8 @@ num_cell = 100;            % number of cells
 p_initial =  10^27;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
+U = 10^29;                       %net carrier generation rate at interface (in middle)
+
 N = 1.;    %scaling factor for p
 
 p_initial = p_initial/N;
@@ -25,7 +27,7 @@ increment = 0.01;       %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;
 
 %Simulation parameters
-w = 0.01;              %set up of weighting factor
+w = 0.001;              %set up of weighting factor
 tolerance = 10^-14;   %error tolerance       
 constant_p_i = true;   
 
@@ -158,7 +160,10 @@ for Va_cnt = 1:num_V
         
      
 %------------------------------------------------------------------------------------------------        
-       %% now solve eqn for p           
+       %% now solve eqn for p  
+       
+       
+       Cp = dx^2/(Vt*N*p_mob);   %note: I divided the p_mob out of the matrix
         %B = BernoulliFnc(nx, fullV, Vt);
        
         %Ap_val = SetAp_val(num_cell, B, fullV,p,Vt);      
@@ -193,18 +198,21 @@ Ap_val = spdiags(Ap,-1:1,num_elements,num_elements); %A = spdiags(B,d,m,n) creat
         %dmaybe here need to include THE -B for the other boundary c
         %ondition: subtract the right side p value.
         
+        %introduce a net generation rate somewhere in the middle
+        bp(floor(num_cell/2.)) = -Cp*U;
+        
         
         p_sol = Ap_val\bp;   
         
         %fullp = [p_initial; p_sol;0];
         %newp = fullp.';  %transpose so matches with other matrices (horizontal array, 1 row).
         
+        error_p = max(abs(p_sol-old_p)/abs(old_p))  %ERROR SHOULD BE CALCULATED BEFORE WEIGHTING
+        
         %weighting
         newp = p_sol.';    %tranpsose
         p = newp*w + old_p*(1.-w);
       
-        error_p = max(abs(p-old_p)/abs(old_p))
-        
       %rescale fullV
       fullV = fullV*1000;
     

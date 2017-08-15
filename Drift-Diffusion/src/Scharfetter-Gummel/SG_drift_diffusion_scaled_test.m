@@ -11,7 +11,7 @@ clear all; close all; clc;
 
 %% Parameters
 L = 100*10^-9;              %device length in meters
-num_cell = 100;            % number of cells
+num_cell = 1000;           % number of cells
 p_initial =  10^27;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
@@ -37,7 +37,7 @@ T = 296.;                       %temperature
 epsilon_0 =  8.85418782*10^-12; %F/m
 epsilon = 3.8*epsilon_0;        %dielectric constant of P3HT:PCBM
 
-Vt = 1;%(kb*T)/q;
+Vt = (kb*T)/q;
 
 %% Domain Discretization
 a=0; b=L; x=linspace(a,b,num_cell+1); dx=(b-a)/num_cell;   %x is positions array, +1 necessary b/c linspace needs (# of pts = # of cells +1)  
@@ -58,7 +58,7 @@ else
 end
 
   %redefine p's to be only those inside device
-    p = p(2:num_cell);
+    p = p(2:nx-1);
 
     Va_cnt = 1;
 for Va_cnt = 1:num_V
@@ -84,7 +84,7 @@ for Va_cnt = 1:num_V
 
     
   %redefine p's to be only those inside device
-    p = p(2:num_cell);
+    p = p(2:nx-1);
 
    
     Va = Va_min+increment*(Va_cnt-1);    %increase Va
@@ -130,17 +130,19 @@ for Va_cnt = 1:num_V
     
     %% Solver Loop        
     num_elements = nx-2;
+    CV = N*dx^2*q/(epsilon*Vt);
+    
     while error_p > tolerance
         
         %Poisson equation with tridiagonal solver
     
         % setup bV
         for i = 1: num_elements
-            bV(i,1) = -N*dx^2*(q/(epsilon*Vt))*p(i);   
+            bV(i,1) = -CV*p(i);   
         end
         %for bndrys 
         bV(1,1) = bV(1,1) - Va/Vt;         %must scale this too, since all others are scaled
-        bV(num_elements,1) = bV(num_elements,1) - 0;
+        bV(num_elements,1) = bV(num_elements,1) - 0;    %THIS IS CORRECT, SAME AS DDBI CODE (except boundarise are flipped)
         
         %call solver, solve for V
         V =  AV_val\bV;
@@ -152,7 +154,7 @@ for Va_cnt = 1:num_V
         fullV = [Va/Vt; V; 0];   %THIS SHOULD BE FORCED TO 0 AT RIGHT BOUNDARY! 
 
         fullV = fullV.';             %transpose to be able to put into residual
-  
+        
         %scaling to prevent blowup
         fullV = fullV/1000;
         
@@ -162,25 +164,23 @@ for Va_cnt = 1:num_V
         %B = BernoulliFnc(nx, fullV, Vt);
        
         %Ap_val = SetAp_val(num_cell, B, fullV,p,Vt);      
- for i = 1:nx-1               %so dV(100) = dV(101: is at x=L) - dV(100, at x= l-dx).
-    dV(i) = fullV(i+1)-fullV(i);     %these fullV's ARE ACTUALLY PSI PRIME; ALREADY = V/Vt, when solved poisson.
+ for i = 2:nx               %so dV(100) = dV(101: is at x=L) - dV(100, at x= l-dx).
+    dV(i) = fullV(i)-fullV(i-1);     %these fullV's ARE ACTUALLY PSI PRIME; ALREADY = V/Vt, when solved poisson.
     
     %WHAT IF I USE WENO HERE???
     
  end
     
- for i = 1:nx-1
+ for i = 2:nx
     B(1,i) = dV(i)/(exp(dV(i))-1.0);    %B(+dV)
-    %B(2,i) = -dV(i)/(exp(-dV(i))-1.0);   %THIS IS EQUIVALENT  TO OTHE
-    %BELOW EXPERSSION
     B(2,i) = B(1,i)*exp(dV(i));          %B(-dV)
  end
 
 
- for i=1:num_elements     %I verified that ordering of columns is correct!
-    Ap(i,1) = B(1,i);    
-    Ap(i,2) = -(B(2,i) + B(1,i+1));  
-    Ap(i,3) = B(2,i+1);    
+ for i=1:num_elements     %I verified that ordering of columns is correct!   %B(:,2) corresponds to i=1 here....
+    Ap(i,1) = B(1,i+1);    
+    Ap(i,2) = -(B(2,i+1) + B(1,i+1+1));  
+    Ap(i,3) = B(2,i+1+1);    
  end
 
 
@@ -188,8 +188,8 @@ Ap_val = spdiags(Ap,-1:1,num_elements,num_elements); %A = spdiags(B,d,m,n) creat
          old_p = p;
         
         %enforce boundary conditions through bp
-        bp(1) = -B(1,1)*p_initial;
-        bp(num_elements) = 0;%-B(1,nx-1)*p(nx-2);       %ENFORCE RIGHT SIDE P IS 0    %NOTE I'M USING DIFFERENT NOTATION THAN DD-BI CODE!!: B's are defined from the left side!
+        bp(1) = -B(1,2)*p_initial;
+        bp(num_elements) = 0;%-B(1,nx)*10^27;       %ENFORCE RIGHT SIDE P IS 0    %NOTE I'M USING DIFFERENT NOTATION THAN DD-BI CODE!!: B's are defined from the left side!
         %dmaybe here need to include THE -B for the other boundary c
         %ondition: subtract the right side p value.
         

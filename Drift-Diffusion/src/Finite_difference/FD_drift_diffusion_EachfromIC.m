@@ -11,12 +11,12 @@ clear all; close all; clc;
 
 %% Parameters
 L = 100*10^-9;              %device length in meters
-num_cell = 10000;            % number of cells
+num_cell = 1000;            % number of cells
 p_initial =  10^27;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
-Va_min = 1000;             %volts
-Va_max = 1000;    
+Va_min = 1;             %volts
+Va_max = 1;    
 increment = 1;       %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;
 
@@ -119,14 +119,14 @@ for Va_cnt = 1:num_V
         
         %call solver, solve for V
         V =  AV_val\bV;
-        
+     
         %make V with ghost points and bndry pts
         fullV = [0; 0; Va; V; 0; 0; 0];   %THIS SHOULD BE FORCED TO 0 AT RIGHT BOUNDARY! FIND THAT THIS GIVES SMOOTHER CURVE AND IS CORRECT
         %NOT SURE IF ALL LEFT POINTS SHOULD BE Va or should left 2 points
         %be 0: doesn't seem to make much  difference but probably b/c not
 
         fullV = fullV.';             %transpose to be able to put into residual
-        
+         
         %finite differences: for comparison
         for i = 3:nx-3
             dV(i) = (fullV(i+1)-fullV(i))/dx;

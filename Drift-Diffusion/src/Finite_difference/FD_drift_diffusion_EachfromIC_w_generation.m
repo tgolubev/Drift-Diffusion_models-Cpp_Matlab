@@ -11,7 +11,7 @@ clear all; close all; clc;
 
 %% Parameters
 L = 100*10^-9;              %device length in meters
-num_cell = 1000;            % number of cells
+num_cell = 20000;            % number of cells
 p_initial =  10^27;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
@@ -21,6 +21,7 @@ increment = 1;       %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;
 
 %Simulation parameters
+U = 10^23;           %net hole generation rate
 w = .01;              %set up of weighting factor
 tolerance = 10^-14;   %error tolerance       
 constant_p_i = true;
@@ -178,19 +179,23 @@ for Va_cnt = 1:num_V
             bp(k) = Cp*E(k+3)*dp(k+3);
         end
         bp(1) = bp(1) - p(3);
+        
+        %add generation in approx middle
+        bp(floor(num_cell/2.)) = bp(floor(num_cell/2.)) + U/(Vt*p_mob);
+        
         bp(num_pts) = bp(num_pts) - p(num_pts+1);
         Ap_val = spdiags(Ap,-1:1,num_pts,num_pts); %POTENTIAL ISSUE!! THE MAIN DIAGONAL ELEMENTS OF THIS MATRIX ARE 10^18 larger than upper and lower diag elements b/c of the dE/dx
         
         p_sol = Ap_val\bp;   
         fullp = [0;0;p_initial; p_sol;0; 0;0];
         newp = fullp.';  %transpose so matches with other matrices (horizontal array, 1 row).
-     
+        
         error_p = max(abs(newp-old_p)/abs(old_p))   %should calculate error before weighting
         
         %weighting
         %p = newp;
         p = newp*w + old_p*(1-w);
-        
+ 
        iter =  iter+1    
        
        if(Va == Va_min) %only for last run

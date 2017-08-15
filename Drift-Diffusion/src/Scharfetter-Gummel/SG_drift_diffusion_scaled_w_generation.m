@@ -15,7 +15,7 @@ num_cell = 100;            % number of cells
 p_initial =  10^27;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
-U = 10^29;                       %net carrier generation rate at interface (in middle)
+U = 10^34;                       %net carrier generation rate at interface (in middle)
 
 N = 1.;    %scaling factor for p
 
@@ -28,7 +28,7 @@ num_V = floor((Va_max-Va_min)/increment)+1;
 
 %Simulation parameters
 w = 0.001;              %set up of weighting factor
-tolerance = 10^-14;   %error tolerance       
+tolerance = 10^-13;   %error tolerance       
 constant_p_i = true;   
 
 
@@ -39,7 +39,7 @@ T = 296.;                       %temperature
 epsilon_0 =  8.85418782*10^-12; %F/m
 epsilon = 3.8*epsilon_0;        %dielectric constant of P3HT:PCBM
 
-Vt = 1;%(kb*T)/q;
+Vt = (kb*T)/q;
 
 %% Domain Discretization
 a=0; b=L; x=linspace(a,b,num_cell+1); dx=(b-a)/num_cell;   %x is positions array, +1 necessary b/c linspace needs (# of pts = # of cells +1)  
@@ -207,10 +207,10 @@ Ap_val = spdiags(Ap,-1:1,num_elements,num_elements); %A = spdiags(B,d,m,n) creat
         %fullp = [p_initial; p_sol;0];
         %newp = fullp.';  %transpose so matches with other matrices (horizontal array, 1 row).
         
-        error_p = max(abs(p_sol-old_p)/abs(old_p))  %ERROR SHOULD BE CALCULATED BEFORE WEIGHTING
+        newp = p_sol.';    %tranpsose
+        error_p = max(abs(newp-old_p)/abs(old_p))  %ERROR SHOULD BE CALCULATED BEFORE WEIGHTING
         
         %weighting
-        newp = p_sol.';    %tranpsose
         p = newp*w + old_p*(1.-w);
       
       %rescale fullV
@@ -277,14 +277,24 @@ str = sprintf('%.2g', Va);
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
  ylabel({'Hole density ($1/m^3$)'},'interpreter','latex','FontSize',14);
  
-%  figure;
-%  h2 = plot(x(3:num_cell+3),E(3:num_cell+3));
-%  hold on
-%  %plot(x(3:num_cell),E_theory1(3:num_cell));
-%  %plot(x(3:num_cell),E_theory2(3:num_cell));
-%  title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
-%  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
-%  ylabel({'Electric Field (V/m)'},'interpreter','latex','FontSize',14);
+ %Plot E
+ figure
+ plot(x(2:nx), -dV)
+ hold on
+ %plot(x(3:num_cell),E_theory1(3:num_cell));
+ %plot(x(3:num_cell),E_theory2(3:num_cell));
+ title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
+ xlabel('Position ($m$)','interpreter','latex','FontSize',14);
+ ylabel({'Electric Field (V/m)'},'interpreter','latex','FontSize',14);
+ 
+%Plot potential (fullV)
+ figure
+ plot(x, fullV)
+ hold on
+ title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
+ xlabel('Position ($m$)','interpreter','latex','FontSize',14);
+ ylabel({'Electric Potential (V)'},'interpreter','latex','FontSize',14);
+
 %  
 %  
 %  figure;
@@ -301,7 +311,7 @@ str = sprintf('%.2g', Va);
 %  %plot(V_values, Jp_theory);
 %  xlabel('Voltage (V)','interpreter','latex','FontSize',14);
 %  ylabel({'Current Density ($A/m^2$)'},'interpreter','latex','FontSize',14);
- 
+
  %convergence analysis
  iterations = 1:iter;
  figure

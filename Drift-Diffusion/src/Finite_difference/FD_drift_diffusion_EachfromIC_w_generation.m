@@ -21,8 +21,8 @@ increment = 1;       %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;
 
 %Simulation parameters
-U = 10^23;           %net hole generation rate
-w = .01;              %set up of weighting factor
+U = 10^25;           %net hole generation rate
+w = .001;              %set up of weighting factor
 tolerance = 10^-14;   %error tolerance       
 constant_p_i = true;
 

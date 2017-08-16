@@ -2,7 +2,7 @@
 %     Solving Poisson + Drift Diffusion eqns (for holes) using
 %                   Scharfetter-Gummel discretization
 %
-%                  Coded by Timofey Golubev (2017.08.13)
+%                  Coded by Timofey Golubev (2017.08.16)
 %             NOTE: i=1 corresponds to x=0, i=nx to x=L
 
 %RECALL THAT fullV = V/Vt: is scaled!. Same with p = p/N
@@ -12,23 +12,23 @@ clear all; close all; clc;
 %% Parameters
 L = 100*10^-9;              %device length in meters
 num_cell = 100;            % number of cells
-p_initial =  10^27;        %initial hole density
+p_initial =  10^22;        %initial hole density   %NOTE: WORKS FOR UP TO 10^23, BEYOND THAT, HAVE ISSUES
 p_mob = 2.0*10^-8;         %hole mobility
 
-U = 10^34;                       %net carrier generation rate at interface (in middle)
+U = -10^30;                       %net carrier generation rate at interface (in middle): NOTE: BOTH MINUS AND PLUS WORK! (minus up to  -10^30).
 
-N = 1.;    %scaling factor for p
+N = 1.;    %scaling factor for p: find that is not needed.
 
 p_initial = p_initial/N;
 
-Va_min = 10.;             %volts
-Va_max = 10.;    
+Va_min = 1.;             %volts
+Va_max = 1.;    
 increment = 0.01;       %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;
 
 %Simulation parameters
-w = 0.001;              %set up of weighting factor
-tolerance = 10^-13;   %error tolerance       
+w = 0.01;              %set up of weighting factor
+tolerance = 10^-14;   %error tolerance       
 constant_p_i = true;   
 
 
@@ -155,9 +155,7 @@ for Va_cnt = 1:num_V
 
         fullV = fullV.';             %transpose to be able to put into residual
   
-        %scaling to prevent blowup
-        fullV = fullV/1000;
-        
+     %NOTE: IT IS WRONG TO SCALE fullV so don't do that!
      
 %------------------------------------------------------------------------------------------------        
        %% now solve eqn for p  
@@ -204,6 +202,7 @@ Ap_val = spdiags(Ap,-1:1,num_elements,num_elements); %A = spdiags(B,d,m,n) creat
         
         p_sol = Ap_val\bp;   
         
+        
         %fullp = [p_initial; p_sol;0];
         %newp = fullp.';  %transpose so matches with other matrices (horizontal array, 1 row).
         
@@ -212,10 +211,7 @@ Ap_val = spdiags(Ap,-1:1,num_elements,num_elements); %A = spdiags(B,d,m,n) creat
         
         %weighting
         p = newp*w + old_p*(1.-w);
-      
-      %rescale fullV
-      fullV = fullV*1000;
-    
+   
        iter =  iter+1    
   
        if(Va == Va_max) %only for last run

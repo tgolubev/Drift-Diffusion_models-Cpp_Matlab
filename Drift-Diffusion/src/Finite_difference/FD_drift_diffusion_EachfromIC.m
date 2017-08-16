@@ -11,7 +11,7 @@ clear all; close all; clc;
 
 %% Parameters
 L = 100*10^-9;              %device length in meters
-num_cell = 1000;            % number of cells
+num_cell = 100;            % number of cells
 p_initial =  10^27;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
@@ -21,7 +21,7 @@ increment = 1;       %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;
 
 %Simulation parameters
-w = .01;              %set up of weighting factor
+w = 0.001;              %set up of weighting factor
 tolerance = 10^-14;   %error tolerance       
 constant_p_i = true;
 
@@ -104,6 +104,8 @@ for Va_cnt = 1:num_V
     bV = zeros(num_pts,1);
     bp = zeros(num_pts,1);
     
+    Cp = dx^2/Vt;
+    
     %% Solver Loop                
     while error_p > tolerance
         
@@ -156,7 +158,8 @@ for Va_cnt = 1:num_V
             dp(i) = (p(i+1)-p(i))/dx;
         end
         
-        %Take care of boundaries:
+        %Take care of boundaries       
+        
         dE(3) = (E(4)-E(3))/dx;     %IF DON'T IMPOSE THIS BC, IT gives completely wrong results    
         dE(nx-2) = (E(nx-2)-E(nx-3))/dx;
         dE(nx-1) = 0;
@@ -172,9 +175,9 @@ for Va_cnt = 1:num_V
         Ap(:,1) = 1.;
         Ap(:,3) = 1.;
     
-        Cp = dx^2/Vt;
+      
         for k = 1:num_pts
-            Ap(k,2) = -2.-(dE(k+3))/Vt;    %dE(4) corresponds to 1st point within device which will correspond to 1st element in matrix/arrays
+            Ap(k,2) = -2.-Cp*dE(k+3);    %dE(4) corresponds to 1st point within device which will correspond to 1st element in matrix/arrays
             bp(k) = Cp*E(k+3)*dp(k+3);
         end
         bp(1) = bp(1) - p(3);

@@ -15,7 +15,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Notes: Finite Difference Implementation of WENO5 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-clear all; close all; clc;
+clear global; close all; clc;   %NOTE: clear global improves performance over clear all, and still clears all variables.
 
 %% Parameters
 L = 100*10^-9;              %device length in meters
@@ -219,7 +219,7 @@ for Va_cnt = 1:num_V
     %Save data
     str = sprintf('%.2f',Va);
     filename = [str 'V.txt'] 
-    fid = fopen(fullfile('C:\Users\Tim\Documents\Duxbury group research\WENO\Mott-Gurney_law_WENO\Benchmarks\',filename),'w');   %w: Open or create new file for writing
+    fid = fopen(fullfile('C:\Users\Tim\Documents\Duxbury group research\WENO\results_output\',filename),'w');   %w: Open or create new file for writing
     %fullfile allows to make filename from parts
     for i = 3:nx-2
         fprintf(fid,'%.8e %.8e %.8e %.8e\r\n ',x(i), p(i), E(i), Jp(i)); 

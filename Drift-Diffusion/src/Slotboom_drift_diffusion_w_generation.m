@@ -217,9 +217,9 @@ for Va_cnt = 1:num_V
     str = sprintf('%.2f',Va);
     filename = [str 'V.txt'] 
     fid = fopen(fullfile('C:\Users\Tim\Documents\Duxbury group research\WENO\results_output\',filename),'w');   %w: Open or create new file for writing
-    %fullfile allows to make filename from parts
-    for i = 3:nx-2
-        fprintf(fid,'%.8e %.8e\r\n ',x(i), p(i)); 
+    fullp = [p_initial, p];  %add left side value
+    for i = 1:nx-2
+        fprintf(fid,'%.8e %.8e\r\n ',x(i+1), fullp(i));   %x(i+1) b/c not printing bndry p's
         %f means scientific notation, \r\n: start new line for each value
         %for each new desired column, put its own % sign    
     end

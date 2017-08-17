@@ -90,7 +90,6 @@ for Va_cnt = 1:num_V
     %allocate matrices/arrays
     V = zeros(nx-2,1);
     bV = zeros(nx-2,1);
-    
     B = zeros(2, nx-1);
     bp = zeros(nx-2,1);
     
@@ -205,8 +204,9 @@ for Va_cnt = 1:num_V
     filename = [str 'V.txt'] 
     fid = fopen(fullfile('C:\Users\Tim\Documents\Duxbury group research\WENO\results_output\',filename),'w');   %w: Open or create new file for writing
     %fullfile allows to make filename from parts
-    for i = 3:nx-2
-        fprintf(fid,'%.8e %.8e\r\n ',x(i), p(i)); 
+    fullp = [p_initial, p];  %add left side value
+    for i = 1:nx-2
+        fprintf(fid,'%.8e %.8e\r\n ',x(i+1), fullp(i));   %x(i+1) b/c not printing bndry p's
         %f means scientific notation, \r\n: start new line for each value
         %for each new desired column, put its own % sign    
     end
@@ -230,8 +230,7 @@ p(11);
 %% Final Plots
 
 str = sprintf('%.2g', Va);
- 
- fullp = [p_initial, p];  %add left side value
+
  h1 = plot(x(1:nx-1),fullp);
  hold on
  title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);

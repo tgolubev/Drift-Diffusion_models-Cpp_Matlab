@@ -2,8 +2,7 @@
 %     Solving Poisson + Drift Diffusion eqns (for holes) with finite 
 %           differences. 
 %
-%NOTE: MUCH  SMALLER MESH SIZES ARE NEEDED FOR FINITE DIFF. 
-%                            METHOD TO WORK
+%NOTE: RIGHT NOW THIS CAN'T CONVERGE!
 %
 %                  Coded by Timofey Golubev (2017.08.11)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -11,8 +10,8 @@ clear all; close all; clc;
 
 %% Parameters
 L = 100*10^-9;              %device length in meters
-num_cell = 20000;            % number of cells
-p_initial =  10^27;        %initial hole density
+num_cell = 100;            % number of cells
+p_initial =  10^23;        %initial hole density
 p_mob = 2.0*10^-8;         %hole mobility
 
 Va_min = 1;             %volts
@@ -21,8 +20,8 @@ increment = 1;       %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;
 
 %Simulation parameters
-U = 10^25;           %net hole generation rate
-w = .001;              %set up of weighting factor
+U = 0;%10^25;           %net hole generation rate
+w = 0.01;              %set up of weighting factor
 tolerance = 10^-14;   %error tolerance       
 constant_p_i = true;
 
@@ -36,49 +35,28 @@ epsilon = 3.8*epsilon_0;        %dielectric constant of P3HT:PCBM
 Vt = (kb*T)/q;
 
 %% Domain Discretization
-a=0; b=L; x0=linspace(a,b,num_cell+1); dx=(b-a)/num_cell;   %x0 is positions array, +1 necessary b/c linspace needs (# of pts = # of cells +1)
-
-% 2 more ghost pts on each side have to be added to the final domain.
-x= [-2*dx,-dx,x0,b+dx,b+2*dx];   
+a=0; b=L; x=linspace(a,b,num_cell+1); dx=(b-a)/num_cell;   %x0 is positions array, +1 necessary b/c linspace needs (# of pts = # of cells +1) 
 nx = length(x);  
 
 %% Initial Conditions
 if(constant_p_i)
-    for i = 3:nx-2
+    for i = 1:nx
         p(i) = p_initial;
     end
 else
     %linearly decreasing p: this doesn't work well
-    p(3) = p_initial;
-    for i = 3:nx-2      
+    p(1) = p_initial;
+    for i = 1:nx      
         dp = p_initial/(num_cell+1);
         p(i+1) = p(i)-dp;
     end
 end
 
-%%Boundary conditions: define ghost points
-p(1) = 0;
-p(2) = 0;
-p(nx-1) = 0;
-p(nx) = 0;
-
+  %redefine p's to be only those inside device
+    p = p(2:num_cell);
     Va_cnt = 1;
 for Va_cnt = 1:num_V
     
-    %% Initial Conditions
-    if(constant_p_i)
-        for i = 3:nx-2
-            p(i) = p_initial;
-        end
-    else
-        %linearly decreasing p: this doesn't work well
-        p(3) = p_initial;
-        for i = 3:nx-2      
-            dp = p_initial/(num_cell+1);
-            p(i+1) = p(i)-dp;
-        end
-    end
-
     Va = Va_min+increment*(Va_cnt-1);    %increase Va
     %Va = Va_max-increment*(Va_cnt-1);    %decrease Va by increment in each iteration
     
@@ -92,103 +70,87 @@ for Va_cnt = 1:num_V
     %set up AV: these never change so do outside of loop
     %set up using sparse matrix (just store the lower diag, main diag,upper
     %diag in num_pts x 3 matrix AV_val.
-    num_pts = nx-3-4+1;          %(=# number nodes inside device +1);  
-    AV = zeros(num_pts,3);
+    
+    %Here don't have to worry about the exact setup of colunms for sparse
+    %matrix b/c all values in each diagonal are same anyway.
+    AV = zeros(nx-2,3);
     AV(:,1) = 1.;
     AV(:,3) = 1.;
     AV(:,2) = -2.;
-    AV_val = spdiags(AV,-1:1,num_pts,num_pts);  %A = spdiags(B,d,m,n) creates an m-by-n sparse matrix by taking the columns of B and placing them along the diagonals specified by d.
+    AV_val = spdiags(AV,-1:1,nx-2,nx-2);  %A = spdiags(B,d,m,n) creates an m-by-n sparse matrix by taking the columns of B and placing them along the diagonals specified by d.
     
     %allocate matrices/arrays
-    V = zeros(num_pts,1);
-    Ap =  zeros(num_pts,3);
-    bV = zeros(num_pts,1);
-    bp = zeros(num_pts,1);
+    V = zeros(nx-2,1);
+    Ap =  zeros(nx-2,3);
+    bV = zeros(nx-2,1);
+    bp = zeros(nx-2,1);
     
-    %% Solver Loop                
+    %% Solver Loop 
+    num_elements = nx-2;
+    CV = dx^2*q/epsilon;
     while error_p > tolerance
         
         %Poisson equation with tridiagonal solver
-    
         % setup bV
-        for i = 1: num_pts
-            bV(i,1) = -dx^2*(q/epsilon)*p(i+3);    %bV(i) corresponds to 1st point inside device which is 4 so i+3
+        for i = 1:num_elements
+            bV(i,1) = -CV*p(i);    
         end
         %for bndrys (AV and bV will be solved on range 4:nx-3)
         bV(1,1) = bV(1,1) - Va;
-        bV(num_pts,1) = bV(num_pts,1) - 0;
+        bV(num_elements,1) = bV(num_elements,1) - 0;
         
         %call solver, solve for V
         V =  AV_val\bV;
      
-        %make V with ghost points and bndry pts
-        fullV = [0; 0; Va; V; 0; 0; 0];   %THIS SHOULD BE FORCED TO 0 AT RIGHT BOUNDARY! FIND THAT THIS GIVES SMOOTHER CURVE AND IS CORRECT
-        %NOT SURE IF ALL LEFT POINTS SHOULD BE Va or should left 2 points
-        %be 0: doesn't seem to make much  difference but probably b/c not
-
+        %make V with bndry pts
+        fullV = [Va; V; 0];   %THIS SHOULD BE FORCED TO 0 AT RIGHT BOUNDARY! FIND THAT THIS GIVES SMOOTHER CURVE AND IS CORRECT
         fullV = fullV.';             %transpose to be able to put into residual
          
         %finite differences: for comparison
-        for i = 3:nx-3
+        for i = 1:nx-1
             dV(i) = (fullV(i+1)-fullV(i))/dx;
         end  
-  
-        %ALL OF THE BELOW ARE NECESSARY FOR THE RESULTS TO BE CORRECT
-        %tested by removing some of them: then really has issues.
-        dV(3) = (fullV(4)-fullV(3))/dx;   
-        dV(4) = (fullV(5)-fullV(4))/dx; 
-        dV(nx-2) = (fullV(nx-2)-fullV(nx-3))/dx;
-        dV(nx-3) = (fullV(nx-3)-fullV(nx-4))/dx; 
-      
+ 
         E = -dV;
         
-        %BCs: set E's to equal the values that they are right inside the
-        %device
-        E(1) = E(3);
-        E(2) = E(3);
-        E(nx) = E(nx-2);
-        E(nx-1) = E(nx-2);
+        %BCs: set right side E to equal the values right inside the bndry
+        E(nx) =  E(nx-1);
         
         %% now solve eqn for p
+        
+        fullp = [p_initial, p, 0];  %add bndry values (right side bndry p =0)
 
         %finite differences for dp and dE
-        for i = 3:nx-3
+        for i = 1:num_elements
             dE(i) = (E(i+1)-E(i))/dx;
-            dp(i) = (p(i+1)-p(i))/dx;
+            dp(i) = (fullp(i+1)-fullp(i))/dx;
         end
-        
-        %Take care of boundaries:
-        dE(3) = (E(4)-E(3))/dx;     %IF DON'T IMPOSE THIS BC, IT gives completely wrong results    
-        dE(nx-2) = (E(nx-2)-E(nx-3))/dx;
-        dE(nx-1) = 0;
-        
-        dp(3) = (p(4)-p(3))/dx;
-        dp(nx-2) = (p(nx-2)-p(nx-3))/dx;
-        dp(nx-1) = 0;
            
         old_p = p;
         
         %setup matrices
-        Ap = zeros(num_pts,3);
+        %Don't have to worry about right lengths of lower and upper diags
+        %here, since all elements are 1.
+        Ap = zeros(num_elements,3);
         Ap(:,1) = 1.;
         Ap(:,3) = 1.;
     
         Cp = dx^2/Vt;
-        for k = 1:num_pts
-            Ap(k,2) = -2.-(dE(k+3))/Vt;    %dE(4) corresponds to 1st point within device which will correspond to 1st element in matrix/arrays
-            bp(k) = Cp*E(k+3)*dp(k+3);
+        for k = 1:num_elements
+            Ap(k,2) = -2.-(dE(k))/Vt;    %dE(4) corresponds to 1st point within device which will correspond to 1st element in matrix/arrays
+            bp(k) = Cp*E(k+1)*dp(k);
         end
-        bp(1) = bp(1) - p(3);
+        bp(1) = bp(1) - fullp(1);
         
         %add generation in approx middle
         bp(floor(num_cell/2.)) = bp(floor(num_cell/2.)) + U/(Vt*p_mob);
         
-        bp(num_pts) = bp(num_pts) - p(num_pts+1);
-        Ap_val = spdiags(Ap,-1:1,num_pts,num_pts); %POTENTIAL ISSUE!! THE MAIN DIAGONAL ELEMENTS OF THIS MATRIX ARE 10^18 larger than upper and lower diag elements b/c of the dE/dx
+        bp(num_elements) = bp(num_elements) - fullp(num_elements+1);   %this fullp value  at right  side = 0
+        Ap_val = spdiags(Ap,-1:1,num_elements,num_elements); %POTENTIAL ISSUE!! THE MAIN DIAGONAL ELEMENTS OF THIS MATRIX ARE 10^18 larger than upper and lower diag elements b/c of the dE/dx
         
         p_sol = Ap_val\bp;   
-        fullp = [0;0;p_initial; p_sol;0; 0;0];
-        newp = fullp.';  %transpose so matches with other matrices (horizontal array, 1 row).
+
+        newp = p_sol.';  %transpose so matches with other matrices (horizontal array, 1 row).
         
         error_p = max(abs(newp-old_p)/abs(old_p))   %should calculate error before weighting
         
@@ -205,14 +167,11 @@ for Va_cnt = 1:num_V
     
     %Calculate drift diffusion Jp
     %update dp
-    for i = 3:nx-3
+    for i = 1:num_elements
          dp(i) = (p(i+1)-p(i))/dx;
     end
-    dp(3) = (p(4)-p(3))/dx;
-    dp(nx-2) = (p(nx-2)-p(nx-3))/dx;
-    dp(nx-1) = 0;
     
-    for i = 3:nx-2 
+    for i = 1:num_elements
         Jp(i) = q*p_mob*p(i)*E(i)- q*p_mob*Vt*dp(i);
     end
     
@@ -225,8 +184,9 @@ for Va_cnt = 1:num_V
     filename = [str 'V.txt'] 
     fid = fopen(fullfile('C:\Users\Tim\Documents\Duxbury group research\WENO\results_output\',filename),'w');   %w: Open or create new file for writing
     %fullfile allows to make filename from parts
-    for i = 3:nx-2
-        fprintf(fid,'%.8e %.8e %.8e %.8e\r\n ',x(i), p(i), E(i), Jp(i)); 
+    fullp = [p_initial, p];  %add left side value
+    for i = 1:nx-2
+        fprintf(fid,'%.8e %.8e\r\n ',x(i+1), fullp(i));   %x(i+1) b/c not printing bndry p's
         %f means scientific notation, \r\n: start new line for each value
         %for each new desired column, put its own % sign    
     end
@@ -247,36 +207,44 @@ end
 
 str = sprintf('%.2g', Va);
 
- h1 = plot(x(3:num_cell+3),p(3:num_cell+3));
+ h1 = plot(x(1:nx-1),fullp);
  hold on
  title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
  ylabel({'Hole density ($1/m^3$)'},'interpreter','latex','FontSize',14);
  
- figure;
- h2 = plot(x(3:num_cell+3),E(3:num_cell+3));
- hold on
- %plot(x(3:num_cell),E_theory1(3:num_cell));
- %plot(x(3:num_cell),E_theory2(3:num_cell));
- title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
- xlabel('Position ($m$)','interpreter','latex','FontSize',14);
- ylabel({'Electric Field (V/m)'},'interpreter','latex','FontSize',14);
- 
- 
- figure;
- h3 = plot(x(3:num_cell+3),Jp(3:num_cell+3));
- hold on
- title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
- xlabel('Position ($m$)','interpreter','latex','FontSize',14);
- ylabel({'Current Density ($A/m^2$)'},'interpreter','latex','FontSize',14);
- 
- %JV curve
+ %Plot potential (fullV)
  figure
- h4 = plot(V_values,Jp_final);
+ plot(x, fullV)
  hold on
- %plot(V_values, Jp_theory);
- xlabel('Voltage (V)','interpreter','latex','FontSize',14);
- ylabel({'Current Density ($A/m^2$)'},'interpreter','latex','FontSize',14);
+ title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
+ xlabel('Position ($m$)','interpreter','latex','FontSize',14);
+ ylabel({'Electric Potential (V)'},'interpreter','latex','FontSize',14);
+ 
+%  figure;
+%  h2 = plot(x(3:num_cell+3),E(3:num_cell+3));
+%  hold on
+%  %plot(x(3:num_cell),E_theory1(3:num_cell));
+%  %plot(x(3:num_cell),E_theory2(3:num_cell));
+%  title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
+%  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
+%  ylabel({'Electric Field (V/m)'},'interpreter','latex','FontSize',14);
+%  
+%  
+%  figure;
+%  h3 = plot(x(3:num_cell+3),Jp(3:num_cell+3));
+%  hold on
+%  title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
+%  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
+%  ylabel({'Current Density ($A/m^2$)'},'interpreter','latex','FontSize',14);
+%  
+%  %JV curve
+%  figure
+%  h4 = plot(V_values,Jp_final);
+%  hold on
+%  %plot(V_values, Jp_theory);
+%  xlabel('Voltage (V)','interpreter','latex','FontSize',14);
+%  ylabel({'Current Density ($A/m^2$)'},'interpreter','latex','FontSize',14);
  
  %convergence analysis
  iterations = 1:iter;

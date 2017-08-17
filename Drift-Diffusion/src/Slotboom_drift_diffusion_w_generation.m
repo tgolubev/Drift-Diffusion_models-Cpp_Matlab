@@ -22,12 +22,12 @@ N = 1.;    %scaling factor for p: find that is not needed.
 p_initial = p_initial/N;
 
 Va_min = 1.;             %volts
-Va_max = 1.;    
-increment = 0.01;       %for increasing V
+Va_max = 2.;    
+increment = 0.1;       %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;
 
 %Simulation parameters
-w = 0.5;              %set up of weighting factor       %w = 0.5 seems to work without issues
+w = 0.5;              %set up of weighting factor       %w = 0.5 seems to work without issues for low Va (<3.9V).
 tolerance = 10^-14;   %error tolerance       
 constant_p_i = true;   
 
@@ -64,31 +64,7 @@ end
 
     Va_cnt = 1;
 for Va_cnt = 1:num_V
-    
-      %clear p_solution     %so that next one could be different lenght and doesn't cause issues.
-    
-    % Initial Conditions
-    if(constant_p_i)
-        for i = 1:nx
-            p(i) = p_initial;
-        end
-    else
-        %linearly decreasing p: this doesn't work well
-        p(1) = p_initial;
-        for i = 1:nx      
-            dp = p_initial/(num_cell+1);
-            p(i+1) = p(i)-dp;
-        end
-    end
-    
-    %add right BC
-    p(nx) = 0;
 
-    
-  %redefine p's to be only those inside device
-    p = p(2:num_cell);
-
-   
     Va = Va_min+increment*(Va_cnt-1);    %increase Va
     %Va = Va_max-increment*(Va_cnt-1);    %decrease Va by increment in each iteration
     
@@ -134,13 +110,15 @@ for Va_cnt = 1:num_V
     
     %% Solver Loop        
     num_elements = nx-2;
+    Cp = dx^2/(Vt*N*p_mob);   %note: I divided the p_mob out of the matrix
+    CV = N*dx^2*q/(epsilon*Vt);
     while error_p > tolerance
         
         %Poisson equation with tridiagonal solver
     
         % setup bV
         for i = 1: num_elements
-            bV(i,1) = -N*dx^2*(q/(epsilon*Vt))*p(i);   
+            bV(i,1) = -CV*p(i);   
         end
         %for bndrys 
         bV(1,1) = bV(1,1) - Va/Vt;         %must scale this too, since all others are scaled
@@ -161,66 +139,60 @@ for Va_cnt = 1:num_V
      
 %------------------------------------------------------------------------------------------------        
        %% now solve eqn for p  
-       
-       
-       Cp = dx^2/(Vt*N*p_mob);   %note: I divided the p_mob out of the matrix
-        %B = BernoulliFnc(nx, fullV, Vt);
-       
-        %Ap_val = SetAp_val(num_cell, B, fullV,p,Vt);      
- for i = 1:nx-1               %so dV(100) = dV(101: is at x=L) - dV(100, at x= l-dx).
-    dV(i) = fullV(i+1)-fullV(i);     %these fullV's ARE ACTUALLY PSI PRIME; ALREADY = V/Vt, when solved poisson.
-    
-    %WHAT IF I USE WENO HERE???
-    
- end
 
- 
-  %BE CAREFUL!: the setup of the  sparse matrix elements is
-    %non-trivial: last entry  of Ap(:,1) 1st entry of
-    %Ap(:,3) are unused b/c off diagonals have 1 less element than main
-    %diagonal!
- for i=1:num_elements-1    
-    Ap(i,1) = exp(-dV(i));    %I HAVE VERIFIED THAT THE dV's CORRESPOND CORRECTLY WITH INDICES!
- end
- Ap(num_elements, 1) = 0;   %last element is unused
- for i = 1:num_elements
-    Ap(i,2) = -(1 + exp(-dV(i)));  
- end
- for i = 2:num_elements
-    Ap(i,3) = 1;    
- end
- Ap(1,3) = 0;    %1st element is  unused
+       %B = BernoulliFnc(nx, fullV, Vt);
+       
+       %Ap_val = SetAp_val(num_cell, B, fullV,p,Vt);
+       for i = 1:nx-1               %so dV(100) = dV(101: is at x=L) - dV(100, at x= l-dx).
+           dV(i) = fullV(i+1)-fullV(i);     %these fullV's ARE ACTUALLY PSI PRIME; ALREADY = V/Vt, when solved poisson.
+       end
+        
+       %BE CAREFUL!: the setup of the  sparse matrix elements is
+       %non-trivial: last entry  of Ap(:,1) 1st entry of
+       %Ap(:,3) are unused b/c off diagonals have 1 less element than main
+       %diagonal!
+       
+       %For efficiency: precalculate exp(-dV(i)) 
+       for i = 1:num_elements
+            Exp_dV(i) = exp(-dV(i));
+       end
+       
+       for i=1:num_elements-1
+           Ap(i,1) = Exp_dV(i);    %I HAVE VERIFIED THAT THE dV's CORRESPOND CORRECTLY WITH INDICES!
+       end
+       Ap(num_elements, 1) = 0;   %last element is unused
+       for i = 1:num_elements
+           Ap(i,2) = -(1 + Exp_dV(i));
+       end
+       for i = 2:num_elements
+           Ap(i,3) = 1;
+       end
+       Ap(1,3) = 0;    %1st element is  unused
 
-
-Ap_val = spdiags(Ap,-1:1,num_elements,num_elements); %A = spdiags(B,d,m,n) creates an m-by-
-         old_p = p;
-        
-        %enforce boundary conditions through bp
-        bp(1) = -exp(-dV(1))*p_initial;
-        bp(num_elements) = 0;%-B(1,nx-1)*p(nx-2);       %ENFORCE RIGHT SIDE P IS 0    %NOTE I'M USING DIFFERENT NOTATION THAN DD-BI CODE!!: B's are defined from the left side!
-        %dmaybe here need to include THE -B for the other boundary c
-        %ondition: subtract the right side p value.
-        
-        %introduce a net generation rate somewhere in the middle
-        bp(floor(num_cell/2.)) = -Cp*U;
-        
-        
-        p_sol = Ap_val\bp;   
-        
-        
-        %fullp = [p_initial; p_sol;0];
-        %newp = fullp.';  %transpose so matches with other matrices (horizontal array, 1 row).
-        
-        newp = p_sol.';    %tranpsose
-        error_p = max(abs(newp-old_p)/abs(old_p))  %ERROR SHOULD BE CALCULATED BEFORE WEIGHTING
-        
-        %weighting
-        p = newp*w + old_p*(1.-w);
-   
-       iter =  iter+1    
-  
+       Ap_val = spdiags(Ap,-1:1,num_elements,num_elements); %A = spdiags(B,d,m,n) creates an m-by-
+       old_p = p;
+       
+       %enforce boundary conditions through bp
+       bp(1) = -exp(-dV(1))*p_initial;
+       bp(num_elements) = 0;%-B(1,nx-1)*p(nx-2);       %ENFORCE RIGHT SIDE P IS 0    %NOTE I'M USING DIFFERENT NOTATION THAN DD-BI CODE!!: B's are defined from the left side!
+       %dmaybe here need to include THE -B for the other boundary c
+       %ondition: subtract the right side p value.
+       
+       %introduce a net generation rate somewhere in the middle
+       bp(floor(num_cell/2.)) = -Cp*U;
+          
+       p_sol = Ap_val\bp;
+       
+       newp = p_sol.';    %tranpsose
+       error_p = max(abs(newp-old_p)/abs(old_p))  %ERROR SHOULD BE CALCULATED BEFORE WEIGHTING
+       
+       %weighting
+       p = newp*w + old_p*(1.-w);
+       
+       iter =  iter+1
+       
        if(Va == Va_max) %only for last run
-          p_solution(iter) = p(20);    % save E at random point for each iter for convergence analysis
+           p_solution(iter) = p(20);    % save E at random point for each iter for convergence analysis
        end
     end
     

@@ -22,8 +22,8 @@ N = 1.;    %scaling factor for p: find that is not needed.
 p_initial = p_initial/N;
 
 Va_min = 1;             %volts
-Va_max = 1;    
-increment = 0.01;       %for increasing V
+Va_max = 2;    
+increment = 0.1;       %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;
 
 %Simulation parameters
@@ -64,48 +64,10 @@ end
 
     Va_cnt = 1;
 for Va_cnt = 1:num_V
-    
-      %clear p_solution     %so that next one could be different lenght and doesn't cause issues.
-    
-    % Initial Conditions
-    if(constant_p_i)
-        for i = 1:nx
-            p(i) = p_initial;
-        end
-    else
-        %linearly decreasing p: this doesn't work well
-        p(1) = p_initial;
-        for i = 1:nx      
-            dp = p_initial/(num_cell+1);
-            p(i+1) = p(i)-dp;
-        end
-    end
-    
-    %add right BC
-    p(nx) = 0;
 
-    
-  %redefine p's to be only those inside device
-    p = p(2:num_cell);
-
-   
     Va = Va_min+increment*(Va_cnt-1);    %increase Va
     %Va = Va_max-increment*(Va_cnt-1);    %decrease Va by increment in each iteration
-    
-    %for low Va_max (start point), use lower 1st w, for medium Va, use
-    %lower w.
-%     if(Va_max<200.)
-%         if(Va_cnt==1)
-%             w= 0.0001;
-%         elseif(Va_max<30.)  %need to figureout what this value limit is
-%             w = 0.0001;
-%         else
-%             w = 0.001;
-%         end
-%     elseif(Va<200.)
-%         w = 0.001;
-%     end
-    
+
     %timing
     tic
     
@@ -134,13 +96,15 @@ for Va_cnt = 1:num_V
     
     %% Solver Loop        
     num_elements = nx-2;
+    Cp = dx^2/(Vt*N*p_mob);   %note: I divided the p_mob out of the matrix
+    CV = N*dx^2*q/(epsilon*Vt);
     while error_p > tolerance
         
         %Poisson equation with tridiagonal solver
     
         % setup bV
         for i = 1: num_elements
-            bV(i,1) = -N*dx^2*(q/(epsilon*Vt))*p(i);   
+            bV(i,1) = -CV*p(i);   
         end
         %for bndrys 
         bV(1,1) = bV(1,1) - Va/Vt;         %must scale this too, since all others are scaled
@@ -161,42 +125,39 @@ for Va_cnt = 1:num_V
      
 %------------------------------------------------------------------------------------------------        
        %% now solve eqn for p  
-       
-       
-       Cp = dx^2/(Vt*N*p_mob);   %note: I divided the p_mob out of the matrix
         %B = BernoulliFnc(nx, fullV, Vt);
-       
+ 
         %Ap_val = SetAp_val(num_cell, B, fullV,p,Vt);      
- for i = 1:nx-1               %so dV(100) = dV(101: is at x=L) - dV(100, at x= l-dx).
-    dV(i) = fullV(i+1)-fullV(i);     %these fullV's ARE ACTUALLY PSI PRIME; ALREADY = V/Vt, when solved poisson. 
- end
-    
- for i = 1:nx-1
-    B(1,i) = dV(i)/(exp(dV(i))-1.0);    %B(+dV)
-    %B(2,i) = -dV(i)/(exp(-dV(i))-1.0);   %THIS IS EQUIVALENT  TO OTHE
-    %BELOW EXPERSSION
-    B(2,i) = B(1,i)*exp(dV(i));          %B(-dV)
- end
-
- %BE CAREFUL!: the setup of the  sparse matrix elements is
-    %non-trivial: last entry  of Ap(:,1) 1st entry of
-    %Ap(:,3) are unused b/c off diagonals have 1 less element than main
-    %diagonal!
- for i=1:num_elements     %I verified that ordering of columns is correct!
-    Ap(i,2) = -(B(2,i) + B(1,i+1));     %I HAVE VERIFIED THAT ALL THE dV's properly  match up with  indices!
- end
- for i = 1:num_elements-1
-    Ap(i,1) = B(1,i);  
- end
- Ap(num_elements, 1) = 0;   %last element is unused
- for i = 2:num_elements
-     Ap(i,3) = B(2,i+1);    
- end
- Ap(1,3) = 0;        %1st element of Ap(:,3) is unused
-  
-
-Ap_val = spdiags(Ap,-1:1,num_elements,num_elements); %A = spdiags(B,d,m,n) creates an m-by-
-         old_p = p;
+        for i = 1:nx-1               %so dV(100) = dV(101: is at x=L) - dV(100, at x= l-dx).
+            dV(i) = fullV(i+1)-fullV(i);     %these fullV's ARE ACTUALLY PSI PRIME; ALREADY = V/Vt, when solved poisson.
+        end
+        
+        for i = 1:nx-1
+            B(1,i) = dV(i)/(exp(dV(i))-1.0);    %B(+dV)
+            %B(2,i) = -dV(i)/(exp(-dV(i))-1.0);   %THIS IS EQUIVALENT  TO OTHE
+            %BELOW EXPERSSION
+            B(2,i) = B(1,i)*exp(dV(i));          %B(-dV)
+        end
+        
+        %BE CAREFUL!: the setup of the  sparse matrix elements is
+        %non-trivial: last entry  of Ap(:,1) 1st entry of
+        %Ap(:,3) are unused b/c off diagonals have 1 less element than main
+        %diagonal!
+        for i=1:num_elements     %I verified that ordering of columns is correct!
+            Ap(i,2) = -(B(2,i) + B(1,i+1));     %I HAVE VERIFIED THAT ALL THE dV's properly  match up with  indices!
+        end
+        for i = 1:num_elements-1
+            Ap(i,1) = B(1,i);
+        end
+        Ap(num_elements, 1) = 0;   %last element is unused
+        for i = 2:num_elements
+            Ap(i,3) = B(2,i+1);
+        end
+        Ap(1,3) = 0;        %1st element of Ap(:,3) is unused
+        
+        
+        Ap_val = spdiags(Ap,-1:1,num_elements,num_elements); %A = spdiags(B,d,m,n) creates an m-by-
+        old_p = p;
         
         %enforce boundary conditions through bp
         bp(1) = -B(1,1)*p_initial;
@@ -206,14 +167,9 @@ Ap_val = spdiags(Ap,-1:1,num_elements,num_elements); %A = spdiags(B,d,m,n) creat
         
         %introduce a net generation rate somewhere in the middle
         bp(floor(num_cell/2.)) = -Cp*U;
-        
-        
-        p_sol = Ap_val\bp;   
-        
-        
-        %fullp = [p_initial; p_sol;0];
-        %newp = fullp.';  %transpose so matches with other matrices (horizontal array, 1 row).
-        
+            
+        p_sol = Ap_val\bp;
+   
         newp = p_sol.';    %tranpsose
         error_p = max(abs(newp-old_p)/abs(old_p))  %ERROR SHOULD BE CALCULATED BEFORE WEIGHTING
         

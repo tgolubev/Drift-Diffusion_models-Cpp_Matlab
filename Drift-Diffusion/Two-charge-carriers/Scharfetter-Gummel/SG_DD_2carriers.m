@@ -15,7 +15,7 @@ num_cell = 100;            % number of cells
 p_initial =  10^23;        %initial hole density   %NOTE: WORKS FOR UP TO 10^23, BEYOND THAT, HAVE ISSUES
 p_mob = 2.0*10^-8;         %hole mobility
 
-U = 10^32;                       %net carrier generation rate at interface (in middle): NOTE: BOTH MINUS AND PLUS WORK! (minus up to  -10^30).
+U = 0;%10^32;                       %net carrier generation rate at interface (in middle): NOTE: BOTH MINUS AND PLUS WORK! (minus up to  -10^30).
 
 N = 1.;    %scaling factor for p: find that is not needed.
 
@@ -98,7 +98,7 @@ for Va_cnt = 1:num_V
     Cp = dx^2/(Vt*N*p_mob);   %note: I divided the p_mob out of the matrix
     CV = N*dx^2*q/(epsilon*Vt);
     while error_p > tolerance
-        
+         
         %Poisson equation with tridiagonal solver
     
         % setup bV

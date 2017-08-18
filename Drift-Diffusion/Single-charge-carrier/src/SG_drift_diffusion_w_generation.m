@@ -1,6 +1,6 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %     Solving Poisson + Drift Diffusion eqns (for holes) using
-%                        Slotboom variables
+%                   Scharfetter-Gummel discretization
 %
 %                  Coded by Timofey Golubev (2017.08.16)
 %             NOTE: i=1 corresponds to x=0, i=nx to x=L
@@ -15,14 +15,14 @@ num_cell = 100;            % number of cells
 p_initial =  10^23;        %initial hole density   %NOTE: WORKS FOR UP TO 10^23, BEYOND THAT, HAVE ISSUES
 p_mob = 2.0*10^-8;         %hole mobility
 
-U = 0;%10^30;                       %net carrier generation rate at interface (in middle): NOTE: BOTH MINUS AND PLUS WORK! (minus up to  -10^30).
+U = 0;%10^32;                       %net carrier generation rate at interface (in middle): NOTE: BOTH MINUS AND PLUS WORK! (minus up to  -10^30).
 
 N = 1.;    %scaling factor for p: find that is not needed.
 
 p_initial = p_initial/N;
 
-Va_min = 20;             %volts
-Va_max = 20;    
+Va_min = 1;             %volts
+Va_max = 1;    
 increment = 0.1;       %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;
 
@@ -67,21 +67,7 @@ for Va_cnt = 1:num_V
 
     Va = Va_min+increment*(Va_cnt-1);    %increase Va
     %Va = Va_max-increment*(Va_cnt-1);    %decrease Va by increment in each iteration
-    
-    %for low Va_max (start point), use lower 1st w, for medium Va, use
-    %lower w.
-%     if(Va_max<200.)
-%         if(Va_cnt==1)
-%             w= 0.0001;
-%         elseif(Va_max<30.)  %need to figureout what this value limit is
-%             w = 0.0001;
-%         else
-%             w = 0.001;
-%         end
-%     elseif(Va<200.)
-%         w = 0.001;
-%     end
-    
+
     %timing
     tic
     
@@ -93,8 +79,8 @@ for Va_cnt = 1:num_V
     %set up using sparse matrix (just store the lower diag, main diag,upper
     %diag in num_pts x 3 matrix AV_val.
     
-    %Here don't have to worry about the exactl setup of colunms for sparse
-    %matrix b/c all values in each diagonal are same anyway.
+   %Here don't have to worry about the exactl setup of colunms for sparse
+   %matrix b/c all values in each diagonal are same anyway.
     AV = zeros(nx-2,3);
     AV(:,1) = 1.;
     AV(:,3) = 1.;
@@ -104,7 +90,6 @@ for Va_cnt = 1:num_V
     %allocate matrices/arrays
     V = zeros(nx-2,1);
     bV = zeros(nx-2,1);
-    
     B = zeros(2, nx-1);
     bp = zeros(nx-2,1);
     
@@ -113,7 +98,7 @@ for Va_cnt = 1:num_V
     Cp = dx^2/(Vt*N*p_mob);   %note: I divided the p_mob out of the matrix
     CV = N*dx^2*q/(epsilon*Vt);
     while error_p > tolerance
-        
+         
         %Poisson equation with tridiagonal solver
     
         % setup bV
@@ -139,58 +124,61 @@ for Va_cnt = 1:num_V
      
 %------------------------------------------------------------------------------------------------        
        %% now solve eqn for p  
-
-       %B = BernoulliFnc(nx, fullV, Vt);
-       
-       %Ap_val = SetAp_val(num_cell, B, fullV,p,Vt);
-       for i = 1:nx-1               %so dV(100) = dV(101: is at x=L) - dV(100, at x= l-dx).
-           dV(i) = fullV(i+1)-fullV(i);     %these fullV's ARE ACTUALLY PSI PRIME; ALREADY = V/Vt, when solved poisson.
-       end
+        %B = BernoulliFnc(nx, fullV, Vt);
+ 
+        %Ap_val = SetAp_val(num_cell, B, fullV,p,Vt);      
+        for i = 1:nx-1               %so dV(100) = dV(101: is at x=L) - dV(100, at x= l-dx).
+            dV(i) = fullV(i+1)-fullV(i);     %these fullV's ARE ACTUALLY PSI PRIME; ALREADY = V/Vt, when solved poisson.
+        end
         
-       %BE CAREFUL!: the setup of the  sparse matrix elements is
-       %non-trivial: last entry  of Ap(:,1) 1st entry of
-       %Ap(:,3) are unused b/c off diagonals have 1 less element than main
-       %diagonal!
-       
-       %For efficiency: precalculate exp(-dV(i)) 
-       for i = 1:num_elements
-            Exp_dV(i) = exp(-dV(i));
-       end
-       
-       for i=1:num_elements-1
-           Ap(i,1) = Exp_dV(i);    %I HAVE VERIFIED THAT THE dV's CORRESPOND CORRECTLY WITH INDICES!
-       end
-       Ap(num_elements, 1) = 0;   %last element is unused
-       for i = 1:num_elements
-           Ap(i,2) = -(1 + Exp_dV(i));
-       end
-       for i = 2:num_elements
-           Ap(i,3) = 1;
-       end
-       Ap(1,3) = 0;    %1st element is  unused
-
-       Ap_val = spdiags(Ap,-1:1,num_elements,num_elements); %A = spdiags(B,d,m,n) creates an m-by-
-       old_p = p;
-       
-       %enforce boundary conditions through bp
-       bp(1) = -exp(-dV(1))*p_initial;
-       bp(num_elements) = 0;;       %ENFORCE RIGHT SIDE P IS 0   
-       
-       %introduce a net generation rate somewhere in the middle
-       bp(floor(num_cell/2.)) = -Cp*U;
-          
-       p_sol = Ap_val\bp;
-       
-       newp = p_sol.';    %tranpsose
-       error_p = max(abs(newp-old_p)/abs(old_p))  %ERROR SHOULD BE CALCULATED BEFORE WEIGHTING
-       
-       %weighting
-       p = newp*w + old_p*(1.-w);
-       
-       iter =  iter+1
-       
+        for i = 1:nx-1
+            B(1,i) = dV(i)/(exp(dV(i))-1.0);    %B(+dV)
+            %B(2,i) = -dV(i)/(exp(-dV(i))-1.0);   %THIS IS EQUIVALENT  TO OTHE
+            %BELOW EXPERSSION
+            B(2,i) = B(1,i)*exp(dV(i));          %B(-dV)
+        end
+        
+        %BE CAREFUL!: the setup of the  sparse matrix elements is
+        %non-trivial: last entry  of Ap(:,1) 1st entry of
+        %Ap(:,3) are unused b/c off diagonals have 1 less element than main
+        %diagonal!
+        for i=1:num_elements     %I verified that ordering of columns is correct!
+            Ap(i,2) = -(B(2,i) + B(1,i+1));     %I HAVE VERIFIED THAT ALL THE dV's properly  match up with  indices!
+        end
+        for i = 1:num_elements-1
+            Ap(i,1) = B(1,i);
+        end
+        Ap(num_elements, 1) = 0;   %last element is unused
+        for i = 2:num_elements
+            Ap(i,3) = B(2,i+1);
+        end
+        Ap(1,3) = 0;        %1st element of Ap(:,3) is unused
+        
+        
+        Ap_val = spdiags(Ap,-1:1,num_elements,num_elements); %A = spdiags(B,d,m,n) creates an m-by-
+        old_p = p;
+        
+        %enforce boundary conditions through bp
+        bp(1) = -B(1,1)*p_initial;
+        bp(num_elements) = 0;%-B(1,nx-1)*p(nx-2);       %ENFORCE RIGHT SIDE P IS 0    %NOTE I'M USING DIFFERENT NOTATION THAN DD-BI CODE!!: B's are defined from the left side!
+        %dmaybe here need to include THE -B for the other boundary c
+        %ondition: subtract the right side p value.
+        
+        %introduce a net generation rate somewhere in the middle
+        bp(ceil(num_cell/2.)) = -Cp*U;
+            
+        p_sol = Ap_val\bp;
+   
+        newp = p_sol.';    %tranpsose
+        error_p = max(abs(newp-old_p)/abs(old_p))  %ERROR SHOULD BE CALCULATED BEFORE WEIGHTING
+        
+        %weighting
+        p = newp*w + old_p*(1.-w);
+   
+       iter =  iter+1    
+  
        if(Va == Va_max) %only for last run
-           p_solution(iter) = p(20);    % save E at random point for each iter for convergence analysis
+          p_solution(iter) = p(20);    % save E at random point for each iter for convergence analysis
        end
     end
     
@@ -215,6 +203,7 @@ for Va_cnt = 1:num_V
     str = sprintf('%.2f',Va);
     filename = [str 'V.txt'] 
     fid = fopen(fullfile('C:\Users\Tim\Documents\Duxbury group research\WENO\results_output\',filename),'w');   %w: Open or create new file for writing
+    %fullfile allows to make filename from parts
     fullp = [p_initial, p];  %add left side value
     for i = 1:nx-2
         fprintf(fid,'%.8e %.8e\r\n ',x(i+1), fullp(i));   %x(i+1) b/c not printing bndry p's
@@ -242,7 +231,6 @@ p(11);
 
 str = sprintf('%.2g', Va);
 
- fullp = [p_initial, p];
  h1 = plot(x(1:nx-1),fullp);
  hold on
  title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
@@ -265,7 +253,8 @@ str = sprintf('%.2g', Va);
      y_min = 0;
  end      
  axis([-inf inf y_min inf]);
- 
+
+     
 %Plot potential (fullV)
  figure
  plot(x, fullV)

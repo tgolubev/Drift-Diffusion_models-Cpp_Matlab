@@ -15,26 +15,26 @@ num_cell = 100;            % number of cells
 p_initial =  10^23;        %initial hole density   %NOTE: WORKS FOR UP TO 10^23, BEYOND THAT, HAVE ISSUES
 p_mob = 2.0*10^-8;         %hole mobility
 
-U = 10^32;                       %net carrier generation rate at interface (in middle): NOTE: BOTH MINUS AND PLUS WORK! (minus up to  -10^30).
+U = 0;%10^30;                       %net carrier generation rate at interface (in middle): NOTE: BOTH MINUS AND PLUS WORK! (minus up to  -10^30).
 
 N = 1.;    %scaling factor for p: find that is not needed.
 
 p_initial = p_initial/N;
 
-Va_min = 1.;             %volts
-Va_max = 2.;    
+Va_min = 20;             %volts
+Va_max = 20;    
 increment = 0.1;       %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;
 
 %Simulation parameters
-w = 0.5;              %set up of weighting factor       %w = 0.5 seems to work without issues for low Va (<3.9V).
+w = 0.5;              %set up of weighting factor     %IT seems to WORK WITH w = 0.5 without issues
 tolerance = 10^-14;   %error tolerance       
 constant_p_i = true;   
 
 
 %% Physical Constants
 q =  1.60217646*10^-19;         %elementary charge, C
-kb = 1.3806503D-23;              %Boltzmann const., J/k
+kb = 1.3806503*10^-23;              %Boltzmann const., J/k
 T = 296.;                       %temperature
 epsilon_0 =  8.85418782*10^-12; %F/m
 epsilon = 3.8*epsilon_0;        %dielectric constant of P3HT:PCBM
@@ -174,9 +174,7 @@ for Va_cnt = 1:num_V
        
        %enforce boundary conditions through bp
        bp(1) = -exp(-dV(1))*p_initial;
-       bp(num_elements) = 0;%-B(1,nx-1)*p(nx-2);       %ENFORCE RIGHT SIDE P IS 0    %NOTE I'M USING DIFFERENT NOTATION THAN DD-BI CODE!!: B's are defined from the left side!
-       %dmaybe here need to include THE -B for the other boundary c
-       %ondition: subtract the right side p value.
+       bp(num_elements) = 0;;       %ENFORCE RIGHT SIDE P IS 0   
        
        %introduce a net generation rate somewhere in the middle
        bp(floor(num_cell/2.)) = -Cp*U;
@@ -250,16 +248,23 @@ str = sprintf('%.2g', Va);
  title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
  ylabel({'Hole density ($1/m^3$)'},'interpreter','latex','FontSize',14);
+ axis([-inf inf 0 inf]);
  
  %Plot E
  figure
- plot(x(2:nx), -dV)
+ plot(x(1:nx-1), -dV)
  hold on
  %plot(x(3:num_cell),E_theory1(3:num_cell));
  %plot(x(3:num_cell),E_theory2(3:num_cell));
  title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
  ylabel({'Electric Field (V/m)'},'interpreter','latex','FontSize',14);
+ if -dV(1) < 0.0
+     y_min = -inf;  %allow neg. y-min if necessary
+ else
+     y_min = 0;
+ end      
+ axis([-inf inf y_min inf]);
  
 %Plot potential (fullV)
  figure

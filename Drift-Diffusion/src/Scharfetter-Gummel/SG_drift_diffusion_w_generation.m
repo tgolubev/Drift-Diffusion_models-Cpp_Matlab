@@ -22,7 +22,7 @@ N = 1.;    %scaling factor for p: find that is not needed.
 p_initial = p_initial/N;
 
 Va_min = 1;             %volts
-Va_max = 2;    
+Va_max = 1;    
 increment = 0.1;       %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;
 
@@ -34,7 +34,7 @@ constant_p_i = true;
 
 %% Physical Constants
 q =  1.60217646*10^-19;         %elementary charge, C
-kb = 1.3806503D-23;              %Boltzmann const., J/k
+kb = 1.3806503*10^-23;              %Boltzmann const., J/k
 T = 296.;                       %temperature
 epsilon_0 =  8.85418782*10^-12; %F/m
 epsilon = 3.8*epsilon_0;        %dielectric constant of P3HT:PCBM
@@ -165,7 +165,7 @@ for Va_cnt = 1:num_V
         %ondition: subtract the right side p value.
         
         %introduce a net generation rate somewhere in the middle
-        bp(floor(num_cell/2.)) = -Cp*U;
+        bp(ceil(num_cell/2.)) = -Cp*U;
             
         p_sol = Ap_val\bp;
    
@@ -236,6 +236,7 @@ str = sprintf('%.2g', Va);
  title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
  ylabel({'Hole density ($1/m^3$)'},'interpreter','latex','FontSize',14);
+ axis([-inf inf 0 inf]);
  
  %Plot E
  figure
@@ -246,7 +247,14 @@ str = sprintf('%.2g', Va);
  title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
  ylabel({'Electric Field (V/m)'},'interpreter','latex','FontSize',14);
- 
+ if -dV(1) < 0.0
+     y_min = -inf;  %allow neg. y-min if necessary
+ else
+     y_min = 0;
+ end      
+ axis([-inf inf y_min inf]);
+
+     
 %Plot potential (fullV)
  figure
  plot(x, fullV)

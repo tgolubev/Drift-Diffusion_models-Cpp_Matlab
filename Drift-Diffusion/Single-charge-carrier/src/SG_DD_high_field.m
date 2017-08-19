@@ -10,25 +10,26 @@
 clear; close all; clc;   %NOTE: clear improves performance over clear all, and still clears all variables.
 
 %% Parameters
-L = 100*10^-9;              %device length in meters
-num_cell = 100;            % number of cells
+L = 100*10^-8;              %device length in meters   %NOTE IIF USE 100*10^-8 GET CORRECT MOTT -GURNEY LOOKING BEHAVIOR. IF 100*10^-9: get weird almost flat p.
+          %SOME NUMERICAL ISSUES HERE??? -> maybe need to scale L ???
+num_cell = 50000;            % number of cells
 p_initial =  10^23;        %initial hole density   %NOTE: WORKS FOR UP TO 10^23, BEYOND THAT, HAVE ISSUES
 p_mob = 2.0*10^-8;         %hole mobility
 
-U = 0;%10^32;                       %net carrier generation rate at interface (in middle): NOTE: BOTH MINUS AND PLUS WORK! (minus up to  -10^30).
+U = 0;%10^28;                       %net carrier generation rate at interface (in middle): NOTE: BOTH MINUS AND PLUS WORK! (minus up to  -10^30).
 
-N = 1.;    %scaling factor for p: find that is not needed.
+N = 10^23.;   %scaling factor helps CV be on order of 1 but makes Cp be very small --> not sure how useful it is, unless figure out how to better scale Cp also..
 
 p_initial = p_initial/N;
 
-Va_min = 1;             %volts
-Va_max = 1;    
+Va_min = 20;             %volts
+Va_max = 20;    
 increment = 0.1;       %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;
 
 %Simulation parameters
-w = 0.5;              %set up of weighting factor     %IT seems to WORK WITH w = 0.5 without issues
-tolerance = 10^-14;   %error tolerance       
+w = 0.01;              %set up of weighting factor     %IT seems to WORK WITH w = 0.5 without issues for 100nodes:  WHEN USING MORE NODES, NEED LOWER w: like 0.01
+tolerance = 10^-13;   %error tolerance       
 constant_p_i = true;   
 
 
@@ -48,7 +49,7 @@ nx = length(x);
 %% Initial Conditions
 if(constant_p_i)
     for i = 1:nx
-        p(i) = p_initial;
+        p(i) = 10^-20; % make p initial very small--> this corresponds to how it's done in ddbi code
     end
 else
     %linearly decreasing p: this doesn't work well
@@ -160,7 +161,7 @@ for Va_cnt = 1:num_V
         
         %enforce boundary conditions through bp
         bp(1) = -B(1,1)*p_initial;
-        bp(num_elements) = 0;%-B(1,nx-1)*p(nx-2);       %ENFORCE RIGHT SIDE P IS 0    %NOTE I'M USING DIFFERENT NOTATION THAN DD-BI CODE!!: B's are defined from the left side!
+        bp(num_elements) = 0;%-B(1,nx-1)*p(nx);       %ENFORCE RIGHT SIDE P IS = 0 that set  %NOTE I'M USING DIFFERENT NOTATION THAN DD-BI CODE!!: B's are defined from the left side!
         %dmaybe here need to include THE -B for the other boundary c
         %ondition: subtract the right side p value.
         
@@ -181,30 +182,25 @@ for Va_cnt = 1:num_V
           p_solution(iter) = p(20);    % save E at random point for each iter for convergence analysis
        end
     end
+    %Define fullp
+    fullp = [p_initial, p];  %add left side value
     
-%     %Calculate drift diffusion Jp
-%     %update dp
-%     for i = 3:nx-3
-%          dp(i) = (p(i+1)-p(i))/dx;
-%     end
-%     dp(3) = (p(4)-p(3))/dx;
-%     dp(nx-2) = (p(nx-2)-p(nx-3))/dx;
-%     dp(nx-1) = 0;
+    %     %Calculate drift diffusion Jp
+    % Use the SG definition
+    for i = 1:num_elements 
+        Jp(i) = (q*p_mob*Vt/dx)*N*(fullp(i+1)*B(2,i)-fullp(i)*B(1,i));         %need an N b/c my p's are scaled by N
+    end
     
-%     for i = 3:nx-2 
-%         Jp(i) = q*p_mob*p(i)*dV(i)- q*p_mob*Vt*dp(i);
-%     end
-%     
-%     %Setup for JV curve
-%     V_values(Va_cnt) = Va;
-%     Jp_final(Va_cnt) = Jp(nx-3);  %just pick Jp at the right side
+    %Setup for JV curve
+    V_values(Va_cnt) = Va;
+    Jp_final(Va_cnt) = Jp(nx-3);  %just pick Jp at the right side
        
     %Save data
     str = sprintf('%.2f',Va);
     filename = [str 'V.txt'] 
     fid = fopen(fullfile('C:\Users\Tim\Documents\Duxbury group research\WENO\results_output\',filename),'w');   %w: Open or create new file for writing
     %fullfile allows to make filename from parts
-    fullp = [p_initial, p];  %add left side value
+  
     for i = 1:nx-2
         fprintf(fid,'%.8e %.8e\r\n ',x(i+1), fullp(i));   %x(i+1) b/c not printing bndry p's
         %f means scientific notation, \r\n: start new line for each value
@@ -229,6 +225,13 @@ p(11);
 
 %% Final Plots
 
+%Analytic Result Calculation
+for i=1:nx-2
+   E_theory1(i) = sqrt(2*x(i)*abs(Jp(nx-3))/(epsilon*p_mob));
+   E_theory2(i)= sqrt(2*x(i)*abs(Jp(i))/(epsilon*p_mob));        %THIS IS MORE CORRECT WAY, SINCE USE THE Jp at each point
+
+end
+
 str = sprintf('%.2g', Va);
 
  h1 = plot(x(1:nx-1),fullp);
@@ -240,10 +243,11 @@ str = sprintf('%.2g', Va);
  
  %Plot E
  figure
- plot(x(1:nx-1), -dV)
+ E = -(dV/dx)*Vt; 
+ plot(x(1:nx-1), E)       %*Vt to rescale  back to normal units: RECALL THAT I DEFINED dV as just V(i+1) - V(i) and here we need dV/dx!!
  hold on
- %plot(x(3:num_cell),E_theory1(3:num_cell));
- %plot(x(3:num_cell),E_theory2(3:num_cell));
+ plot(x(2:nx-1),E_theory2);
+ plot(x(2:nx-1),E_theory1);
  title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
  ylabel({'Electric Field (V/m)'},'interpreter','latex','FontSize',14);
@@ -263,14 +267,14 @@ str = sprintf('%.2g', Va);
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
  ylabel({'Electric Potential (V)'},'interpreter','latex','FontSize',14);
 
-%  
-%  
-%  figure;
-%  h3 = plot(x(3:num_cell+3),Jp(3:num_cell+3));
-%  hold on
-%  title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
-%  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
-%  ylabel({'Current Density ($A/m^2$)'},'interpreter','latex','FontSize',14);
+ 
+ 
+ figure;
+ h3 = plot(x(2:nx-1),Jp);
+ hold on
+ title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
+ xlabel('Position ($m$)','interpreter','latex','FontSize',14);
+ ylabel({'Current Density ($A/m^2$)'},'interpreter','latex','FontSize',14);
 %  
 %  %JV curve
 %  figure

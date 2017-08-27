@@ -11,7 +11,7 @@ clear; close all; clc;   %NOTE: clear improves performance over clear all, and s
 
 %% Parameters
 L = 100*10^-8;              %device length in meters
-num_cell = 50000;            % number of cells  SEEMS NEED 50K points for good convergence to MG limit
+num_cell = 100;            % number of cells  SEEMS NEED 50K points for good convergence to MG limit
 p_initial =  10^23;        %initial hole density   %NOTE: WORKS FOR UP TO 10^23, BEYOND THAT, HAVE ISSUES
 p_mob = 2.0*10^-8;         %hole mobility
 
@@ -22,12 +22,12 @@ N = 10^23;
 p_initial = p_initial/N;
 
 Va_min = 35;             %volts
-Va_max = 35;    
+Va_max = 35.1;    
 increment = 0.1;       %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;
 
 %Simulation parameters
-w = 0.01;              %set up of weighting factor     %IT seems to WORK WITH w = 0.5 without issues
+w = 0.05;              %set up of weighting factor     %IT seems to WORK WITH w = 0.5 without issues
 tolerance = 10^-13;   %error tolerance       %10^-13 CONVERGES WELL
 constant_p_i = true;   
 
@@ -225,7 +225,7 @@ p(11);
 
 %Analytic Result Calculation
 for i=1:nx-2
-   E_theory1(i) = sqrt(2*x(i)*abs(Jp(nx-3))/(epsilon*p_mob));
+   %E_theory1(i) = sqrt(2*x(i)*abs(Jp(nx-3))/(epsilon*p_mob));
    E_theory2(i)= sqrt(2*x(i)*abs(Jp(i))/(epsilon*p_mob));        %THIS IS MORE CORRECT WAY, SINCE USE THE Jp at each point
 
 end

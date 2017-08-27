@@ -11,8 +11,8 @@ clear; close all; clc;   %NOTE: clear improves performance over clear all, and s
 
 %% Parameters
 L = 100*10^-8;              %device length in meters   %NOTE IIF USE 100*10^-8 GET CORRECT MOTT -GURNEY LOOKING BEHAVIOR. IF 100*10^-9: get weird almost flat p.
-          %SOME NUMERICAL ISSUES HERE??? -> maybe need to scale L ???
-num_cell = 50000;            % number of cells
+                            % b/c of V falling off too fast.
+num_cell = 100;            % number of cells     %IF USE 100, get kink in left side of E_theory. At 1000 cells, kink is gone.
 p_initial =  10^23;        %initial hole density   %NOTE: WORKS FOR UP TO 10^23, BEYOND THAT, HAVE ISSUES
 p_mob = 2.0*10^-8;         %hole mobility
 
@@ -22,13 +22,13 @@ N = 10^23.;   %scaling factor helps CV be on order of 1 but makes Cp be very sma
 
 p_initial = p_initial/N;
 
-Va_min = 20;             %volts
-Va_max = 20;    
+Va_min = 35;             %volts       NOTE: I;M NOW RELAXING TOLERANCE FOR 1ST ITER, SO CAN'T TRUST VA_MIN RESULT: RUN FOR AT LEAST 2 Va values!
+Va_max = 35.1;    
 increment = 0.1;       %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;
 
 %Simulation parameters
-w = 0.01;              %set up of weighting factor     %IT seems to WORK WITH w = 0.5 without issues for 100nodes:  WHEN USING MORE NODES, NEED LOWER w: like 0.01
+w = 0.05;              %set up of weighting factor     %IT seems to WORK WITH w = 0.5 without issues for 100nodes:  WHEN USING MORE NODES, NEED LOWER w: like 0.01
 tolerance = 10^-13;   %error tolerance       
 constant_p_i = true;   
 
@@ -49,7 +49,7 @@ nx = length(x);
 %% Initial Conditions
 if(constant_p_i)
     for i = 1:nx
-        p(i) = 10^-20; % make p initial very small--> this corresponds to how it's done in ddbi code
+        p(i) = 10^-20; % make p initial very small--> this corresponds to how it's done in ddbi code    ACUTALLY FIND THAT IT DOESN'T MATTER WHAT THIS SET TO--> CAN SET TO 1 AND STILL WORKS.
     end
 else
     %linearly decreasing p: this doesn't work well
@@ -65,6 +65,13 @@ end
 
     Va_cnt = 1;
 for Va_cnt = 1:num_V
+    
+    if(Va_cnt ==1) 
+        tolerance = tolerance*1000;         %relax tolerance for 1st convergence
+    end
+    if(Va_cnt ==2)
+        tolerance = tolerance/1000;       %reset tolerance back
+    end
 
     Va = Va_min+increment*(Va_cnt-1);    %increase Va
     %Va = Va_max-increment*(Va_cnt-1);    %decrease Va by increment in each iteration
@@ -111,6 +118,7 @@ for Va_cnt = 1:num_V
         bV(num_elements,1) = bV(num_elements,1) - 0;
         
         %call solver, solve for V
+        %spparms('spumoni',2)     %THIS ALLOWS TO SEE THE DETAILS OF THE SOLVER CONDITIONS!
         V =  AV_val\bV;
         %SO THIS ACTUALLY IS SOLVING FOR PSI PRIME: A SCALED PSI! --> so
         %later in Bernoulli: don't need to devide by VT again: b/c this
@@ -128,11 +136,11 @@ for Va_cnt = 1:num_V
         %B = BernoulliFnc(nx, fullV, Vt);
  
         %Ap_val = SetAp_val(num_cell, B, fullV,p,Vt);      
-        for i = 1:nx-1               %so dV(100) = dV(101: is at x=L) - dV(100, at x= l-dx).
-            dV(i) = fullV(i+1)-fullV(i);     %these fullV's ARE ACTUALLY PSI PRIME; ALREADY = V/Vt, when solved poisson.
+        for i = 2:num_cell+1               %so dV(100) = dV(101: is at x=L) - dV(100, at x= l-dx).
+            dV(i) = fullV(i)-fullV(i-1);     %these fullV's ARE ACTUALLY PSI PRIME; ALREADY = V/Vt, when solved poisson.
         end
         
-        for i = 1:nx-1
+        for i = 2:num_cell+1
             B(1,i) = dV(i)/(exp(dV(i))-1.0);    %B(+dV)
             %B(2,i) = -dV(i)/(exp(-dV(i))-1.0);   %THIS IS EQUIVALENT  TO OTHE
             %BELOW EXPERSSION
@@ -144,14 +152,14 @@ for Va_cnt = 1:num_V
         %Ap(:,3) are unused b/c off diagonals have 1 less element than main
         %diagonal!
         for i=1:num_elements     %I verified that ordering of columns is correct!
-            Ap(i,2) = -(B(2,i) + B(1,i+1));     %I HAVE VERIFIED THAT ALL THE dV's properly  match up with  indices!
+            Ap(i,2) = -(B(2,i+1) + B(1,i+1+1));     %I HAVE VERIFIED THAT ALL THE dV's properly  match up with  indices! All the extra +1's are b/c B starts at i=2 (1st pt inside device).
         end
         for i = 1:num_elements-1
-            Ap(i,1) = B(1,i);
+            Ap(i,1) = B(1,i+1+1);        %THERE WAS INDEX MISTAKE HERE!  HAD B(1,i+1) but should be i+1+1 b/c have B(dVi)*p_i-1  (see fortran reindexed version)
         end
         Ap(num_elements, 1) = 0;   %last element is unused
         for i = 2:num_elements
-            Ap(i,3) = B(2,i+1);
+            Ap(i,3) = B(2,i+1+1);   %WAS INDEX MISTAKE HERE ALSO
         end
         Ap(1,3) = 0;        %1st element of Ap(:,3) is unused
         
@@ -160,7 +168,7 @@ for Va_cnt = 1:num_V
         old_p = p;
         
         %enforce boundary conditions through bp
-        bp(1) = -B(1,1)*p_initial;
+        bp(1) = -B(1,2)*p_initial;       %NOTE: scaled p_initial = 1 --> this is just like in fortran version
         bp(num_elements) = 0;%-B(1,nx-1)*p(nx);       %ENFORCE RIGHT SIDE P IS = 0 that set  %NOTE I'M USING DIFFERENT NOTATION THAN DD-BI CODE!!: B's are defined from the left side!
         %dmaybe here need to include THE -B for the other boundary c
         %ondition: subtract the right side p value.
@@ -183,26 +191,42 @@ for Va_cnt = 1:num_V
        end
     end
     %Define fullp
-    fullp = [p_initial, p];  %add left side value
+    fullp = [p_initial, p, 10^-20];  %add bndry values: right side set to very small value --> same as did in Fortran version
     
     %     %Calculate drift diffusion Jp
     % Use the SG definition
-    for i = 1:num_elements 
-        Jp(i) = (q*p_mob*Vt/dx)*N*(fullp(i+1)*B(2,i)-fullp(i)*B(1,i));         %need an N b/c my p's are scaled by N
+    for i = 1:num_cell-1        %verified that this is right 
+        Jp_temp(i) = -(q*p_mob*Vt*N/dx)*(fullp(i+1)*B(2,i+1)-fullp(i)*B(1,i+1));         %need an N b/c my p's are scaled by N. Extra +1's are b/c B starts at i=2
+    end
+    
+    for i =  2:num_cell
+        Jp(i) = Jp_temp(i-1);     %define Jp as on the right side (i.e. i+1/2 goes to i+1).
     end
     
     %Setup for JV curve
     V_values(Va_cnt) = Va;
     Jp_final(Va_cnt) = Jp(nx-3);  %just pick Jp at the right side
-       
+    
+    %numerical E result calculation
+    for i = 2:num_cell+1
+        E(i) = -Vt*(fullV(i) - fullV(i-1))/dx;  %*Vt to rescale  back to normal units: RECALL THAT I DEFINED dV as just V(i+1) - V(i) and here we need dV/dx!!
+    end
+    
+    %Analytic Result Calculation
+    for i=2:num_cell
+        %E_theory1(i) = sqrt(2*x(i)*abs(Jp(nx-3))/(epsilon*p_mob));
+        E_theory2(i)= sqrt(2*x(i)*abs(Jp(i))/(epsilon*p_mob));        %THIS IS MORE CORRECT WAY, SINCE USE THE Jp at each point
+    end
+    
+ 
     %Save data
     str = sprintf('%.2f',Va);
     filename = [str 'V.txt'] 
     fid = fopen(fullfile('C:\Users\Tim\Documents\Duxbury group research\WENO\results_output\',filename),'w');   %w: Open or create new file for writing
     %fullfile allows to make filename from parts
   
-    for i = 1:nx-2
-        fprintf(fid,'%.8e %.8e\r\n ',x(i+1), fullp(i));   %x(i+1) b/c not printing bndry p's
+    for i = 2:num_cell
+        fprintf(fid,'%.8e %.8e %.8e %.8e %.8e %.8e\r\n ',x(i), Vt*fullV(i), fullp(i), E(i), E_theory2(i), Jp(i) );   %x(i+1) b/c not printing bndry p's
         %f means scientific notation, \r\n: start new line for each value
         %for each new desired column, put its own % sign    
     end
@@ -223,18 +247,18 @@ p(11);
 %     end  
 %     V_final
 
-%% Final Plots
+%% Final Plots: done for the last Va
 
 %Analytic Result Calculation
-for i=1:nx-2
-   E_theory1(i) = sqrt(2*x(i)*abs(Jp(nx-3))/(epsilon*p_mob));
+for i=2:num_cell
+   %E_theory1(i) = sqrt(2*x(i)*abs(Jp(nx-3))/(epsilon*p_mob));
    E_theory2(i)= sqrt(2*x(i)*abs(Jp(i))/(epsilon*p_mob));        %THIS IS MORE CORRECT WAY, SINCE USE THE Jp at each point
 
 end
 
 str = sprintf('%.2g', Va);
 
- h1 = plot(x(1:nx-1),fullp);
+ h1 = plot(x,fullp);
  hold on
  title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
@@ -243,11 +267,11 @@ str = sprintf('%.2g', Va);
  
  %Plot E
  figure
- E = -(dV/dx)*Vt; 
- plot(x(1:nx-1), E)       %*Vt to rescale  back to normal units: RECALL THAT I DEFINED dV as just V(i+1) - V(i) and here we need dV/dx!!
+ E = -(dV/dx)*Vt;  %*Vt to rescale  back to normal units: RECALL THAT I DEFINED dV as just V(i+1) - V(i) and here we need dV/dx!!
+ plot(x(2:num_cell), E(2:num_cell))      %We don't plot left bndry pt., b/c E there is not calculated. dV starts at i=2.
  hold on
- plot(x(2:nx-1),E_theory2);
- plot(x(2:nx-1),E_theory1);
+ plot(x(2:num_cell),E_theory2(2:num_cell));
+ %plot(x(2:nx-1),E_theory1);
  title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
  ylabel({'Electric Field (V/m)'},'interpreter','latex','FontSize',14);
@@ -270,7 +294,7 @@ str = sprintf('%.2g', Va);
  
  
  figure;
- h3 = plot(x(2:nx-1),Jp);
+ h3 = plot(x(2:num_cell),Jp(2:num_cell));
  hold on
  title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);

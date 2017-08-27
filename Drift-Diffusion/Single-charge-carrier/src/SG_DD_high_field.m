@@ -2,7 +2,7 @@
 %     Solving Poisson + Drift Diffusion eqns (for holes) using
 %                   Scharfetter-Gummel discretization
 %
-%                  Coded by Timofey Golubev (2017.08.16)
+%                  Coded by Timofey Golubev (2017.08.26)
 %             NOTE: i=1 corresponds to x=0, i=nx to x=L
 
 %RECALL THAT fullV = V/Vt: is scaled!. Same with p = p/N
@@ -10,32 +10,32 @@
 clear; close all; clc;   %NOTE: clear improves performance over clear all, and still clears all variables.
 
 %% Parameters
-L = 100*10^-8;              %device length in meters   %NOTE IIF USE 100*10^-8 GET CORRECT MOTT -GURNEY LOOKING BEHAVIOR. IF 100*10^-9: get weird almost flat p.
-                            % b/c of V falling off too fast.
-num_cell = 100;            % number of cells     %IF USE 100, get kink in left side of E_theory. At 1000 cells, kink is gone.
+L = 100*10^-8;             %device length in meters   %NOTE IIF USE 100*10^-8 GET CORRECT MOTT -GURNEY LOOKING BEHAVIOR. IF 100*10^-9: get weird almost flat p.
+                           % b/c of V falling off too fast.
+num_cell = 100;            % number of cells    
 p_initial =  10^23;        %initial hole density   %NOTE: WORKS FOR UP TO 10^23, BEYOND THAT, HAVE ISSUES
 p_mob = 2.0*10^-8;         %hole mobility
 
-U = 0;%10^28;                       %net carrier generation rate at interface (in middle): NOTE: BOTH MINUS AND PLUS WORK! (minus up to  -10^30).
+U = 0;%-10^29;             %net carrier generation rate at interface (in middle): NOTE: BOTH MINUS AND PLUS WORK! (minus up to  -10^30).
 
-N = 10^23.;   %scaling factor helps CV be on order of 1 but makes Cp be very small --> not sure how useful it is, unless figure out how to better scale Cp also..
+N = 10^23.;                %scaling factor helps CV be on order of 1 
 
 p_initial = p_initial/N;
 
-Va_min = 35;             %volts       NOTE: I;M NOW RELAXING TOLERANCE FOR 1ST ITER, SO CAN'T TRUST VA_MIN RESULT: RUN FOR AT LEAST 2 Va values!
-Va_max = 35.1;    
-increment = 0.1;       %for increasing V
+Va_min = 55;               %volts       NOTE: I;M NOW RELAXING TOLERANCE FOR 1ST ITER, SO CAN'T TRUST VA_MIN RESULT: RUN FOR AT LEAST 2 Va values!
+Va_max = 55.1;    
+increment = 0.1;           %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;
 
 %Simulation parameters
-w = 0.05;              %set up of weighting factor     %IT seems to WORK WITH w = 0.5 without issues for 100nodes:  WHEN USING MORE NODES, NEED LOWER w: like 0.01
-tolerance = 10^-13;   %error tolerance       
+w = 0.01;                  %set up of weighting factor     %seems needs 0.01 to converge to 10^-13 level
+tolerance = 10^-13;        %error tolerance       
 constant_p_i = true;   
 
 
 %% Physical Constants
 q =  1.60217646*10^-19;         %elementary charge, C
-kb = 1.3806503*10^-23;              %Boltzmann const., J/k
+kb = 1.3806503*10^-23;          %Boltzmann const., J/k
 T = 296.;                       %temperature
 epsilon_0 =  8.85418782*10^-12; %F/m
 epsilon = 3.8*epsilon_0;        %dielectric constant of P3HT:PCBM
@@ -67,13 +67,13 @@ end
 for Va_cnt = 1:num_V
     
     if(Va_cnt ==1) 
-        tolerance = tolerance*1000;         %relax tolerance for 1st convergence
+        tolerance = tolerance*1000;       %relax tolerance for 1st convergence
     end
     if(Va_cnt ==2)
         tolerance = tolerance/1000;       %reset tolerance back
     end
 
-    Va = Va_min+increment*(Va_cnt-1);    %increase Va
+    Va = Va_min+increment*(Va_cnt-1);     %increase Va
     %Va = Va_max-increment*(Va_cnt-1);    %decrease Va by increment in each iteration
 
     %timing
@@ -114,7 +114,7 @@ for Va_cnt = 1:num_V
             bV(i,1) = -CV*p(i);   
         end
         %for bndrys 
-        bV(1,1) = bV(1,1) - Va/Vt;         %must scale this too, since all others are scaled
+        bV(1,1) = bV(1,1) - Va/Vt;        
         bV(num_elements,1) = bV(num_elements,1) - 0;
         
         %call solver, solve for V
@@ -125,9 +125,9 @@ for Va_cnt = 1:num_V
         %here is already scaled!
         
         %make V with bndry pts
-        fullV = [Va/Vt; V; 0];   %THIS SHOULD BE FORCED TO 0 AT RIGHT BOUNDARY! 
+        fullV = [Va/Vt; V; 0];       %THIS SHOULD BE FORCED TO 0 AT RIGHT BOUNDARY! 
 
-        fullV = fullV.';             %transpose to be able to put into residual
+        fullV = fullV.';             %transpose 
   
      %NOTE: IT IS WRONG TO SCALE fullV so don't do that!
      
@@ -136,13 +136,13 @@ for Va_cnt = 1:num_V
         %B = BernoulliFnc(nx, fullV, Vt);
  
         %Ap_val = SetAp_val(num_cell, B, fullV,p,Vt);      
-        for i = 2:num_cell+1               %so dV(100) = dV(101: is at x=L) - dV(100, at x= l-dx).
+        for i = 2:num_cell+1                 %so dV(100) = dV(101: is at x=L) - dV(100, at x= l-dx).
             dV(i) = fullV(i)-fullV(i-1);     %these fullV's ARE ACTUALLY PSI PRIME; ALREADY = V/Vt, when solved poisson.
         end
         
         for i = 2:num_cell+1
             B(1,i) = dV(i)/(exp(dV(i))-1.0);    %B(+dV)
-            %B(2,i) = -dV(i)/(exp(-dV(i))-1.0);   %THIS IS EQUIVALENT  TO OTHE
+            %B(2,i) = -dV(i)/(exp(-dV(i))-1.0); %THIS IS EQUIVALENT  TO OTHE
             %BELOW EXPERSSION
             B(2,i) = B(1,i)*exp(dV(i));          %B(-dV)
         end
@@ -155,30 +155,28 @@ for Va_cnt = 1:num_V
             Ap(i,2) = -(B(2,i+1) + B(1,i+1+1));     %I HAVE VERIFIED THAT ALL THE dV's properly  match up with  indices! All the extra +1's are b/c B starts at i=2 (1st pt inside device).
         end
         for i = 1:num_elements-1
-            Ap(i,1) = B(1,i+1+1);        %THERE WAS INDEX MISTAKE HERE!  HAD B(1,i+1) but should be i+1+1 b/c have B(dVi)*p_i-1  (see fortran reindexed version)
+            Ap(i,1) = B(1,i+1+1);    %should be i+1+1 b/c have B(dVi)*p_i-1  (see fortran reindexed version)
         end
-        Ap(num_elements, 1) = 0;   %last element is unused
+        Ap(num_elements, 1) = 0;     %last element is unused
         for i = 2:num_elements
-            Ap(i,3) = B(2,i+1+1);   %WAS INDEX MISTAKE HERE ALSO
+            Ap(i,3) = B(2,i+1);      %1st element here corresponds to the 1st row of matrix: so need to use B3 --> corresponding to p(3)
         end
-        Ap(1,3) = 0;        %1st element of Ap(:,3) is unused
+        Ap(1,3) = 0;                 %1st element of Ap(:,3) is unused
         
         
-        Ap_val = spdiags(Ap,-1:1,num_elements,num_elements); %A = spdiags(B,d,m,n) creates an m-by-
+        Ap_val = spdiags(Ap,-1:1,num_elements,num_elements); 
         old_p = p;
         
         %enforce boundary conditions through bp
         bp(1) = -B(1,2)*p_initial;       %NOTE: scaled p_initial = 1 --> this is just like in fortran version
-        bp(num_elements) = 0;%-B(1,nx-1)*p(nx);       %ENFORCE RIGHT SIDE P IS = 0 that set  %NOTE I'M USING DIFFERENT NOTATION THAN DD-BI CODE!!: B's are defined from the left side!
-        %dmaybe here need to include THE -B for the other boundary c
-        %ondition: subtract the right side p value.
-        
+        bp(num_elements) = 0;%-B(1,nx-1)*p(nx);       %ENFORCE RIGHT SIDE P IS = 0  
+         
         %introduce a net generation rate somewhere in the middle
         bp(ceil(num_cell/2.)) = -Cp*U;
             
         p_sol = Ap_val\bp;
    
-        newp = p_sol.';    %tranpsose
+        newp = p_sol.';    %transpose
         error_p = max(abs(newp-old_p)/abs(old_p))  %ERROR SHOULD BE CALCULATED BEFORE WEIGHTING
         
         %weighting
@@ -193,7 +191,7 @@ for Va_cnt = 1:num_V
     %Define fullp
     fullp = [p_initial, p, 10^-20];  %add bndry values: right side set to very small value --> same as did in Fortran version
     
-    %     %Calculate drift diffusion Jp
+    % Calculate drift diffusion Jp
     % Use the SG definition
     for i = 1:num_cell-1        %verified that this is right 
         Jp_temp(i) = -(q*p_mob*Vt*N/dx)*(fullp(i+1)*B(2,i+1)-fullp(i)*B(1,i+1));         %need an N b/c my p's are scaled by N. Extra +1's are b/c B starts at i=2
@@ -226,7 +224,7 @@ for Va_cnt = 1:num_V
     %fullfile allows to make filename from parts
   
     for i = 2:num_cell
-        fprintf(fid,'%.8e %.8e %.8e %.8e %.8e %.8e\r\n ',x(i), Vt*fullV(i), fullp(i), E(i), E_theory2(i), Jp(i) );   %x(i+1) b/c not printing bndry p's
+        fprintf(fid,'%.8e %.8e %.8e %.8e %.8e %.8e\r\n ',x(i), Vt*fullV(i), fullp(i), E(i), E_theory2(i), Jp(i) );   
         %f means scientific notation, \r\n: start new line for each value
         %for each new desired column, put its own % sign    
     end
@@ -235,10 +233,6 @@ for Va_cnt = 1:num_V
     toc
   
 end
-
-%output to screen for testing
-p(10);
-p(11);
 
 %sanity check: calculate V by integrating E
 % V_final(Va_cnt) = 0;
@@ -249,12 +243,12 @@ p(11);
 
 %% Final Plots: done for the last Va
 
-%Analytic Result Calculation
-for i=2:num_cell
-   %E_theory1(i) = sqrt(2*x(i)*abs(Jp(nx-3))/(epsilon*p_mob));
-   E_theory2(i)= sqrt(2*x(i)*abs(Jp(i))/(epsilon*p_mob));        %THIS IS MORE CORRECT WAY, SINCE USE THE Jp at each point
-
-end
+% %Analytic Result Calculation
+% for i=2:num_cell
+%    %E_theory1(i) = sqrt(2*x(i)*abs(Jp(nx-3))/(epsilon*p_mob));
+%    E_theory2(i)= sqrt(2*x(i)*abs(Jp(i))/(epsilon*p_mob));        %THIS IS MORE CORRECT WAY, SINCE USE THE Jp at each point
+% 
+% end
 
 str = sprintf('%.2g', Va);
 
@@ -267,7 +261,7 @@ str = sprintf('%.2g', Va);
  
  %Plot E
  figure
- E = -(dV/dx)*Vt;  %*Vt to rescale  back to normal units: RECALL THAT I DEFINED dV as just V(i+1) - V(i) and here we need dV/dx!!
+ %E = -(dV/dx)*Vt;  
  plot(x(2:num_cell), E(2:num_cell))      %We don't plot left bndry pt., b/c E there is not calculated. dV starts at i=2.
  hold on
  plot(x(2:num_cell),E_theory2(2:num_cell));
@@ -291,8 +285,7 @@ str = sprintf('%.2g', Va);
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
  ylabel({'Electric Potential (V)'},'interpreter','latex','FontSize',14);
 
- 
- 
+
  figure;
  h3 = plot(x(2:num_cell),Jp(2:num_cell));
  hold on

@@ -10,8 +10,7 @@
 clear; close all; clc;   %NOTE: clear improves performance over clear all, and still clears all variables.
 
 %% Parameters
-L = 100*10^-9;             %device length in meters   %NOTE IIF USE 100*10^-8 GET CORRECT MOTT -GURNEY LOOKING BEHAVIOR. IF 100*10^-9: get weird almost flat p.
-                           % b/c of V falling off too fast.
+L = 100*10^-9;             %device length in meters                           
 num_cell = 100;            % number of cells    
 p_initial =  10^23;        %initial hole density   %NOTE: WORKS FOR UP TO 10^23, BEYOND THAT, HAVE ISSUES
 p_mob = 2.0*10^-8;         %hole mobility
@@ -98,8 +97,6 @@ for Va_cnt = 1:num_V
     %allocate matrices/arrays
     V = zeros(nx-2,1);
     bV = zeros(nx-2,1);
-    B = zeros(2, nx-1);
-    bp = zeros(nx-2,1);
     
     %% Solver Loop        
     num_elements = nx-2;
@@ -133,38 +130,10 @@ for Va_cnt = 1:num_V
      
 %------------------------------------------------------------------------------------------------        
        %% now solve eqn for p  
-        %B = BernoulliFnc(nx, fullV, Vt);
- 
-        %Ap_val = SetAp_val(num_cell, B, fullV,p,Vt);      
-        for i = 2:num_cell+1                 %so dV(100) = dV(101: is at x=L) - dV(100, at x= l-dx).
-            dV(i) = fullV(i)-fullV(i-1);     %these fullV's ARE ACTUALLY PSI PRIME; ALREADY = V/Vt, when solved poisson.
-        end
-        
-        for i = 2:num_cell+1
-            B(1,i) = dV(i)/(exp(dV(i))-1.0);    %B(+dV)
-            %B(2,i) = -dV(i)/(exp(-dV(i))-1.0); %THIS IS EQUIVALENT  TO OTHE
-            %BELOW EXPERSSION
-            B(2,i) = B(1,i)*exp(dV(i));          %B(-dV)
-        end
-        
-        %BE CAREFUL!: the setup of the  sparse matrix elements is
-        %non-trivial: last entry  of Ap(:,1) 1st entry of
-        %Ap(:,3) are unused b/c off diagonals have 1 less element than main
-        %diagonal!
-        for i=1:num_elements     %I verified that ordering of columns is correct!
-            Ap(i,2) = -(B(2,i+1) + B(1,i+1+1));     %I HAVE VERIFIED THAT ALL THE dV's properly  match up with  indices! All the extra +1's are b/c B starts at i=2 (1st pt inside device).
-        end
-        for i = 1:num_elements-1
-            Ap(i,1) = B(1,i+1+1);    %should be i+1+1 b/c have B(dVi)*p_i-1  (see fortran reindexed version)
-        end
-        Ap(num_elements, 1) = 0;     %last element is unused
-        for i = 2:num_elements
-            Ap(i,3) = B(2,i+1);      %1st element here corresponds to the 1st row of matrix: so need to use B3 --> corresponding to p(3)
-        end
-        Ap(1,3) = 0;                 %1st element of Ap(:,3) is unused
-        
-        
-        Ap_val = spdiags(Ap,-1:1,num_elements,num_elements); 
+        B = BernoulliFnc(num_cell, fullV);
+        Ap_val = SetAp_val(num_elements, B);      
+        bp = Setbp(B, p_initial, num_cell, num_elements, Cp, U);  
+       
         old_p = p;
         
         %enforce boundary conditions through bp
@@ -268,7 +237,7 @@ str = sprintf('%.2g', Va);
  title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
  ylabel({'Electric Field (V/m)'},'interpreter','latex','FontSize',14);
- if -dV(1) < 0.0
+ if -(fullV(2)-fullV(1)) < 0.0
      y_min = -inf;  %allow neg. y-min if necessary
  else
      y_min = 0;

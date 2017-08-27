@@ -11,7 +11,7 @@ clear; close all; clc;   %NOTE: clear improves performance over clear all, and s
 
 %% Parameters
 L = 100*10^-8;              %device length in meters
-num_cell = 100;            % number of cells  SEEMS NEED 50K points for good convergence to MG limit
+num_cell = 50000;            % number of cells  SEEMS NEED 50K points for good convergence to MG limit
 p_initial =  10^23;        %initial hole density   %NOTE: WORKS FOR UP TO 10^23, BEYOND THAT, HAVE ISSUES
 p_mob = 2.0*10^-8;         %hole mobility
 
@@ -28,7 +28,7 @@ num_V = floor((Va_max-Va_min)/increment)+1;
 
 %Simulation parameters
 w = 0.05;              %set up of weighting factor     %IT seems to WORK WITH w = 0.5 without issues
-tolerance = 10^-13;   %error tolerance       %10^-13 CONVERGES WELL
+tolerance = 10^-12;   %error tolerance       %10^-13 CONVERGES WELL
 constant_p_i = true;   
 
 
@@ -129,7 +129,7 @@ for Va_cnt = 1:num_V
        %B = BernoulliFnc(nx, fullV, Vt);
        
        %Ap_val = SetAp_val(num_cell, B, fullV,p,Vt);
-       for i = 1:nx-1               %so dV(100) = dV(101: is at x=L) - dV(100, at x= l-dx).
+       for i = 1:num_cell               %so dV(100) = dV(101: is at x=L) - dV(100, at x= l-dx).
            dV(i) = fullV(i+1)-fullV(i);     %these fullV's ARE ACTUALLY PSI PRIME; ALREADY = V/Vt, when solved poisson.
        end
         
@@ -139,16 +139,16 @@ for Va_cnt = 1:num_V
        %diagonal!
        
        %For efficiency: precalculate exp(-dV(i)) 
-       for i = 1:num_elements
+       for i = 1:num_cell
             Exp_dV(i) = exp(-dV(i));
        end
        
        for i=1:num_elements-1
-           Ap(i,1) = Exp_dV(i);    %I HAVE VERIFIED THAT THE dV's CORRESPOND CORRECTLY WITH INDICES!
+           Ap(i,1) = Exp_dV(i+1);    %
        end
        Ap(num_elements, 1) = 0;   %last element is unused
        for i = 1:num_elements
-           Ap(i,2) = -(1 + Exp_dV(i));
+           Ap(i,2) = -(1 + Exp_dV(i+1));
        end
        for i = 2:num_elements
            Ap(i,3) = 1;
@@ -245,7 +245,7 @@ str = sprintf('%.2g', Va);
  plot(x(1:nx-1), E)       %*Vt to rescale  back to normal units: RECALL THAT I DEFINED dV as just V(i+1) - V(i) and here we need dV/dx!!
  hold on
  plot(x(2:nx-1),E_theory2);
- plot(x(2:nx-1),E_theory1);
+ %plot(x(2:nx-1),E_theory1);
  title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
  ylabel({'Electric Field (V/m)'},'interpreter','latex','FontSize',14);

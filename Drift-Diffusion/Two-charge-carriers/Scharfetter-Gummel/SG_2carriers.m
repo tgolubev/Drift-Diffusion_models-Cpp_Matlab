@@ -10,24 +10,23 @@
 clear; close all; clc;   %NOTE: clear improves performance over clear all, and still clears all variables.
 
 %% Parameters
-L = 100*10^-8;             %device length in meters   %NOTE IIF USE 100*10^-8 GET CORRECT MOTT -GURNEY LOOKING BEHAVIOR. IF 100*10^-9: get weird almost flat p.
-                           % b/c of V falling off too fast.
-num_cell = 1000;            % number of cells    
+L = 100*10^-9;             %device length in meters   
+num_cell = 100;            % number of cells    
 p_initial =  10^23;        %initial hole density   %NOTE: WORKS FOR UP TO 10^23, BEYOND THAT, HAVE ISSUES
 n_initial = 10^23;
 p_mob = 2.0*10^-8;         %hole mobility
 n_mob =  2.0*10^-7;
 
-Un = 10^30;             %net carrier generation rate at interface (in middle): NOTE: BOTH MINUS AND PLUS WORK! (minus up to  -10^30).
-Up = 10^30;
+Un = 0;%10^31;             %net carrier generation rate at interface (in middle): NOTE: BOTH MINUS AND PLUS WORK! (minus up to  -10^30).
+Up = 0;%10^30;
 
 N = 10^23.;                %scaling factor helps CV be on order of 1 
 
 p_initial = p_initial/N;
 n_initial = n_initial/N;
 
-Va_min = 35;               %volts       NOTE: I;M NOW RELAXING TOLERANCE FOR 1ST ITER, SO CAN'T TRUST VA_MIN RESULT: RUN FOR AT LEAST 2 Va values!
-Va_max = 35.1;    
+Va_min = 1;               %volts       NOTE: I;M NOW RELAXING TOLERANCE FOR 1ST ITER, SO CAN'T TRUST VA_MIN RESULT: RUN FOR AT LEAST 2 Va values!
+Va_max = 1.1;    
 increment = 0.1;           %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;
 
@@ -52,8 +51,8 @@ nx = length(x);
 %% Initial Conditions
 
 for i = 1:nx
-    p(i) = 2*10^-20; % make p initial very small--> this corresponds to how it's done in ddbi code    ACUTALLY FIND THAT IT DOESN'T MATTER WHAT THIS SET TO--> CAN SET TO 1 AND STILL WORKS.
-    n(i) = 10^-20;  %can't make p and n be same value b/c then will have 0's charge densities everywhere
+    p(i) = 10^-20; % make p initial very small--> this corresponds to how it's done in ddbi code    ACUTALLY FIND THAT IT DOESN'T MATTER WHAT THIS SET TO--> CAN SET TO 1 AND STILL WORKS.
+    n(i) = 10^-21;  %can't make p and n be same value b/c then will have 0's charge densities everywhere
 end
 
 %redefine charges to be only those inside device
@@ -157,7 +156,7 @@ for Va_cnt = 1:num_V
     end
     %Define fullp
     fullp = [p_initial, p, 10^-20];  %add bndry values: right side set to very small value --> same as did in Fortran version
-    fulln = [n_initial, n, 10^-20];
+    fulln = [10^-20, n, n_initial];
     
     % Calculate drift diffusion Jp
     % Use the SG definition
@@ -240,7 +239,7 @@ str = sprintf('%.2g', Va);
  %E = -(dV/dx)*Vt;  
  plot(x(2:num_cell), E(2:num_cell))      %We don't plot left bndry pt., b/c E there is not calculated. dV starts at i=2.
  hold on
- plot(x(2:num_cell),E_theory2(2:num_cell));
+ %plot(x(2:num_cell),E_theory2(2:num_cell));
  %plot(x(2:nx-1),E_theory1);
  title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);

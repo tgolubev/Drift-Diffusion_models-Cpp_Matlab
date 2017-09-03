@@ -1,6 +1,6 @@
 function B = BernoulliFnc(num_cell, fullV)
 
-dV = zeros(num_cell+1);
+dV = zeros(1,num_cell+1);
 B = zeros(2, num_cell+1);
 
 %Bernoulli fnc.

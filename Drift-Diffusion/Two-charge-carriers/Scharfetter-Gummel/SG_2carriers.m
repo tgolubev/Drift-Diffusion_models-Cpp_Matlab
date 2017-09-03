@@ -142,7 +142,7 @@ for Va_cnt = 1:num_V
         n_sol = An_val\bn;
         newn = n_sol.';
         
-        error_np = max(abs(newp-old_p)+abs(newn-old_n)/abs(old_p+old_n))  %ERROR SHOULD BE CALCULATED BEFORE WEIGHTING
+        error_np = max((abs(newp-old_p)+abs(newn-old_n))./abs(old_p+old_n))  %ERROR SHOULD BE CALCULATED BEFORE WEIGHTING
         
         %weighting
         p = newp*w + old_p*(1.-w);

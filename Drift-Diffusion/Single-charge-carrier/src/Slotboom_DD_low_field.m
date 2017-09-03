@@ -167,7 +167,7 @@ for Va_cnt = 1:num_V
        p_sol = Ap_val\bp;
        
        newp = p_sol.';    %tranpsose
-       error_p = max(abs(newp-old_p)/abs(old_p))  %ERROR SHOULD BE CALCULATED BEFORE WEIGHTING
+       error_p = max(abs(newp-old_p)./abs(old_p))  %ERROR SHOULD BE CALCULATED BEFORE WEIGHTING
        
        %weighting
        p = newp*w + old_p*(1.-w);

@@ -205,7 +205,7 @@ for Va = Va_min:V_increment:Va_max
         %try weighting
         p = w*p + (1.-w)*old_p;
         
-        error_p = max(abs(p-old_p)/abs(old_p))
+        error_p = max(abs(p-old_p)./abs(old_p))
         
         %adjust BC's for p: IS NOT NECESSARY B/C p(3) is never recalculated
         %p(3) = p_initial;   %for conservation of particles

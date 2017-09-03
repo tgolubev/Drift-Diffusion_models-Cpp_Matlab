@@ -198,7 +198,7 @@ for Va_cnt = 1:num_V
         %weighting
         p = p*w + old_p*(1-w);
         
-        error_p = max(abs(p-old_p)/abs(old_p))
+        error_p = max(abs(p-old_p)./abs(old_p))
     
        iter =  iter+1    
        

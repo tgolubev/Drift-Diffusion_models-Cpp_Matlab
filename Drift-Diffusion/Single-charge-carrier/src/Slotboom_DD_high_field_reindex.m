@@ -2,7 +2,7 @@
 %     Solving Poisson + Drift Diffusion eqns (for holes) using
 %                        Slotboom variables
 %
-%                  Coded by Timofey Golubev (2017.08.16)
+%                  Coded by Timofey Golubev (2017.08.26)
 %             NOTE: i=1 corresponds to x=0, i=nx to x=L
 
 %RECALL THAT fullV = V/Vt: is scaled!. Same with p = p/N
@@ -10,34 +10,34 @@
 clear; close all; clc;   %NOTE: clear improves performance over clear all, and still clears all variables.
 
 %% Parameters
-L = 100*10^-9;              %device length in meters
-num_cell = 100;            % number of cells
+L = 100*10^-8;             %device length in meters
+num_cell = 100;          % number of cells  SEEMS NEED 50K points for good convergence to MG limit
 p_initial =  10^23;        %initial hole density   %NOTE: WORKS FOR UP TO 10^23, BEYOND THAT, HAVE ISSUES
 p_mob = 2.0*10^-8;         %hole mobility
 
-U = 10^32;                       %net carrier generation rate at interface (in middle): NOTE: BOTH MINUS AND PLUS WORK! (minus up to  -10^30).
+U = 0;%10^32;              %net carrier generation rate at interface (in middle): NOTE: BOTH MINUS AND PLUS WORK! (minus up to  -10^30).
 
-N = 1.;    %scaling factor for p: find that is not needed.
+N = 10^23;   
 
 p_initial = p_initial/N;
 
-Va_min = 1;             %volts
-Va_max = 1;    
-increment = 0.1;       %for increasing V
+Va_min = 25.0;               %volts
+Va_max = 25.1;    
+increment = 0.1;           %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;
 
 %Simulation parameters
-w = 0.5;              %set up of weighting factor     %IT seems to WORK WITH w = 0.5 without issues
-tolerance = 10^-14;   %error tolerance       
+w = 0.01;              %weighting factor
+tolerance = 5*10^-13;    %error tolerance: it can't converge to -13      
 constant_p_i = true;   
 
 
 %% Physical Constants
-q =  1.60217646*10^-19;         %elementary charge, C
+q =  1.60217646*10^-19;             %elementary charge, C
 kb = 1.3806503*10^-23;              %Boltzmann const., J/k
-T = 296.;                       %temperature
-epsilon_0 =  8.85418782*10^-12; %F/m
-epsilon = 3.8*epsilon_0;        %dielectric constant of P3HT:PCBM
+T = 296.;                           %temperature
+epsilon_0 =  8.85418782*10^-12;     %F/m
+epsilon = 3.8*epsilon_0;            %dielectric constant of P3HT:PCBM
 
 Vt = (kb*T)/q;
 
@@ -48,7 +48,7 @@ nx = length(x);
 %% Initial Conditions
 if(constant_p_i)
     for i = 1:nx
-        p(i) = p_initial;
+        p(i) = 10^-20;
     end
 else
     %linearly decreasing p: this doesn't work well
@@ -65,22 +65,8 @@ end
     Va_cnt = 1;
 for Va_cnt = 1:num_V
 
-    Va = Va_min+increment*(Va_cnt-1);    %increase Va
+    Va = Va_min+increment*(Va_cnt-1);     %increase Va
     %Va = Va_max-increment*(Va_cnt-1);    %decrease Va by increment in each iteration
-    
-    %for low Va_max (start point), use lower 1st w, for medium Va, use
-    %lower w.
-%     if(Va_max<200.)
-%         if(Va_cnt==1)
-%             w= 0.0001;
-%         elseif(Va_max<30.)  %need to figureout what this value limit is
-%             w = 0.0001;
-%         else
-%             w = 0.001;
-%         end
-%     elseif(Va<200.)
-%         w = 0.001;
-%     end
     
     %timing
     tic
@@ -133,7 +119,7 @@ for Va_cnt = 1:num_V
         %make V with bndry pts
         fullV = [Va/Vt; V; 0];   %THIS SHOULD BE FORCED TO 0 AT RIGHT BOUNDARY! 
 
-        fullV = fullV.';             %transpose to be able to put into residual
+        fullV = fullV.';             %transpose
   
      %NOTE: IT IS WRONG TO SCALE fullV so don't do that!
      
@@ -143,8 +129,8 @@ for Va_cnt = 1:num_V
        %B = BernoulliFnc(nx, fullV, Vt);
        
        %Ap_val = SetAp_val(num_cell, B, fullV,p,Vt);
-       for i = 1:nx-1               %so dV(100) = dV(101: is at x=L) - dV(100, at x= l-dx).
-           dV(i) = fullV(i+1)-fullV(i);     %these fullV's ARE ACTUALLY PSI PRIME; ALREADY = V/Vt, when solved poisson.
+       for i = 2:num_cell+1                   %so dV(100) = dV(101: is at x=L) - dV(100, at x= l-dx).
+           dV(i) = fullV(i)-fullV(i-1);     %these fullV's ARE ACTUALLY PSI PRIME; ALREADY = V/Vt, when solved poisson.
        end
         
        %BE CAREFUL!: the setup of the  sparse matrix elements is
@@ -153,16 +139,16 @@ for Va_cnt = 1:num_V
        %diagonal!
        
        %For efficiency: precalculate exp(-dV(i)) 
-       for i = 1:num_elements
+       for i = 2:num_cell+1
             Exp_dV(i) = exp(-dV(i));
        end
        
        for i=1:num_elements-1
-           Ap(i,1) = Exp_dV(i);    %I HAVE VERIFIED THAT THE dV's CORRESPOND CORRECTLY WITH INDICES!
+           Ap(i,1) = Exp_dV(i+1+1);   % this is correct since this 1st entry corresponds to second row of matrix where i = 3
        end
        Ap(num_elements, 1) = 0;   %last element is unused
        for i = 1:num_elements
-           Ap(i,2) = -(1 + Exp_dV(i));
+           Ap(i,2) = -(1 + Exp_dV(i+1+1));   % % this is correct since in 1st row i = 2 but we need dpsi(i+1)
        end
        for i = 2:num_elements
            Ap(i,3) = 1;
@@ -173,8 +159,8 @@ for Va_cnt = 1:num_V
        old_p = p;
        
        %enforce boundary conditions through bp
-       bp(1) = -exp(-dV(1))*p_initial;
-       bp(num_elements) = 0;;       %ENFORCE RIGHT SIDE P IS 0   
+       bp(1) = -exp(-dV(2))*p_initial;
+       bp(num_elements) = 0;       %ENFORCE RIGHT SIDE P IS 0   
        
        %introduce a net generation rate somewhere in the middle
        bp(floor(num_cell/2.)) = -Cp*U;
@@ -182,8 +168,7 @@ for Va_cnt = 1:num_V
        p_sol = Ap_val\bp;
        
        newp = p_sol.';    %tranpsose
-       error_p = max(abs(newp-old_p)/abs(old_p))  %ERROR SHOULD BE CALCULATED BEFORE WEIGHTING
-       
+       error_p = max(abs(newp-old_p)./abs(old_p))  %MUST HAVE ./, OTHERWISE DOES A MATRIX SOLVER CALL
        %weighting
        p = newp*w + old_p*(1.-w);
        
@@ -194,30 +179,41 @@ for Va_cnt = 1:num_V
        end
     end
     
-%     %Calculate drift diffusion Jp
-%     %update dp
-%     for i = 3:nx-3
-%          dp(i) = (p(i+1)-p(i))/dx;
-%     end
-%     dp(3) = (p(4)-p(3))/dx;
-%     dp(nx-2) = (p(nx-2)-p(nx-3))/dx;
-%     dp(nx-1) = 0;
+    %Define fullp
+    fullp = [p_initial, p, 10^-20];  %add bndry values
     
-%     for i = 3:nx-2 
-%         Jp(i) = q*p_mob*p(i)*dV(i)- q*p_mob*Vt*dp(i);
-%     end
-%     
-%     %Setup for JV curve
-%     V_values(Va_cnt) = Va;
-%     Jp_final(Va_cnt) = Jp(nx-3);  %just pick Jp at the right side
-       
+    %     %Calculate drift diffusion Jp
+    % Use the Slotboom J definition
+    for i = 1:num_cell-1
+        Jp_temp(i) = -(q*p_mob*N*Vt/dx)*(fullp(i+1)-fullp(i)*exp(fullV(i)-fullV(i+1)));         %need an N b/c my p's are scaled by N
+    end
+    
+    for i =  2:num_cell
+        Jp(i) = Jp_temp(i-1);     %define Jp as on the right side (i.e. i+1/2 goes to i+1).
+    end
+    
+    
+    %Setup for JV curve
+    V_values(Va_cnt) = Va;
+    Jp_final(Va_cnt) = Jp(nx-3);  %just pick Jp at the right side
+    
+      %numerical E result calculation
+    for i = 2:num_cell+1
+        E(i) = -Vt*(fullV(i) - fullV(i-1))/dx;  %*Vt to rescale  back to normal units: RECALL THAT I DEFINED dV as just V(i+1) - V(i) and here we need dV/dx!!
+    end
+    
+    %Analytic Result Calculation
+    for i=2:num_cell
+        %E_theory1(i) = sqrt(2*x(i)*abs(Jp(nx-3))/(epsilon*p_mob));
+        E_theory2(i)= sqrt(2*x(i)*abs(Jp(i))/(epsilon*p_mob));        %THIS IS MORE CORRECT WAY, SINCE USE THE Jp at each point
+    end
+    
     %Save data
     str = sprintf('%.2f',Va);
     filename = [str 'V.txt'] 
     fid = fopen(fullfile('C:\Users\Tim\Documents\Duxbury group research\WENO\results_output\',filename),'w');   %w: Open or create new file for writing
-    fullp = [p_initial, p];  %add left side value
     for i = 1:nx-2
-        fprintf(fid,'%.8e %.8e\r\n ',x(i+1), fullp(i));   %x(i+1) b/c not printing bndry p's
+     fprintf(fid,'%.8e %.8e %.8e %.8e %.8e %.8e\r\n ',x(i), Vt*fullV(i), N*fullp(i), E(i), E_theory2(i), Jp(i) );   
         %f means scientific notation, \r\n: start new line for each value
         %for each new desired column, put its own % sign    
     end
@@ -226,10 +222,6 @@ for Va_cnt = 1:num_V
     toc
   
 end
-
-%output to screen for testing
-p(10);
-p(11);
 
 %sanity check: calculate V by integrating E
 % V_final(Va_cnt) = 0;
@@ -240,10 +232,16 @@ p(11);
 
 %% Final Plots
 
+%Analytic Result Calculation
+% for i=1:nx-2
+%    %E_theory1(i) = sqrt(2*x(i)*abs(Jp(nx-3))/(epsilon*p_mob));
+%    E_theory2(i)= sqrt(2*x(i)*abs(Jp(i))/(epsilon*p_mob));        %THIS IS MORE CORRECT WAY, SINCE USE THE Jp at each point
+% 
+% end
+
 str = sprintf('%.2g', Va);
 
- fullp = [p_initial, p];
- h1 = plot(x(1:nx-1),fullp);
+ h1 = plot(x,fullp);
  hold on
  title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
@@ -252,10 +250,11 @@ str = sprintf('%.2g', Va);
  
  %Plot E
  figure
- plot(x(1:nx-1), -dV)
+ %E = -(dV/dx)*Vt; 
+ plot(x, E)       %*Vt to rescale  back to normal units: RECALL THAT I DEFINED dV as just V(i+1) - V(i) and here we need dV/dx!!
  hold on
- %plot(x(3:num_cell),E_theory1(3:num_cell));
- %plot(x(3:num_cell),E_theory2(3:num_cell));
+ plot(x(2:nx),E_theory2);
+ %plot(x(2:nx-1),E_theory1);
  title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
  ylabel({'Electric Field (V/m)'},'interpreter','latex','FontSize',14);
@@ -265,7 +264,8 @@ str = sprintf('%.2g', Va);
      y_min = 0;
  end      
  axis([-inf inf y_min inf]);
- 
+
+     
 %Plot potential (fullV)
  figure
  plot(x, fullV)
@@ -274,14 +274,13 @@ str = sprintf('%.2g', Va);
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
  ylabel({'Electric Potential (V)'},'interpreter','latex','FontSize',14);
 
-%  
-%  
-%  figure;
-%  h3 = plot(x(3:num_cell+3),Jp(3:num_cell+3));
-%  hold on
-%  title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
-%  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
-%  ylabel({'Current Density ($A/m^2$)'},'interpreter','latex','FontSize',14);
+
+ figure;
+ h3 = plot(x(2:nx),Jp);
+ hold on
+ title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
+ xlabel('Position ($m$)','interpreter','latex','FontSize',14);
+ ylabel({'Current Density ($A/m^2$)'},'interpreter','latex','FontSize',14);
 %  
 %  %JV curve
 %  figure

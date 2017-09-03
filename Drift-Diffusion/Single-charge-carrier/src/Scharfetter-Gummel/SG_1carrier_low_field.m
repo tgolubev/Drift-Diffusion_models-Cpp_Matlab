@@ -15,7 +15,7 @@ num_cell = 100;            % number of cells
 p_initial =  10^23;        %initial hole density   %NOTE: WORKS FOR UP TO 10^23, BEYOND THAT, HAVE ISSUES
 p_mob = 2.0*10^-8;         %hole mobility
 
-U = 10^32;             %net carrier generation rate at interface (in middle): NOTE: BOTH MINUS AND PLUS WORK! (minus up to  -10^30).
+U = -10^31;             %net carrier generation rate at interface (in middle): NOTE: BOTH MINUS AND PLUS WORK! (minus up to  -10^30).
 
 N = 10^23.;                %scaling factor helps CV be on order of 1 
 
@@ -146,7 +146,7 @@ for Va_cnt = 1:num_V
         p_sol = Ap_val\bp;
    
         newp = p_sol.';    %transpose
-        error_p = max(abs(newp-old_p)/abs(old_p))  %ERROR SHOULD BE CALCULATED BEFORE WEIGHTING
+        error_p = max(abs(newp-old_p)./abs(old_p))  %ERROR SHOULD BE CALCULATED BEFORE WEIGHTING
         
         %weighting
         p = newp*w + old_p*(1.-w);

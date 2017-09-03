@@ -10,8 +10,8 @@
 clear; close all; clc;   %NOTE: clear improves performance over clear all, and still clears all variables.
 
 %% Parameters
-L = 100*10^-8;             %device length in meters
-num_cell = 50000;          % number of cells  SEEMS NEED 50K points for good convergence to MG limit
+L = 100*10^-9;             %device length in meters
+num_cell = 10000;          % number of cells  SEEMS NEED 50K points for good convergence to MG limit
 p_initial =  10^23;        %initial hole density   %NOTE: WORKS FOR UP TO 10^23, BEYOND THAT, HAVE ISSUES
 p_mob = 2.0*10^-8;         %hole mobility
 
@@ -21,14 +21,14 @@ N = 10^23;
 
 p_initial = p_initial/N;
 
-Va_min = 35;               %volts
-Va_max = 35.1;    
-increment = 0.1;           %for increasing V
+Va_min = 1.1;               %volts
+Va_max = 1.11;    
+increment = 0.01;           %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;
 
 %Simulation parameters
-w = 0.05;              %weighting factor
-tolerance = 10^-12;    %error tolerance      
+w = 0.01;              %weighting factor
+tolerance = 5*10^-13;    %error tolerance: it can't converge to -13      
 constant_p_i = true;   
 
 
@@ -144,11 +144,11 @@ for Va_cnt = 1:num_V
        end
        
        for i=1:num_elements-1
-           Ap(i,1) = Exp_dV(i+1);    
+           Ap(i,1) = Exp_dV(i+1);   % this is correct since dV(2) corresponds to psi(3)-psi(2)
        end
        Ap(num_elements, 1) = 0;   %last element is unused
        for i = 1:num_elements
-           Ap(i,2) = -(1 + Exp_dV(i+1));
+           Ap(i,2) = -(1 + Exp_dV(i+1));   % % this is correct since dV(2) corresponds to psi(3)-psi(2)
        end
        for i = 2:num_elements
            Ap(i,3) = 1;
@@ -168,7 +168,7 @@ for Va_cnt = 1:num_V
        p_sol = Ap_val\bp;
        
        newp = p_sol.';    %tranpsose
-       error_p = max(abs(newp-old_p)/abs(old_p))  %ERROR SHOULD BE CALCULATED BEFORE WEIGHTING
+       error_p = max(abs(newp-old_p)./abs(old_p))  %ERROR SHOULD BE CALCULATED BEFORE WEIGHTING
        
        %weighting
        p = newp*w + old_p*(1.-w);
@@ -181,12 +181,12 @@ for Va_cnt = 1:num_V
     end
     
     %Define fullp
-    fullp = [p_initial, p, 0];  %add bndry values
+    fullp = [p_initial, p, 10^-20];  %add bndry values
     
     %     %Calculate drift diffusion Jp
     % Use the Slotboom J definition
     for i = 1:num_cell-1
-        Jp_temp(i) = (q*p_mob*Vt/dx)*N*(fullp(i+1)-fullp(i)*Exp_dV(i));         %need an N b/c my p's are scaled by N
+        Jp_temp(i) = -(q*p_mob*N*Vt/dx)*(fullp(i+1)-fullp(i)*exp(fullV(i)-fullV(i+1)));         %need an N b/c my p's are scaled by N
     end
     
     for i =  2:num_cell
@@ -214,7 +214,7 @@ for Va_cnt = 1:num_V
     filename = [str 'V.txt'] 
     fid = fopen(fullfile('C:\Users\Tim\Documents\Duxbury group research\WENO\results_output\',filename),'w');   %w: Open or create new file for writing
     for i = 1:nx-2
-     fprintf(fid,'%.8e %.8e %.8e %.8e %.8e %.8e\r\n ',x(i), Vt*fullV(i), fullp(i), E(i), E_theory2(i), Jp(i) );   
+     fprintf(fid,'%.8e %.8e %.8e %.8e %.8e %.8e\r\n ',x(i), Vt*fullV(i), N*fullp(i), E(i), E_theory2(i), Jp(i) );   
         %f means scientific notation, \r\n: start new line for each value
         %for each new desired column, put its own % sign    
     end

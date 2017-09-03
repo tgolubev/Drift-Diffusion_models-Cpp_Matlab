@@ -12,7 +12,7 @@ clear; close all; clc;   %NOTE: clear improves performance over clear all, and s
 %% Parameters
 L = 100*10^-8;             %device length in meters   %NOTE IIF USE 100*10^-8 GET CORRECT MOTT -GURNEY LOOKING BEHAVIOR. IF 100*10^-9: get weird almost flat p.
                            % b/c of V falling off too fast.
-num_cell = 50000;            % number of cells    %NOTE: IF WANT TO USE LARGE NUMBER OF POINTS, COMMENT OUT THE CREATION OF ZEROS ARRAYS IN BERNOULLIFNC, OTHERWISE GET ERROR,
+num_cell = 100;            % number of cells    %NOTE: IF WANT TO USE LARGE NUMBER OF POINTS, COMMENT OUT THE CREATION OF ZEROS ARRAYS IN BERNOULLIFNC, OTHERWISE GET ERROR,
 %THAT ARRAY SIZE IS TOO  LARGE!
 p_initial =  10^23;        %initial hole density   %NOTE: WORKS FOR UP TO 10^23, BEYOND THAT, HAVE ISSUES
 p_mob = 2.0*10^-8;         %hole mobility
@@ -23,8 +23,8 @@ N = 10^23.;                %scaling factor helps CV be on order of 1
 
 p_initial = p_initial/N;
 
-Va_min = 200;               %volts       NOTE: I;M NOW RELAXING TOLERANCE FOR 1ST ITER, SO CAN'T TRUST VA_MIN RESULT: RUN FOR AT LEAST 2 Va values!
-Va_max = 200.1;    
+Va_min = 25;               %volts       NOTE: I;M NOW RELAXING TOLERANCE FOR 1ST ITER, SO CAN'T TRUST VA_MIN RESULT: RUN FOR AT LEAST 2 Va values!
+Va_max = 25.1;    
 increment = 0.1;           %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;
 
@@ -157,13 +157,13 @@ for Va_cnt = 1:num_V
     
     % Calculate drift diffusion Jp
     % Use the SG definition
-    for i = 1:num_cell-1        %verified that this is right 
-        Jp_temp(i) = -(q*p_mob*Vt*N/dx)*(fullp(i+1)*B(2,i+1)-fullp(i)*B(1,i+1));         %need an N b/c my p's are scaled by N. Extra +1's are b/c B starts at i=2
+    for i = 1:num_cell        %verified that this is right 
+        Jp(i) = -(q*p_mob*Vt*N/dx)*(fullp(i+1)*B(2,i+1)-fullp(i)*B(1,i+1));         %need an N b/c my p's are scaled by N. Extra +1's are b/c B starts at i=2
     end
     
-    for i =  2:num_cell
-        Jp(i) = Jp_temp(i-1);     %define Jp as on the right side (i.e. i+1/2 goes to i+1).
-    end
+%     for i =  2:num_cell+1
+%         Jp(i) = Jp_temp(i-1);     %define Jp as on the right side (i.e. i+1/2 goes to i+1).
+%     end
     
     %Setup for JV curve
     V_values(Va_cnt) = Va;
@@ -173,9 +173,10 @@ for Va_cnt = 1:num_V
     for i = 2:num_cell+1
         E(i) = -Vt*(fullV(i) - fullV(i-1))/dx;  %*Vt to rescale  back to normal units: RECALL THAT I DEFINED dV as just V(i+1) - V(i) and here we need dV/dx!!
     end
+    E(1:num_cell) = E(2:num_cell+1);  %shift over
     
     %Analytic Result Calculation
-    for i=2:num_cell
+    for i=1:num_cell
         %E_theory1(i) = sqrt(2*x(i)*abs(Jp(nx-3))/(epsilon*p_mob));
         E_theory2(i)= sqrt(2*x(i)*abs(Jp(i))/(epsilon*p_mob));        %THIS IS MORE CORRECT WAY, SINCE USE THE Jp at each point
     end
@@ -187,8 +188,8 @@ for Va_cnt = 1:num_V
     fid = fopen(fullfile('C:\Users\Tim\Documents\Duxbury group research\WENO\results_output\',filename),'w');   %w: Open or create new file for writing
     %fullfile allows to make filename from parts
   
-    for i = 2:num_cell
-        fprintf(fid,'%.8e %.8e %.8e %.8e %.8e %.8e\r\n ',x(i-1), Vt*fullV(i), fullp(i), E(i), E_theory2(i), Jp(i) );   %x(i+1) b/c define corerspond other vars to right side of each mesh pt.
+    for i = 1:num_cell
+        fprintf(fid,'%.8e %.8e %.8e %.8e %.8e %.8e\r\n ',x(i), Vt*fullV(i), fullp(i), E(i), E_theory2(i), Jp(i) );   %x(i+1) b/c define corerspond other vars to right side of each mesh pt.
         %f means scientific notation, \r\n: start new line for each value
         %for each new desired column, put its own % sign    
     end
@@ -219,9 +220,9 @@ str = sprintf('%.2g', Va);
  %Plot E
  figure
  %E = -(dV/dx)*Vt;  
- plot(x(2:num_cell), E(2:num_cell))      %We don't plot left bndry pt., b/c E there is not calculated. dV starts at i=2.
+ plot(x(1:num_cell), E(1:num_cell))      %We don't plot left bndry pt., b/c E there is not calculated. dV starts at i=2.
  hold on
- plot(x(2:num_cell),E_theory2(2:num_cell));
+ plot(x(1:num_cell),E_theory2(1:num_cell));
  %plot(x(2:nx-1),E_theory1);
  title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);
@@ -244,7 +245,7 @@ str = sprintf('%.2g', Va);
 
 
  figure;
- h3 = plot(x(2:num_cell),Jp(2:num_cell));
+ h3 = plot(x(1:num_cell),Jp(1:num_cell));
  hold on
  title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
  xlabel('Position ($m$)','interpreter','latex','FontSize',14);

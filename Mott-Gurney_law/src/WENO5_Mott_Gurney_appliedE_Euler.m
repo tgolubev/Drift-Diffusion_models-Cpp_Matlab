@@ -145,7 +145,7 @@ for Ea = Ea_min:increment:Ea_max
 
         end
         
-        error_p = max(abs(p-old_p)/abs(old_p));
+        error_p = max(abs(p-old_p)./abs(old_p));
         %adjust BC's for p
         p(1) = 0;
         p(2) = 0;

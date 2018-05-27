@@ -1,5 +1,5 @@
 function AV_val = SetAV_val(epsilon) 
-global num_elements nx
+global num_elements nx l_HTL_int l_ETL_int
 
 AV = zeros(nx-2,3);
 

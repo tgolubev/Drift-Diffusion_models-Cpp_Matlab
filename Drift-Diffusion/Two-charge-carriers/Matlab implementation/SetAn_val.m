@@ -5,7 +5,7 @@ An =  zeros(num_elements,3);
                 
 %last entry  of An(:,1) 1st entry of
 %An(:,3) are unused b/c off diagonals have 1 less element than main
-%diagonal!
+%diagonal
 
 for i=1:num_elements    
     An(i,2) = -(n_mob(i+1)*B_n(1,i+1) + n_mob(i+1+1)*B_n(2,i+1+1));    

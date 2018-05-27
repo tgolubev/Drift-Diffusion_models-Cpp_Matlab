@@ -5,37 +5,31 @@
 %                  Coded by Timofey Golubev (2018.05.26)
 %             NOTE: i=1 corresponds to x=0, i=nx to x=L
 %
-%       The code as is will will calculate and plot an idealized JV curve
+%       The code as is will will calculate and plot a JV curve
 %       as well as carrier densities, current densities, and electric field
-%       distributions of a generic solar cell. Equations for carrier
-%       recombination can be added to generate more realistic JV curves
+%       distributions of a generic solar cell. More equations for carrier
+%       recombination can be added.
 %
 %       The code can also be applied to any semiconductor device by
 %       setting photogeneration rate to 0 and adding equations for
-%       loss mechanisms
+%       loss mechanisms.
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 clear; close all; clc;     %clear improves performance over clear all, and still clears all variables.
 
-global G_max num_cell num_elements n_mob p_mob Cp Cn
+global G_max num_cell num_elements n_mob p_mob Cp Cn Vt
 
 %% Parameters
-L = 100*10^-9;             %device length in meters
-dx = 1e-9;                 %mesh size
-num_cell = L/dx;
+L = 300e-9;      %device length in meters
+dx = 1e-9;                        %mesh size
+num_cell = floor(L/dx);
 
 %Electronic density of states of holes and electrons
 N_VB = 10^24;         %density of states in valence band (holes)
 N_CB = 10^24;         %density of states in conduction bands (electrons)
 E_gap = 1.5;          %bandgap (in eV)
-Vbi = 1.2;            %built-in field
-
-Un = 0;%10^31;        %net carrier generation rate at interface
-Up = 0;%10^30;
 
 N = 10^24.;            %scaling factor helps CV be on order of 1
-
-G_max = 1.5*10^28;     %maximum photogeneration rate (for normalization)
 
 % Physical Constants
 q =  1.60217646*10^-19;         %elementary charge, C
@@ -44,17 +38,32 @@ T = 296.;                       %temperature
 epsilon_0 = 9.85419*10^-12;     %F/m
 Vt = (kb*T)/q;
 
-%Dielectric constants (these can be position dependent, in that case need to modify SetAV_val elements at locations of interfaces)
-epsilon(1:num_cell+1) = 3.8*epsilon_0;
+%injection barriers
+inj_a = 0.2;	%at anode
+inj_c = 0.1;	%at cathode
 
-%Mobilities (these can be position dependent, no modification in SetAn_val, SetAp_val is needed)
-p_mob(1:num_cell+1) = 2.0*10^-4;
-n_mob(1:num_cell+1) = 2.0*10^-4;
-mobil = 2.*10^-4;                    %scaling for mobility (for numerical stability when solving matrix equations)
+%work functions of anode and cathode
+WF_anode = 4.8;     
+WF_cathode = 3.7;
+
+Vbi = WF_anode - WF_cathode +inj_a +inj_c;  %built-in field
+
+G_max = 4*10^27; %for photogeneration rate normalization
+
+% Dielectric constants (can be made position dependent, as long as are
+% piecewise-constant)
+epsilon(1:num_cell+1) = 3.0*epsilon_0; 
+
+% Carrier mobilities (can be made position dependent, as long as are
+% piecewise-constant)
+p_mob(1:num_cell+1) = 4.5*10^-6;       
+n_mob(1:num_cell +1) = 4.5*10^-6;      
+
+mobil = 5.*10^-6;                    %scaling for mobility (for numerical stability when solving matrix equations)
 
 %% JV sweep parameters
 Va_min = -0.5;               %volts
-Va_max = 0.85;
+Va_max = 1.2;
 increment = 0.01;         %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;   %number of V points
 
@@ -70,10 +79,10 @@ nx = length(x);
 num_elements = nx-2;
 
 %% Boundary Conditions
-n_full(1) = N_CB*exp(-E_gap/Vt);
-p_full(1) = N_VB;
-n_full(num_cell+1) = N_CB;
-p_full(num_cell+1) = N_VB*exp(-E_gap/Vt);
+n_full(1) = N_CB*exp(-(E_gap-inj_a)/Vt);
+p_full(1) = N_VB*exp(-inj_a/Vt);
+n_full(num_cell+1) = N_CB*exp(-inj_c/Vt);
+p_full(num_cell+1) = N_VB*exp(-(E_gap-inj_c)/Vt);
 
 n_full = n_full/N;
 p_full = p_full/N;
@@ -86,8 +95,8 @@ for i = 1:num_elements
 end
 
 %set up initial guess for electric potential V (simplest is just linear)
-fullV(1) = 0;
-fullV(num_cell+1) = Vbi/Vt;
+fullV(1) = -((Vbi)/(2*Vt)-inj_a/Vt);
+fullV(num_cell+1) = (Vbi)/(2*Vt)-inj_c/Vt;
 diff = (fullV(num_cell+1)-fullV(1))/num_cell;
 for i = 2:num_elements+1
     fullV(i) = fullV(i-1)+diff;
@@ -129,8 +138,8 @@ for Va_cnt = 0:num_V +1
     end
     
     %Boundary conditions
-    fullV(1) = 0;
-    fullV(num_cell+1) = (Vbi - Va)/(Vt);
+    fullV(1) = -((Vbi  -Va)/(2*Vt)-inj_a/Vt);
+    fullV(num_cell+1) = (Vbi- Va)/(2*Vt) - inj_c/Vt;
     
     %% Setup the solver
     iter = 1;
@@ -174,7 +183,7 @@ for Va_cnt = 0:num_V +1
         
         % Calculate net carrier generation rates
         if(Va_cnt > 0)
-            G = GenerationRate();  %GenerationRate function will now change--> will be reading in the  values from the transfer matrix result
+            G = GenerationRate();  
         else
             G = zeros(num_elements,1);
         end
@@ -194,11 +203,12 @@ for Va_cnt = 0:num_V +1
         p_mob = p_mob/mobil;
         n_mob = n_mob/mobil;
         
-        B = BernoulliFnc(fullV);
-        Ap_val = SetAp_val(B);
-        An_val = SetAn_val(B);
-        bp = Setbp(B, p_full, Up);
-        bn = Setbn(B, n_full, Un);
+        Bp = BernoulliFnc_p(fullV);
+        Bn = BernoulliFnc_n(fullV);
+        Ap_val = SetAp_val(Bp);
+        An_val = SetAn_val(Bn);
+        bp = Setbp(Bp, p_full, Up);
+        bn = Setbn(Bn, n_full, Un);
         
         old_p = p;
         p_sol = Ap_val\bp;
@@ -260,8 +270,8 @@ for Va_cnt = 0:num_V +1
     % Calculate drift diffusion currents
     % Use the SG definition
     for i = 1:num_cell-1
-        Jp_temp(1,i) = -(q*Vt*N/dx)*(p_mob(i+1)*p_full(i+1)*B(2,i+1)-p_mob(i+1)*p_full(i)*B(1,i+1));
-        Jn_temp(1,i) =  (q*Vt*N/dx)*(n_mob(i+1)*n_full(i+1)*B(1,i+1)-n_mob(i+1)*n_full(i)*B(2,i+1));
+        Jp_temp(1,i) = -(q*Vt*N/dx)*(p_mob(i+1)*p_full(i+1)*Bp(2,i+1)-p_mob(i+1)*p_full(i)*Bp(1,i+1));
+        Jn_temp(1,i) =  (q*Vt*N/dx)*(n_mob(i+1)*n_full(i+1)*Bn(1,i+1)-n_mob(i+1)*n_full(i)*Bn(2,i+1));
     end
     
     for i =  2:num_cell
@@ -303,7 +313,6 @@ for Va_cnt = 0:num_V +1
     end
     fclose(fid);
     
-    toc
     
 end
 
@@ -318,13 +327,6 @@ fclose(file2);
 
 str = sprintf('%.2g', Va);
 
-h1 = plot(x,N*p_full);
-hold on
-title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
-xlabel('Position ($m$)','interpreter','latex','FontSize',14);
-ylabel({'Hole density ($1/m^3$)'},'interpreter','latex','FontSize',14);
-axis([-inf inf 0 inf]);
-
 figure
 plot(x,log(N*p_full));
 hold on
@@ -334,14 +336,7 @@ title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
 xlabel('Position ($m$)','interpreter','latex','FontSize',14);
 ylabel({'Log of carrier densities ($1/m^3$)'},'interpreter','latex','FontSize',14);
 axis([-inf inf 0 inf]);
-
-figure
-plot(x,N*n_full);
-hold on
-title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
-xlabel('Position ($m$)','interpreter','latex','FontSize',14);
-ylabel({'Electron density ($1/m^3$)'},'interpreter','latex','FontSize',14);
-axis([-inf inf 0 inf]);
+legend({'holes', 'electrons'});
 
 %Plot E
 figure
@@ -373,6 +368,7 @@ plot(x(2:num_elements),Jp(2:num_elements))
 title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
 xlabel('Position(m)','interpreter','latex','FontSize',14);
 ylabel({'Current Density ($A/m^2$)'},'interpreter','latex','FontSize',14);
+legend({'Jn', 'Jp'});
 
 % JV curve
 figure

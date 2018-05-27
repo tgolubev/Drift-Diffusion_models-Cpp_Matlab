@@ -11,7 +11,9 @@
 %     distributions of a generic solar cell. More equations for carrier
 %     recombination can be added. Generation rate will be inputted from gen_rate.txt
 %     file (i.e. the output of an optical model can be used) or an analytic expression
-%     for photogeneration rate can be added to photogeneration.cpp.
+%     for photogeneration rate can be added to photogeneration.cpp. Generation rate file
+%     should contain num_cell -2 number of entries in a single column, corresponding to
+%     the the generation rate at each mesh point (except the endpoints).
 %
 %     The code can also be applied to any semiconductor device by
 %     setting photogeneration rate to 0 and adding equations for
@@ -72,7 +74,7 @@ int main()
     std::vector<double> rhs(num_cell);
     std::vector<double> Jp(num_cell),Jn(num_cell), J_total(num_cell);
     std::vector<double> B_n1(num_cell+1), B_n2(num_cell+1), B_p1(num_cell+1), B_p2(num_cell+1); //vectors for storing Bernoulli fnc values
-    std::vector<double> R_Langevin(num_cell), R_SRH_HTL(num_cell), R_SRH_ETL(num_cell);
+    std::vector<double> R_Langevin(num_cell);
     std::vector<double> error_np_vector(num_cell);  //for storing errors between iterations
 
     //Boundary conditions
@@ -166,7 +168,6 @@ int main()
             }
             Up = Un;
 
-
             //--------------------------------Solve equations for n and p------------------------------------------------------------ 
             //setup the matrices
             BernoulliFnc_n(V, B_n1, B_n2);  //fills B_p1 and B_p2 with the values of Bernoulli fnc
@@ -234,7 +235,7 @@ int main()
         //Write charge densities, recombination rates, etc
         std::string filename = std::to_string(Va);
         VaData.open(filename); //this will need to have a string as file name
-        for(int i = 1;i<num_cell-1;i++){
+        for(int i = 1;i<=num_cell;i++){
             VaData << std::setw(15) << std::setprecision(8) << dx*i;
             VaData << std::setw(15) << std::setprecision(8) << Vt*V[i];
             VaData << std::setw(15) << std::setprecision(8) << N*p[i];         //setprecision(8) sets that use 8 sigfigs
@@ -243,8 +244,6 @@ int main()
             VaData << std::setw(15) << std::setprecision(8) << Un[i];
             VaData << std::setw(15) << std::setprecision(8) << Photogen_rate[i];
             VaData << std::setw(15) << std::setprecision(8) << R_Langevin[i];
-            VaData << std::setw(15) << std::setprecision(8) << R_SRH_ETL[i];
-            VaData << std::setw(15) << std::setprecision(8) << R_SRH_HTL[i];
             VaData << std::setw(15) << std::setprecision(8) << w;
             VaData << std::setw(15) << std::setprecision(8) << tolerance <<std::endl;
         }

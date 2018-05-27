@@ -2,8 +2,6 @@
 #define PARAMETERS_H
 
 //Physical Constants (these should not be changed)
-//for now, define all parameters here, in main file, and use extern in parameters.h with declarations--> so then all my files can see all the parameters
-//Physical Constants (these should not be changed)
 const double q =  1.60217646e-19;         //elementary charge, C
 const double kb = 1.3806503e-23;          //Boltzmann const., J/k
 const double T = 296.;                      //temperature
@@ -11,24 +9,22 @@ const double Vt = (kb*T)/q;                  //thermal voltage
 const double epsilon_0 =  8.85418782e-12; //F/m
 
 //Thicknesses (in m)
-const double L_active = 300e-9;
-
-const double L = 100.0e-9;             //device length in meters:
+const double L = 300.0e-9;             //device length in meters. Note: if change this and using a gen_rate file, need to update the number of elements in file to = num_cell-2
 const double dx = 1.e-9;
 const int num_cell = L/dx;            //number of cells
 
-const double N_LUMO = 8.1e24;
-const double N_HOMO = 8.1e24;
-const double N = 8.1e24;     //scaling factor helps CV be on order of 1
+const double N_LUMO = 10e24;
+const double N_HOMO = 10e24;
+const double N = 10e24;     //scaling factor helps CV be on order of 1
 const double Nsqrd = N*N;
 
-const double G_max =  3e27;  //max photogeneration rate
+const double G_max =  7e27;  //max photogeneration rate
 
 //injection barriers
 const double phi_a = 0.2;
-const double phi_c = 0.2;
+const double phi_c = 0.1;
 
-//Dielectric constants
+//Relative dielectric constants (epsilon/epsilon_0)
 const double eps_active = 3.0;
 
 //Mobilities
@@ -39,11 +35,11 @@ const double mobil = 5e-6; //scaling for mobility
 
 //Energetics
 const double E_gap = 1.5;        //active layer bandgap (eV)
-const double active_CB = -5.4;   //active layer conduction band energy (eV)
-const double active_VB = -3.9;   //active layer valence band energy (eV)
+const double active_CB = -3.9;   //active layer conduction band energy (eV)
+const double active_VB = -5.4;   //active layer valence band energy (eV)
 
 const double WF_anode = 4.8;
-const double WF_cathode = 4.2;
+const double WF_cathode = 3.7;
 
 const double Vbi = WF_anode - WF_cathode +phi_a +phi_c;
 
@@ -56,13 +52,13 @@ const double p1 = N_HOMO*exp(-(E_trap - active_VB)/Vt);
 //////////////////////////////////////////
 //Voltage sweep setup
 const double Va_min = -0.5;
-const double Va_max = 1.3;
+const double Va_max = 1.2;
 const double increment = 0.01;
 const int num_V = floor((Va_max-Va_min)/increment)+1;
 
 //Simulation parameters
 const double w_eq = 0.01;                     //for 1st equil convergence weighting factor
-const double w_i = 0.01;                       // %set up of weighting factor
+const double w_i = 0.2;                       // %set up of weighting factor
 const double tolerance_eq = 100*5e-12;        //error tolerance for equil run
 const double tolerance_i = 5e-12;             //initial error tolerance for 1st non-equil Va (1s tVa with generation)d\
 

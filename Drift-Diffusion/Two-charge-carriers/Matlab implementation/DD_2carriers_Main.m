@@ -1,18 +1,20 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%             Solving Poisson + Drift Diffusion eqns using
-%                   Scharfetter-Gummel discretization
+%     Solving 1D Poisson + Drift Diffusion semiconductor eqns using
+%                    Scharfetter-Gummel discretization
 %
 %                  Coded by Timofey Golubev (2018.05.26)
-%             NOTE: i=1 corresponds to x=0, i=nx to x=L
+%               NOTE: i=1 corresponds to x=0, i=nx to x=L
 %
-%       The code as is will will calculate and plot a JV curve
-%       as well as carrier densities, current densities, and electric field
-%       distributions of a generic solar cell. More equations for carrier
-%       recombination can be added.
+%     The code as is will calculate and plot a JV curve
+%     as well as carrier densities, current densities, and electric field
+%     distributions of a generic solar cell. More equations for carrier
+%     recombination can be added. Generation rate will be inputted from gen_rate.txt
+%     file (i.e. the output of an optical model can be used) or an analytic expression
+%     for photogeneration rate can be added to photogeneration.cpp.
 %
-%       The code can also be applied to any semiconductor device by
-%       setting photogeneration rate to 0 and adding equations for
-%       loss mechanisms.
+%     The code can also be applied to any semiconductor device by
+%     setting photogeneration rate to 0 and adding equations for
+%     loss mechanisms.
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 clear; close all; clc;     %clear improves performance over clear all, and still clears all variables.

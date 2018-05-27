@@ -1,3 +1,25 @@
+/*
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%     Solving 1D Poisson + Drift Diffusion semiconductor eqns using
+%                    Scharfetter-Gummel discretization
+%
+%                  Coded by Timofey Golubev (2018.05.26)
+%               NOTE: i=1 corresponds to x=0, i=nx to x=L
+%
+%     The code as is will calculate and plot a JV curve
+%     as well as carrier densities, current densities, and electric field
+%     distributions of a generic solar cell. More equations for carrier
+%     recombination can be added. Generation rate will be inputted from gen_rate.txt
+%     file (i.e. the output of an optical model can be used) or an analytic expression
+%     for photogeneration rate can be added to photogeneration.cpp.
+%
+%     The code can also be applied to any semiconductor device by
+%     setting photogeneration rate to 0 and adding equations for
+%     loss mechanisms.
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+*/
+
 #include <iostream>
 #include <vector>
 #include <iomanip>
@@ -14,7 +36,6 @@
 #include "photogeneration.h"
 #include "thomas_tridiag_solve.h"
 
-
 int main()
 {
     std::ofstream JV;
@@ -25,26 +46,14 @@ int main()
     double tolerance;
     double old_error;
 
-    //Fill the RELATIVE dielectric constant vector
+    //Fill the RELATIVE dielectric constant vector (can be position dependent, as long as piecewise constant)
     std::vector<double> epsilon(num_cell+1);
-    std::fill(epsilon.begin(), epsilon.begin() +l_HTL_int+1, eps_HTL); //fill(iterator to 1st element, iterator to last element (BUT LAST ELEMENT IS NOT FILLED), value to fill with) //HTL(PEDOT:PSS)
-    std::fill(epsilon.begin() + l_HTL_int+1, epsilon.begin() + l_ETL_int+1, eps_perov);  //perovksite
-    std::fill(epsilon.begin() + l_ETL_int+1, epsilon.begin() + l_BCP_int+1, eps_ETL);     //ETL (C60)
-    std::fill(epsilon.begin() + l_BCP_int+1, epsilon.end(), eps_BCP);  //BCP
+    std::fill(epsilon.begin(), epsilon.end(), eps_active);
 
-    //Fill the mobilities vectors
-    std::vector<double> p_mob(num_cell+1);
-    std::fill(p_mob.begin(), p_mob.begin() +l_HTL_int+1, p_mob_HTL); //fill(iterator to 1st element, iterator to last element (BUT LAST ELEMENT IS NOT FILLED), value to fill with) //HTL(PEDOT:PSS)
-    std::fill(p_mob.begin() + l_HTL_int+1, p_mob.begin() + l_ETL_int+1, p_mob_perov);  //perovksite
-    std::fill(p_mob.begin() + l_ETL_int+1, p_mob.begin() + l_BCP_int+1, p_mob_C60);     //ETL (C60)
-    std::fill(p_mob.begin() + l_BCP_int+1, p_mob.begin() + l_BCP_int+3, p_mob_BCP_int);  //BCP_int
-    std::fill(p_mob.begin() + l_BCP_int+3, p_mob.end(), p_mob_BCP);  //BCP
-    std::vector<double> n_mob(num_cell+1);
-    std::fill(n_mob.begin(), n_mob.begin() +l_HTL_int+1, n_mob_HTL); //fill(iterator to 1st element, iterator to last element (BUT LAST ELEMENT IS NOT FILLED), value to fill with) //HTL(PEDOT:PSS)
-    std::fill(n_mob.begin() + l_HTL_int+1, n_mob.begin() + l_ETL_int+1, n_mob_perov);  //perovksite
-    std::fill(n_mob.begin() + l_ETL_int+1, n_mob.begin() + l_BCP_int+1, n_mob_C60);     //ETL (C60)
-    std::fill(n_mob.begin() + l_BCP_int+1, n_mob.begin() + l_BCP_int+3, n_mob_BCP_int);  //BCP_int
-    std::fill(n_mob.begin() + l_BCP_int+3, n_mob.end(), n_mob_BCP);  //BCP
+    //Fill the mobilities vectors (can be position dependent, as long as piecewise constant)
+    std::vector<double> p_mob(num_cell+1), n_mob(num_cell+1);
+    std::fill(p_mob.begin(), p_mob.end(), p_mob_active);
+    std::fill(n_mob.begin(), n_mob.end(), n_mob_active);
 
     for(int i = 0;i<= num_cell;i++){
         p_mob[i] = p_mob[i]/mobil;
@@ -52,8 +61,8 @@ int main()
     }
 
     //Initialize other vectors
-    //NOTE: vectors are automatically initialized to 0.
-    //NOTE: Will use indicies for n and p... starting from 1 --> since is more natural--> corresponds to 1st node inside the device...
+    //Note: vectors are automatically initialized to 0.
+    //Will use indicies for n and p... starting from 1 --> since is more natural--> corresponds to 1st node inside the device...
     std::vector<double> n(num_cell), p(num_cell), oldp(num_cell), newp(num_cell), oldn(num_cell), newn(num_cell), oldV(num_cell+1), newV(num_cell+1), V(num_cell+1);
     std::vector<double> Un(num_cell), Up(num_cell), Photogen_rate(num_cell); //bn, bp are rhs of continuity eqns
     std::vector<double> a (num_cell);//main diag
@@ -71,10 +80,6 @@ int main()
     double p_leftBC = (N_HOMO*exp(-phi_a/Vt))/N;
     double n_rightBC = (N_LUMO*exp(-phi_c/Vt))/N;
     double p_rightBC = (N_HOMO*exp(-(E_gap - phi_c)/Vt))/N;
-    //n_full[0] = (N_LUMO*exp(-(E_gap - phi_a)/Vt))/N;       //this is anode
-    //p_full[0] = (N_HOMO*exp(-phi_a/Vt))/N;
-    //n_full[num_cell] = (N_LUMO*exp(-phi_c/Vt))/N;
-    //p_full[num_cell] = (N_HOMO*exp(-(E_gap - phi_c)/Vt))/N;
 
     //Initial conditions
     double min_dense = std::min(n_leftBC,  p_rightBC);
@@ -106,8 +111,8 @@ int main()
     for(Va_cnt = 0; Va_cnt <=num_V +1;Va_cnt++){  //+1 b/c 1st Va is the equil run
         not_converged = false;
         not_cnv_cnt = 0;
-        if(tolerance > 1e-4){
-            std::cout<<"ERROR: Tolerance has been increased to > 1e-4" <<std::endl;
+        if(tolerance > 1e-5){
+            std::cout<<"ERROR: Tolerance has been increased to > 1e-5" <<std::endl;
         }
         if(Va_cnt==0){
             tolerance = tolerance_eq;  //relaxed tolerance for equil. run
@@ -154,21 +159,13 @@ int main()
             else V = newV;
 
             //------------------------------Calculate Net Generation Rate----------------------------------------------------------
-            ComputeR_Langevin(n,p, R_Langevin);  //function
-            ComputeR_SRH_HTL(n,p, R_SRH_HTL);
-            ComputeR_SRH_ETL(n,p, R_SRH_ETL);
+            ComputeR_Langevin(n,p, R_Langevin);
+
             for(int i = 1;i<=num_cell-1;i++){
                 Un[i] = Photogen_rate[i] - R_Langevin[i];
             }
             Up = Un;
-            for(int i = l_ETL_int -19; i<=l_ETL_int;i++){
-                Up[i] -= - R_SRH_ETL[i];
-                //Un[i] -= R_SRH_ETL[i];
-            }
-            for(int i = l_HTL_int+1; i<=l_HTL_int+20;i++){
-                Up[i] -= R_SRH_HTL[i];
-                //Un[i] -= R_SRH_HTL[i];
-            }
+
 
             //--------------------------------Solve equations for n and p------------------------------------------------------------ 
             //setup the matrices
@@ -198,15 +195,11 @@ int main()
             old_error = error_np;
             for (int i = 1;i<=num_cell-1;i++){
                 if(newp[i]!= 0 && newn[i] !=0){
-                    //push back can be slow, so let's just fill it with i, and pre allocate error_np_vector
                     error_np_vector[i] = (abs(newp[i]-oldp[i])+abs(newn[i]-oldn[i]))/abs(oldp[i]+oldn[i]);
-                    //error_np_vector.push_back((abs(newp[i]-oldp[i])+abs(newn[i]-oldn[i]))/abs(oldp[i]+oldn[i]));
-                    //std::cout << " error " << (abs(newp[i]-oldp[i])+abs(newn[i]-oldn[i]))/abs(oldp[i]+oldn[i]) <<std::endl;
                 }
             }
             error_np = *std::max_element(error_np_vector.begin(),error_np_vector.end());
             std::fill(error_np_vector.begin(), error_np_vector.end(),0.0);  //refill with 0's so have fresh one for next iter
-            //error_np_vector.clear(); //erase error vector, so in next iter have fresh one
 
             //auto decrease w if not converging
             if(error_np>=old_error) not_cnv_cnt = not_cnv_cnt+1;
@@ -263,7 +256,6 @@ int main()
                 JV << Va << " " << J_total[num_cell-1] << " " << iter << "\n";  //NOTE: still some issue here, floor(num_cell/2), in the middle get different currents
             }
         }
-
     }
     JV.close();
 

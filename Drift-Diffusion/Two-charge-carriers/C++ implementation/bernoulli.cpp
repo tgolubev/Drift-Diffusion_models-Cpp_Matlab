@@ -8,7 +8,6 @@ void BernoulliFnc_n(const std::vector<double> &V, std::vector<double> &B_n1, std
 
     for(int i = 1; i<=num_cell;i++){
         dV[i] =  V[i]-V[i-1];
-
     }
 
     for(int i = 1; i<=num_cell;i++){

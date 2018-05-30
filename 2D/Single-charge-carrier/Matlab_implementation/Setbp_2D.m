@@ -1,4 +1,4 @@
-function bp = Setbp(Bernoulli_p_values, p_mob, Up)
+function bp = Setbp_2D(Bernoulli_p_values, p_mob, Up)
 global Cp num_elements p_topBC p_leftBC p_rightBC p_bottomBC N;
 
 bp = zeros(num_elements,1);

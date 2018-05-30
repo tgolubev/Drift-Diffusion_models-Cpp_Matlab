@@ -79,6 +79,7 @@ WF_cathode = 3.7;
 
 Vbi = WF_anode - WF_cathode +inj_a +inj_c;  %built-in field
 
+
 %% Define matrices of system parameters
 
 % Define relative dielectric constant matrix
@@ -193,7 +194,7 @@ for Va_cnt = 0:num_V +1
     error_np =  1;
     bV = zeros(num_elements,1);
     while(error_np > tolerance)
-        bV = SetbV(p_matrix, epsilon);
+        bV = SetbV_2D(p_matrix, epsilon);
       
         %solve for V
         oldV = V;
@@ -228,7 +229,7 @@ for Va_cnt = 0:num_V +1
         %% Set up continuity equation matrix
         Bernoulli_p_values = Calculate_Bernoullis(fullV); %the values are returned as a struct
         Ap = SetAp_2D(p_mob, Bernoulli_p_values);           %send bernoulli values struct to matrix setup function
-        bp = Setbp(Bernoulli_p_values, p_mob, Up);
+        bp = Setbp_2D(Bernoulli_p_values, p_mob, Up);
         
         oldp = p;
         newp = Ap\bp;
@@ -279,21 +280,95 @@ for Va_cnt = 0:num_V +1
         
         iter = iter +1
         
+        
     end
+    
+    % Calculate drift diffusion currents
+    % Use the SG definition
+    Bp_posX = Bernoulli_p_values.Bp_posX;
+    Bp_negX = Bernoulli_p_values.Bp_negX;
+    Bp_posZ = Bernoulli_p_values.Bp_posZ;
+    Bp_negZ = Bernoulli_p_values.Bp_negZ;
+    
+
+     %the J(i+1,j+1) is to define J's (whiche are defined at mid cells, as the rounded up integer
+    for i = 1:num_cell-1
+        for i = j:num_cell-1
+            Jp_Z(i+1,j+1) = -(q*Vt*N*mobil/dx)*(p_mob(i+1,j+1)*fullp(i+1,j+1)*Bp_negZ(i+1)-p_mob(i+1,j+1)*fullp(i,j)*Bp_posZ(i+1,j+1));     
+            Jp_X(i+1,j+1) = -(q*Vt*N*mobil/dx)*(p_mob(i+1,j+1)*fullp(i+1,j+1)*Bp_negX(i+1)-p_mob(i+1,j+1)*fullp(i,j)*Bp_posX(i+1,j+1));       
+        end
+    end
+    J_total_Z = Jp_Z;
+    J_total_X = Jp_X;
+   
+    %Setup for JV curve
+    if(Va_cnt>0)
+        V_values(Va_cnt,:) = Va;
+        J_total_Z_middle(Va_cnt) = J_total_Z(floor(num_cell/2),floor(num_cell/2));  %just store the J (in perpendicular to electrodes direction) in middle for the JV curve output
+    end
+    
+    %Save data
+    str = sprintf('%.2f',Va);
+    filename = [str 'V.txt']
+    fid = fopen(fullfile(filename),'w');
+    %fullfile allows to make filename from parts
+    
+    if(Va_cnt ==0)
+        equil = fopen(fullfile('Equil.txt'),'w');
+        for i = 2:num_cell
+            fprintf(equil,'%.2f %.8e %.8e %.8e  \r\n ',i*dx, j*dx, Vt*fullV(i,j), N*fullp(i,j));
+        end
+        fclose(equil);
+    end
+    
+    if(Va_cnt > 0)
+        for i = 2:num_cell
+            for j = 2:num_cell
+                fprintf(fid,'%.2e %.2e %.8e %.8e %.8e %.8e %.8e %.8e %.8e\r\n', i*dx, j*dx, Vt*fullV(i,j), N*fullp(i,j), J_total_X(i,j), J_total_Z(i,j), Up(i-1,j-1), w, tolerance);
+            end
+        end
+    end
+    fclose(fid);
+      
 end
+
+%% JV setup:
+file2 = fopen(fullfile('JV.txt'),'w');
+for i = 1:Va_cnt
+    fprintf(file2, '%.8e %.8e \r\n', V_values(i,1), J_total_Z_middle(i));
+end
+fclose(file2);
+
+%% Final Plots: done for the last Va
+
+str = sprintf('%.2g', Va);
 
 %plot V
 surf(1:N+2,1:N+2, Vt*fullV)
+title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
+xlabel('Position ($m$)','interpreter','latex','FontSize',14);
+zlabel({'Electric Potential (V)'},'interpreter','latex','FontSize',14);
 
 figure
-%plot p
+%plot carrier densities
 surf(1:N+2,1:N+2, log(N*fullp))
+title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
+xlabel('Position ($m$)','interpreter','latex','FontSize',14);
+zlabel({'Log of hole density ($1/m^3$)'},'interpreter','latex','FontSize',14);
 
 %plot line profiles in the thickness direction
 figure
 plot(log(N*fullp(1,1:N+2)))
+title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
+xlabel('Position ($m$)','interpreter','latex','FontSize',14);
+ylabel({'Log of hole density ($1/m^3$)'},'interpreter','latex','FontSize',14);
+hold off
 
 figure
 plot(Vt*fullV(1,1:N+2))
+title(['Va =', str, 'V'],'interpreter','latex','FontSize',16);
+xlabel('Position ($m$)','interpreter','latex','FontSize',14);
+ylabel({'Electric Potential (V)'},'interpreter','latex','FontSize',14);
+
 
 

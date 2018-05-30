@@ -1,4 +1,4 @@
-function bV = SetbV(p_matrix, n_matrix, epsilon)
+function bV = SetbV_2D(p_matrix, n_matrix, epsilon)
 global V_leftBC V_bottomBC V_topBC V_rightBC N CV;
 
  %set up rhs of Poisson equation. Note for epsilons, are assuming that

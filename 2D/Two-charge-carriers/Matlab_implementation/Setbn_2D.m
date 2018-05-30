@@ -1,4 +1,4 @@
-function bn = Setbn(Bernoulli_n_values, n_mob, Un)
+function bn = Setbn_2D(Bernoulli_n_values, n_mob, Un)
 global Cp num_elements n_topBC n_leftBC n_rightBC n_bottomBC N;
 
 bn = zeros(num_elements,1);

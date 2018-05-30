@@ -1,30 +1,39 @@
-% This solves the 2D semiconductor drift-diffusion equations over 1
-% iteration in the decoupled Gummel method.
-%This includes the 2D poisson equation and 2D continuity/drift-diffusion
-%equations using Scharfetter-Gummel discretization
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%         2D Drift Diffusion for Electrons and Holes with Finite Differences
+%
+%             -Scharfetter-Gummel discretization
+%             -decoupled Gummel iterations method
+%
+%              Created by: Timofey Golubev (2018.05.29)
+%
+%
+%     This includes the 2D poisson equation and 2D continuity/drift-diffusion
+%     equations using Scharfetter-Gummel discretization. The Poisson equation
+%     is solved first, and the solution of potential is used to calculate the
+%     Bernoulli functions and solve the continuity eqn's.
+%
+%   Boundary conditions for Poisson equation are:
+%
+%     -a fixed voltage at (x,0) and (x, Nz) defined by V_bottomBC
+%      and V_topBC which are defining the  electrodes
+%    -insulating boundary conditions: V(0,z) = V(1,z) and
+%     V(0,N+1) = V(1,N) (N is the last INTERIOR mesh point).
+%     so the potential at the boundary is assumed to be the same as just inside
+%     the boundary. Gradient of potential normal to these boundaries is 0.
+%
+%   Matrix equations are AV*V = bV, Ap*p = bp, and An*n = bn where AV, Ap, and An are sparse matrices
+%   (generated using spdiag), for the Poisson and continuity equations.
+%   V is the solution for electric potential, p is the solution for hole
+%   density, n is solution for electron density
+%   bV is the rhs of Poisson eqn which contains the charge densities and boundary conditions
+%   bp is the rhs of hole continuity eqn which contains net generation rate
+%   and BCs
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%The Poisson equation is solved first, and the solution of potential is
-%used to calculate the Bernoulli functions and solve the continuity eqn's.
+clear; close all; clc;
 
-%Sets up the matrix equation for solving 2D Poisson equation with optional space
-%varying dielectric constants. Boundary conditions are:
-
-%-a fixed voltage at (x,0) and (x, Nz) defined by V_bottomBC and V_topBC
-%which are defining the  electrodes
-
-%-insulating boundary conditions: V(0,z) = V(1,z) and V(0,N+1) = V(1,N) (N
-%is the last INTERIOR mesh point.
-%so the potential at the boundary is assumed to be the same as just inside
-%the boundary. Gradient of potential normal to these boundaries is 0.
-
-%Matrix equation AV*V = bV where AV is a sparse matrix
-%(generated using spdiag), V is the solution for electric potential, and bV
-%is the rhs which contains the charge densities and boundary conditions
-
-clear all
-
-global num_cell N num_elements l_HTL_int Vt HTL_int_VBstep phi_a l_ETL_int ETL_int_VBstep phi_c BCP_int_VBstep N_dos
-
+global num_cell N num_elements l_HTL_int Vt HTL_int_VBstep phi_a l_ETL_int ETL_int_VBstep phi_c BCP_int_VBstep N_dos p_topBC p_leftBC p_rightBC p_bottomBC Cn CV Cp n_leftBC  n_rightBC
+global n_bottomBC n_topBC
 
 %% Physical Constants
 q =  1.60217646*10^-19;         %elementary charge, C
@@ -99,6 +108,9 @@ end
 
 mobil = 5.*10^-6;                    %scaling for mobility (for numerical stability when solving matrix equations)
 
+p_mob = p_mob./mobil;
+n_mob = n_mob./mobil;
+
 %% Define Poisson equation boundary conditions and initial conditions
 % Initial conditions
 V_bottomBC = -((Vbi)/(2*Vt)-inj_a/Vt);
@@ -138,8 +150,10 @@ for i = 1:num_elements
 end
 
 for i = 1:N
-    p_leftBC(i) = p((i-1)*N + 1);  %just corresponds to values of V in the 1st subblock
+    p_leftBC(i) = p((i-1)*N + 1);  %just corresponds to values in the 1st subblock
     p_rightBC(i) = p(i*N);
+    n_leftBC(i) = n((i-1)*N + 1);  %just corresponds to values in the 1st subblock
+    n_rightBC(i)= n(i*N);
 end
 
 %form matrices for easy filling of bV
@@ -155,6 +169,10 @@ AV = SetAV_2D(epsilon);
 Cp = dx^2/(Vt*N*mobil);          %note: scaled p_mob and n_mob are inside matrices
 Cn = dx^2/(Vt*N*mobil);
 CV = N*dx^2*q/(epsilon_0*Vt);    %relative permitivity was moved into the matrix
+
+%for now, have no generation rate
+Up = zeros(N,N);
+Un = Up;
 
 iter = 1;
 error_np =  1;
@@ -202,7 +220,7 @@ while(error_np > tolerance)
     end
 
     %solve for V
-    oldV = V
+    oldV = V;
     newV = AV\bV;
     
     if(iter >1)
@@ -228,70 +246,28 @@ while(error_np > tolerance)
     fullV(N+2,2:N+1) = V_rightBC;
     fullV(N+2, N+2) = V_topBC;  %assume that this far exterior corner has same V as rest of the top
 
-    fullV
-
-
 
     %% Set up continuity equation matrix
-    Bernoulli_p_values = Calculate_Bernoullis(fullV); %the values are returned as a struct
-    Ap = SetAp_2D(p_mob, Bernoulli_p_values, p);           %send bernoulli values struct to matrix setup function
-
-    % setup of rhs 
-    bp = zeros(num_elements,1);
-
-    %for now, have no generation rate
-    Up= zeros(num_elements,num_elements);
-    Cp = 1;
-
-    index = 0;
-    for j = 1:N
-        if(j ==1)  %different for 1st subblock
-            for i = 1:N
-                index = index +1;
-                if (i==1)  %1st element has 2 BC's
-                    bp(index,1) = -Cp*Up(i,j) + p_mob(i,j)*(p_leftBC(1) + p_bottomBC);
-                elseif (i==N)
-                    bp(index,1) = -Cp*Up(i,j) + p_mob(i,j)*(p_rightBC(1) + p_bottomBC);
-                else
-                    bp(index,1) = -Cp*Up(i,j) + p_mob(i,j)*p_bottomBC;
-                end
-            end
-        elseif(j == N)  %different for last subblock
-            for i = 1:N
-                index = index +1;
-                if (i==1)  %1st element has 2 BC's
-                    bp(index,1) = -Cp*Up(i,j) + p_mob(i,j)*(p_leftBC(N) + p_topBC);
-                elseif (i==N)
-                    bp(index,1) = -Cp*Up(i,j) + p_mob(i,j)*(p_rightBC(N) + p_topBC);
-                else
-                    bp(index,1) = -Cp*Up(i,j) + p_mob(i,j)*p_topBC;
-                end
-            end
-        else %interior subblocks
-            for i = 1:N
-                index = index +1;
-                if(i==1)
-                    bp(index,1) = -Cp*Up(i,j) + p_mob(i,j)*p_leftBC(j);
-                elseif(i==N)
-                    bp(index,1) = -Cp*Up(i,j) + p_mob(i,j)*p_rightBC(j);
-                else
-                    bp(index,1) = -Cp*Up(i,j);
-                end
-            end
-        end
-    end
+    Bernoulli_p_values = Calculate_Bernoullis_p(fullV); %the values are returned as a struct
+    Bernoulli_n_values = Calculate_Bernoullis_n(fullV);
+    Ap = SetAp_2D(p_mob, Bernoulli_p_values);           %send bernoulli values struct to matrix setup function
+    An = SetAn_2D(n_mob, Bernoulli_n_values);
+    bp = Setbp(Bernoulli_p_values, p_mob, Up);
+    bn = Setbn(Bernoulli_n_values, n_mob, Un);
     
     oldp = p;
-    newp = Ap\bp
+    newp = Ap\bp;
     
+    oldn = n;
+    newn = An\bn;
     
     old_error =  error_np;
     count = 0;
     error_np_matrix = zeros(1,num_elements); %need to reset the matrix b/c when more newp's become 0, need to remove that error element from matrix.
     for i = 1:num_elements  %recall that newp, oldp are stored as vectors
-            if(newp(i) ~=0)
+            if(newp(i) ~=0 && newn(i) ~=0)
                 count = count+1;  %counts number of non zero error calculations
-                error_np_matrix(count) = abs(newp(i)-oldp(i))/abs(oldp(i));  %need the dot slash, otherwise it tries to do matrix operation! %ERROR SHOULD BE CALCULATED BEFORE WEIGHTING
+                error_np_matrix(count) = (abs(newp(i)-oldp(i)) + abs(newn(i) - oldn(i)))/abs(oldp(i) + oldn(i));  %need the dot slash, otherwise it tries to do matrix operation! %ERROR SHOULD BE CALCULATED BEFORE WEIGHTING
             end
     end
     error_np = max(error_np_matrix)
@@ -301,8 +277,9 @@ while(error_np > tolerance)
     
     %weighting
     p = newp*w + oldp*(1.-w);
+    n = newn*w + oldn*(1.-w);
     
-    
+    % update bc's and matrix of hole densities--------------------------------------------------------------
     %Update side boundary conditions
     %THESE NEED TO BE UPDATED AT EVERY ITERATION OF POISSON SOLVE
     for i = 1:N
@@ -320,7 +297,7 @@ while(error_np > tolerance)
     fullp(N+2,2:N+1) = p_rightBC;
     fullp(N+2, N+2) = p_topBC;  %assume that this far exterior corner has same V as rest of the top
 
-    fullp
+    % update bc's and matrix of electron densities ---------------------------------------------------------
     
      for i = 1:N
         n_leftBC(i) = n((i-1)*N + 1);  %just corresponds to values of V in the 1st subblock
@@ -337,18 +314,19 @@ while(error_np > tolerance)
     fulln(N+2,2:N+1) = n_rightBC;
     fulln(N+2, N+2) = n_topBC;  %assume that this far exterior corner has same V as rest of the top
     
-    fulln
-    
     iter = iter +1
 
 end
 
 %plot V
-surf(1:N+2,1:N+2, fullV)
+surf(1:N+2,1:N+2, Vt*fullV)
 
 figure
 %plot p
-surf(1:N+2,1:N+2, fullp)  
+surf(1:N+2,1:N+2, log(N*fullp))  
+
+hold on
+surf(1:N+2,1:N+2, log(N*fulln))  
 
 
 

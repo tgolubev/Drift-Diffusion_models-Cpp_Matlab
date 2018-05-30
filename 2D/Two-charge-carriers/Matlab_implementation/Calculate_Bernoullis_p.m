@@ -1,4 +1,4 @@
-function Bernoulli_p_values = Calculate_Bernoullis(fullV)
+function Bernoulli_p_values = Calculate_Bernoullis_p(fullV)
 global num_cell l_HTL_int Vt HTL_int_VBstep phi_a l_ETL_int ETL_int_VBstep phi_c BCP_int_VBstep 
 
 %This will return a vector/array containing valuess for all 4 Bernoulli p

@@ -1,6 +1,6 @@
 % Setup of 2D Poisson matrix using loop and spdiag
 
-function Ap = SetAp_2D(p_mob, Bernoulli_p_values, p)
+function Ap = SetAp_2D(p_mob, Bernoulli_p_values)
 
 global num_elements N
 

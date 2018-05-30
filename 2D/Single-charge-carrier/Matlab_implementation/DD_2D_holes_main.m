@@ -32,13 +32,13 @@
 
 clear; close all; clc;
 
-global num_cell N num_elements Vt N_dos
-
+global num_cell N num_elements Vt N_dos p_topBC p_leftBC p_rightBC p_bottomBC CV Cp 
+global V_leftBC V_bottomBC V_topBC V_rightBC
 
 %% Physical Constants
 q =  1.60217646*10^-19;         %elementary charge, C
 kb = 1.3806503*10^-23;          %Boltzmann const., J/k
-T = 296.;                      %temperature:  Koster says they use room temperature...: I find that btw. 293 and 300 get no effect on JV curve...
+T = 296.;                       %temperature:  Koster says they use room temperature...: I find that btw. 293 and 300 get no effect on JV curve...
 epsilon_0 =  8.85418782*10^-12; %F/m
 Vt = (kb*T)/q;
 
@@ -70,15 +70,14 @@ E_gap = 1.5;          %bandgap (in eV)
 N_dos = 10^24.;            %scaling factor helps CV be on order of 1
 
 %injection barriers
-inj_a = 0.2;	%at anode
-inj_c = 0.1;	%at cathode
+inj_a = 0.0;	%at anode
+inj_c = 0.0;	%at cathode
 
 %work functions of anode and cathode
 WF_anode = 4.8;
 WF_cathode = 3.7;
 
 Vbi = WF_anode - WF_cathode +inj_a +inj_c;  %built-in field
-
 
 %% Define matrices of system parameters
 
@@ -105,6 +104,7 @@ for i = 1:num_cell+1
 end
 
 mobil = 5.*10^-6;                    %scaling for mobility (for numerical stability when solving matrix equations)
+p_mob = p_mob./mobil;
 
 %Scaling coefficients
 Cp = dx^2/(Vt*N*mobil);          %note: scaled p_mob and n_mob are inside matrices
@@ -144,13 +144,13 @@ min_dense = min(p_bottomBC, p_topBC);
 for i = 1:num_elements
     p(i,1) = min_dense;
 end
-
+%side boundary conditions
 for i = 1:N
     p_leftBC(i) = p((i-1)*N + 1);  %just corresponds to values of V in the 1st subblock
     p_rightBC(i) = p(i*N);
 end
 
-%form matrices for easy filling of bV
+%form matrix for easy filling of bp
 p_matrix = reshape(p,N,N);
 
 % Set up Poisson matrix equation
@@ -193,48 +193,8 @@ for Va_cnt = 0:num_V +1
     error_np =  1;
     bV = zeros(num_elements,1);
     while(error_np > tolerance)
-        
-        %set up rhs of Poisson equation. Note for epsilons, are assuming that
-        %epsilons at the boundaries are the same as espilon 1 cell into interior of
-        %device
-        index = 0;
-        for j = 1:N
-            if(j ==1)  %different for 1st subblock
-                for i = 1:N
-                    index = index +1;
-                    if (i==1)  %1st element has 2 BC's
-                        bV(index,1) = CV*(p_matrix(i,j)) + epsilon(i,j)*(V_leftBC(1) + V_bottomBC);   %RECALL matrix has +2 down diagonals, sign flipped from 1D version
-                    elseif (i==N)
-                        bV(index,1) = CV*(p_matrix(i,j)) + epsilon(i,j)*(V_rightBC(1) + V_bottomBC);
-                    else
-                        bV(index,1) = CV*(p_matrix(i,j)) + epsilon(i,j)*V_bottomBC;
-                    end
-                end
-            elseif(j == N)  %different for last subblock
-                for i = 1:N
-                    index = index +1;
-                    if (i==1)  %1st element has 2 BC's
-                        bV(index,1) = CV*(p_matrix(i,j)) + epsilon(i,j)*(V_leftBC(N) + V_topBC);
-                    elseif (i==N)
-                        bV(index,1) = CV*(p_matrix(i,j)) + epsilon(i,j)*(V_rightBC(N) + V_topBC);
-                    else
-                        bV(index,1) = CV*(p_matrix(i,j)) + epsilon(i,j)*V_topBC;
-                    end
-                end
-            else %interior subblocks
-                for i = 1:N
-                    index = index +1;
-                    if(i==1)
-                        bV(index,1) = CV*(p_matrix(i,j)) + epsilon(i,j)*V_leftBC(j);
-                    elseif(i==N)
-                        bV(index,1) = CV*(p_matrix(i,j)) + epsilon(i,j)*V_rightBC(j);
-                    else
-                        bV(index,1) = CV*(p_matrix(i,j));
-                    end
-                end
-            end
-        end
-        
+        bV = SetbV(p_matrix, epsilon);
+      
         %solve for V
         oldV = V;
         newV = AV\bV;
@@ -246,7 +206,6 @@ for Va_cnt = 0:num_V +1
         end
         
         %Update side boundary conditions
-        %THESE NEED TO BE UPDATED AT EVERY ITERATION OF POISSON SOLVE
         for i = 1:N
             V_leftBC(i) = V((i-1)*N + 1);  %just corresponds to values of V in the 1st subblock
             V_rightBC(i) = V(i*N);
@@ -262,59 +221,17 @@ for Va_cnt = 0:num_V +1
         fullV(N+2,2:N+1) = V_rightBC;
         fullV(N+2, N+2) = V_topBC;  %assume that this far exterior corner has same V as rest of the top
         
+        %% Update net generation rate
+        %for now, have no generation rate
+        Up= zeros(num_elements,num_elements);
         
         %% Set up continuity equation matrix
         Bernoulli_p_values = Calculate_Bernoullis(fullV); %the values are returned as a struct
-        Ap = SetAp_2D(p_mob, Bernoulli_p_values, p);           %send bernoulli values struct to matrix setup function
-        
-        % setup of rhs
-        bp = zeros(num_elements,1);
-        
-        %for now, have no generation rate
-        Up= zeros(num_elements,num_elements);
-        Cp = 1;
-        
-        index = 0;
-        for j = 1:N
-            if(j ==1)  %different for 1st subblock
-                for i = 1:N
-                    index = index +1;
-                    if (i==1)  %1st element has 2 BC's
-                        bp(index,1) = -Cp*Up(i,j) + p_mob(i,j)*(p_leftBC(1) + p_bottomBC);
-                    elseif (i==N)
-                        bp(index,1) = -Cp*Up(i,j) + p_mob(i,j)*(p_rightBC(1) + p_bottomBC);
-                    else
-                        bp(index,1) = -Cp*Up(i,j) + p_mob(i,j)*p_bottomBC;
-                    end
-                end
-            elseif(j == N)  %different for last subblock
-                for i = 1:N
-                    index = index +1;
-                    if (i==1)  %1st element has 2 BC's
-                        bp(index,1) = -Cp*Up(i,j) + p_mob(i,j)*(p_leftBC(N) + p_topBC);
-                    elseif (i==N)
-                        bp(index,1) = -Cp*Up(i,j) + p_mob(i,j)*(p_rightBC(N) + p_topBC);
-                    else
-                        bp(index,1) = -Cp*Up(i,j) + p_mob(i,j)*p_topBC;
-                    end
-                end
-            else %interior subblocks
-                for i = 1:N
-                    index = index +1;
-                    if(i==1)
-                        bp(index,1) = -Cp*Up(i,j) + p_mob(i,j)*p_leftBC(j);
-                    elseif(i==N)
-                        bp(index,1) = -Cp*Up(i,j) + p_mob(i,j)*p_rightBC(j);
-                    else
-                        bp(index,1) = -Cp*Up(i,j);
-                    end
-                end
-            end
-        end
+        Ap = SetAp_2D(p_mob, Bernoulli_p_values);           %send bernoulli values struct to matrix setup function
+        bp = Setbp(Bernoulli_p_values, p_mob, Up);
         
         oldp = p;
         newp = Ap\bp;
-        
         
         old_error =  error_np;
         count = 0;
@@ -337,13 +254,11 @@ for Va_cnt = 0:num_V +1
             not_cnv_cnt = 0;  %reset the count
         end
         
-        
         w
         tolerance
         
         %weighting
         p = newp*w + oldp*(1.-w);
-        
         
         %Update side boundary conditions
         %THESE NEED TO BE UPDATED AT EVERY ITERATION OF POISSON SOLVE
@@ -373,4 +288,12 @@ surf(1:N+2,1:N+2, Vt*fullV)
 figure
 %plot p
 surf(1:N+2,1:N+2, log(N*fullp))
+
+%plot line profiles in the thickness direction
+figure
+plot(log(N*fullp(1,1:N+2)))
+
+figure
+plot(Vt*fullV(1,1:N+2))
+
 

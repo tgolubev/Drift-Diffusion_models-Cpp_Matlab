@@ -1,10 +1,14 @@
 function Bernoulli_n_values = Calculate_Bernoullis_n(fullV)
-global num_cell l_HTL_int Vt HTL_int_VBstep phi_a l_ETL_int ETL_int_VBstep phi_c BCP_int_VBstep 
+global num_cell 
 
 %This will return a vector/array containing valuess for all 4 Bernoulli p
 %fncs as follows:
 %Bernoulli_values = [Bn_posX  Bn_negX Bn_posZ Bn_negZ]
 
+Bn_posX = zeros(num_cell,num_cell);
+Bn_negX = zeros(num_cell,num_cell);
+Bn_posZ = zeros(num_cell,num_cell);
+Bn_negZ = zeros(num_cell,num_cell);
 dV_X = zeros(num_cell+1,num_cell+1);
 dV_Z = zeros(num_cell+1,num_cell+1);
 

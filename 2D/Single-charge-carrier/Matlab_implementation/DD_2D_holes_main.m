@@ -293,9 +293,9 @@ for Va_cnt = 0:num_V +1
 
      %the J(i+1,j+1) is to define J's (whiche are defined at mid cells, as the rounded up integer
     for i = 1:num_cell-1
-        for i = j:num_cell-1
-            Jp_Z(i+1,j+1) = -(q*Vt*N*mobil/dx)*(p_mob(i+1,j+1)*fullp(i+1,j+1)*Bp_negZ(i+1)-p_mob(i+1,j+1)*fullp(i,j)*Bp_posZ(i+1,j+1));     
-            Jp_X(i+1,j+1) = -(q*Vt*N*mobil/dx)*(p_mob(i+1,j+1)*fullp(i+1,j+1)*Bp_negX(i+1)-p_mob(i+1,j+1)*fullp(i,j)*Bp_posX(i+1,j+1));       
+        for j = 1:num_cell-1
+            Jp_Z(i+1,j+1) = -(q*Vt*N*mobil/dx)*(p_mob(i+1,j+1)*fullp(i+1,j+1)*Bp_negZ(i+1,j+1)-p_mob(i+1,j+1)*fullp(i+1,j)*Bp_posZ(i+1,j+1));         
+            Jp_X(i+1,j+1) = -(q*Vt*N*mobil/dx)*(p_mob(i+1,j+1)*fullp(i+1,j+1)*Bp_negX(i+1,j+1)-p_mob(i+1,j+1)*fullp(i,j+1)*Bp_posX(i+1,j+1));         
         end
     end
     J_total_Z = Jp_Z;

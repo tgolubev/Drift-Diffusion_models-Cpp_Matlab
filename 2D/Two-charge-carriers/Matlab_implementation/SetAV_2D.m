@@ -69,6 +69,7 @@ end
 %all not specified elements will remain zero, as they were initialized
 %above.
 
+AV_val
 
 AV = spdiags(AV_val, [-N -1 0 1 N], num_elements, num_elements); %A = spdiags(B,d,m,n) creates an m-by-n sparse matrix by taking the columns of B and placing them along the diagonals specified by d.
 %diagonals  [-N -1 0 1 N].  -N and N b/c the far diagonals are in next

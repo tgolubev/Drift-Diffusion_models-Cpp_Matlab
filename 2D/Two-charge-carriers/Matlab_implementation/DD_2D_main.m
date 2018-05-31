@@ -33,7 +33,7 @@
 clear; close all; clc;
 
 global num_cell N num_elements Vt N_dos p_topBC p_leftBC p_rightBC p_bottomBC Cn CV Cp n_leftBC  n_rightBC
-global n_bottomBC n_topBC V_leftBC V_bottomBC V_topBC V_rightBC
+global n_bottomBC n_topBC V_leftBC V_bottomBC V_topBC V_rightBC G_max
 
 %% Physical Constants
 q =  1.60217646*10^-19;         %elementary charge, C
@@ -43,20 +43,22 @@ epsilon_0 =  8.85418782*10^-12; %F/m
 Vt = (kb*T)/q;
 
 %% Simulation Setupt
-Va_min = -0.1;               %volts
-Va_max = 0.5;
+Va_min = -0.5;               %volts
+Va_max = 1.0;
 increment = 0.01;         %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;   %number of V points
 
 %Simulation parameters
-w_eq = 0.01;               %For the 1st iteration (equilibrium run) to converge need a small weighting factor
-w = 0.2;                 %set up of weighting factor
+w_eq = 0.05;            %IF SET THIS TO 0.01, it takes forever to converge!--> with larger mesh sizes, b/c 2D mesh is  many more pts than 1D!   %For the 1st iteration (equilibrium run) to converge need a small weighting factor
 w_i = 0.2;
 tolerance = 10^-12;        %error tolerance
 tolerance_i =  5*10^-12;
 
 %% System Setup
-L = 10e-9;      %device thickness in meters
+L = 10.0000001e-9;     %FIND that 50 is bit too much--> takes too long to converge... %device thickness in meters
+%NOTE there's some issue with num_cell..., IT SOMETIMES IS OFF BY  -1,
+%integer rounding
+
 dx = 1e-9;                        %mesh size
 num_cell = floor(L/dx);
 N = num_cell -1;   %number of INTERIOR mesh points
@@ -72,7 +74,7 @@ N_dos = 10^24.;            %scaling factor helps CV be on order of 1
 
 %injection barriers
 inj_a = 0.2;	%at anode
-inj_c = 0.2;	%at cathode
+inj_c = 0.1;	%at cathode
 %can clearly see affect of unequal injection barriers on the bc's in the n and p
 %plot
 
@@ -81,6 +83,8 @@ WF_anode = 4.8;
 WF_cathode = 3.7;
 
 Vbi = WF_anode - WF_cathode +inj_a +inj_c;  %built-in field
+
+G_max = 4*10^27;
 
 
 %% Define matrices of system parameters
@@ -114,33 +118,38 @@ p_mob = p_mob./mobil;
 n_mob = n_mob./mobil;
 
 %Scaling coefficients
-Cp = dx^2/(Vt*N*mobil);          %note: scaled p_mob and n_mob are inside matrices
-Cn = dx^2/(Vt*N*mobil);
-CV = N*dx^2*q/(epsilon_0*Vt);    %relative permitivity was moved into the matrix
+Cp = dx^2/(Vt*N_dos*mobil);          %note: scaled p_mob and n_mob are inside matrices
+Cn = dx^2/(Vt*N_dos*mobil);
+CV = N_dos*dx^2*q/(epsilon_0*Vt);    %relative permitivity was moved into the matrix
 
 %% Define Poisson equation boundary conditions and initial conditions
 % Initial conditions
 V_bottomBC = -((Vbi)/(2*Vt)-inj_a/Vt);
 V_topBC = (Vbi)/(2*Vt)-inj_c/Vt;
 diff = (V_topBC - V_bottomBC)/num_cell;
-index = 0;
-for j = 1:N  %corresponds to z coord
+V(1:N) = V_bottomBC + diff;  %define V's corresponding to 1st subblock here (1st interior row of system)
+index = N;
+for j = 2:N  %corresponds to z coord
     index = index +1;
-    V(index) = diff*j;
+    V(index) = V(index-1) + diff;
     for i = 2:N  %elements along the x direction assumed to have same V
         index = index +1;
         V(index) = V(index-1);
     end
 end
 
+    %reshape the V vector into the V matrix
+        V_matrix = reshape(V,N,N);
+        
 %Side BCs will be filled in from V, since are insulating BC's
 %i's in these BC's correspond to the x-value (z values are along a line,
 %top and bottom)
 %THESE NEED TO BE UPDATED AT EVERY ITERATION OF POISSON SOLVE
-for i = 1:N
-    V_leftBC(i) = V((i-1)*N + 1);  %just corresponds to values of V in the 1st subblock
-    V_rightBC(i) = V(i*N);
+for j = 1:N
+    V_leftBC(j) = V((j-1)*N + 1); %V_matrix(N,j);%V((i-1)*N + 1);  %just corresponds to values of V in the 1st subblock
+    V_rightBC(j) = V(j*N);%V_matrix(1,j);%V(i*N);
 end
+
 
 %% Define continuity equn boundary and initial conditions
 %these are scaled
@@ -155,23 +164,25 @@ for i = 1:num_elements
     p(i,1) = min_dense;
     n(i,1) = min_dense;
 end
-%side boundary conditions
-for i = 1:N
-    p_leftBC(i) = p((i-1)*N + 1);  %just corresponds to values in the 1st subblock
-    p_rightBC(i) = p(i*N);
-    n_leftBC(i) = n((i-1)*N + 1);  %just corresponds to values in the 1st subblock
-    n_rightBC(i)= n(i*N);
-end
 
 %form matrices for easy filling of bp
 n_matrix = reshape(n,N,N);
 p_matrix = reshape(p,N,N);
 
+%side boundary conditions
+for j = 1:N  %insulating bc's,: charge at bndry = charge just inside
+    p_leftBC(j) = p((j-1)*N + 1);%p_matrix(N,j);  %PERIODIC BC, makes left = to right side %p((i-1)*N + 1);  %just corresponds to values of V in the 1st subblock
+    p_rightBC(j)= p(j*N);%p_matrix(1,j); %p(i*N);
+    n_leftBC(j) = n((j-1)*N + 1);%n_matrix(N,j);%n((i-1)*N + 1);  %just corresponds to values in the 1st subblock
+    n_rightBC(j)= n(j*N);%n_matrix(1,j);%n(i*N);
+end
+
+
 % Set up Poisson matrix equation
 AV = SetAV_2D(epsilon);
 %spy(AV);  %allows to see matrix structure, very useful!
 
-%% Solver Loop
+
 %% Main voltage loop
 Va_cnt = 0;
 for Va_cnt = 0:num_V +1
@@ -188,7 +199,8 @@ for Va_cnt = 0:num_V +1
         tolerance = tolerance*10^2;       %relax tolerance for equil convergence
         w = w_eq;   %set w to be small for equilibrium convergence
         Va = 0;
-        Up = zeros(num_elements,1);
+        Up = zeros(num_cell+1,num_cell+1);
+        Un= Up;
     end
     if(Va_cnt ==1)
         tolerance = tolerance_i;       %reset tolerance back
@@ -206,6 +218,7 @@ for Va_cnt = 0:num_V +1
     
     iter = 1;
     error_np =  1;
+    %% Solver loop
     while(error_np > tolerance)
         bV = SetbV_2D(p_matrix, n_matrix, epsilon);
         
@@ -219,27 +232,31 @@ for Va_cnt = 0:num_V +1
             V = newV;  %no mixing for 1st iter
         end
         
-        %Update side boundary conditions
-        for i = 1:N
-            V_leftBC(i) = V((i-1)*N + 1);  %just corresponds to values of V in the 1st subblock
-            V_rightBC(i) = V(i*N);
-        end
-        
         %reshape the V vector into the V matrix
         V_matrix = reshape(V,N,N);
+        
+        %Update side boundary conditions
+        for j = 1:N
+            V_leftBC(j) = V((j-1)*N + 1); %V_matrix(N,j);%V((i-1)*N + 1);  %just corresponds to values of V in the 1st subblock
+            V_rightBC(j) = V(j*N);%V_matrix(1,j);%V(i*N);
+        end
+        
         %add on the BC's to get full potential matrix
         fullV(2:N+1,2:N+1) = V_matrix;
-        fullV(:,1) = V_bottomBC;
+        fullV(1:N+2,1) = V_bottomBC;
         fullV(:,N+2) = V_topBC;
         fullV(1,2:N+1) = V_leftBC;
         fullV(N+2,2:N+1) = V_rightBC;
         fullV(N+2, N+2) = V_topBC;  %assume that this far exterior corner has same V as rest of the top
+
         
         %% Update net generation rate
-        %for now, have no generation rate
-        Up= zeros(num_elements,num_elements);
-        Un= Up;
-        
+        if(Va_cnt > 0)
+            G = GenerationRate();
+            Up(1:N,1:N) = G(1:N,1:N);  %only defined on interior of the device
+            %Up= zeros(num_elements,num_elements);
+            Un= Up;
+        end
         
         %% Set up continuity equation matrix
         Bernoulli_p_values = Calculate_Bernoullis_p(fullV); %the values are returned as a struct
@@ -249,12 +266,25 @@ for Va_cnt = 0:num_V +1
         bp = Setbp_2D(Bernoulli_p_values, p_mob, Up);
         bn = Setbn_2D(Bernoulli_n_values, n_mob, Un);
         
+        %NOTE TO SEE THE WHOLE SPARSE MATRICES: use :
+        % full([name of sparse matrix])
+    
         oldp = p;
         newp = Ap\bp;
         
         oldn = n;
         newn = An\bn;
-        
+               
+          % if get negative p's or n's, make them equal 0
+        for i = 1:num_elements
+            if(newp(i) <0.0)
+                newp(i) = 0;
+            end
+            if(newn(i) <0.0)
+                newn(i) = 0;
+            end
+        end
+           
         old_error =  error_np;
         count = 0;
         error_np_matrix = zeros(1,num_elements); %need to reset the matrix b/c when more newp's become 0, need to remove that error element from matrix.
@@ -284,35 +314,38 @@ for Va_cnt = 0:num_V +1
         n = newn*w + oldn*(1.-w);
         
         % update bc's and matrix of hole densities--------------------------------------------------------------
+        
+         %reshape the p vector into the p matrix
+        p_matrix = reshape(p,N,N);
+        
+             %reshape then vector into the n matrix
+        n_matrix = reshape(n,N,N);
+                
         %Update side boundary conditions
         %THESE NEED TO BE UPDATED AT EVERY ITERATION OF POISSON SOLVE
-        for i = 1:N
-            p_leftBC(i) = p((i-1)*N + 1);  %just corresponds to values of V in the 1st subblock
-            p_rightBC(i)= p(i*N);
+        for j = 1:N
+            p_leftBC(j) = p((j-1)*N + 1);%p_matrix(N,j);  %PERIODIC BC, makes left = to right side %p((i-1)*N + 1);  %just corresponds to values of V in the 1st subblock
+            p_rightBC(j)= p(j*N);%p_matrix(1,j); %p(i*N);
         end
         
-        %reshape the p vector into the p matrix
-        p_matrix = reshape(p,N,N);
         %add on the BC's to get full potential matrix
         fullp(2:N+1,2:N+1) = p_matrix;
-        fullp(:,1) = p_bottomBC;
+        fullp(1:N+2,1) = p_bottomBC;
         fullp(:,N+2) = p_topBC;
         fullp(1,2:N+1) = p_leftBC;
         fullp(N+2,2:N+1) = p_rightBC;
         fullp(N+2, N+2) = p_topBC;  %assume that this far exterior corner has same V as rest of the top
         
         % update bc's and matrix of electron densities ---------------------------------------------------------
-        
-        for i = 1:N
-            n_leftBC(i) = n((i-1)*N + 1);  %just corresponds to values of V in the 1st subblock
-            n_rightBC(i)= n(i*N);
+         
+        for j = 1:N
+            n_leftBC(j) = n_matrix(N,j);%n((i-1)*N + 1);  %just corresponds to values of V in the 1st subblock
+            n_rightBC(j)= n_matrix(1,j);%n(i*N);
         end
-        
-        %reshape then vector into the n matrix
-        n_matrix = reshape(n,N,N);
+
         %add on the BC's to get full potential matrix
         fulln(2:N+1,2:N+1) = n_matrix;
-        fulln(:,1) = n_bottomBC;
+        fulln(1:N+2,1) = n_bottomBC;
         fulln(:,N+2) = n_topBC;
         fulln(1,2:N+1) =n_leftBC;
         fulln(N+2,2:N+1) = n_rightBC;
@@ -322,7 +355,7 @@ for Va_cnt = 0:num_V +1
         
     end
     
-     % Calculate drift diffusion currents
+    % Calculate drift diffusion currents
     % Use the SG definition
     Bp_posX = Bernoulli_p_values.Bp_posX;
     Bp_negX = Bernoulli_p_values.Bp_negX;
@@ -333,15 +366,14 @@ for Va_cnt = 0:num_V +1
     Bn_posZ = Bernoulli_n_values.Bn_posZ;
     Bn_negZ = Bernoulli_n_values.Bn_negZ;
     
-
      %the J(i+1,j+1) is to define J's (whiche are defined at mid cells, as the rounded up integer
     for i = 1:num_cell-1
-        for i = j:num_cell-1
-            Jp_Z(i+1,j+1) = -(q*Vt*N/dx)*(p_mob(i+1,j+1)*fullp(i+1,j+1)*Bp_negZ(i+1)-p_mob(i+1,j+1)*fullp(i,j)*Bp_posZ(i+1,j+1));     
-            Jn_Z(i+1,j+1) =  (q*Vt*N/dx)*(n_mob(i+1,j+1)*fulln(i+1,j+1)*Bn_posZ(i+1,j+1)-n_mob(i+1,j+1)*fulln(i)*Bn_negZ(i+1,j+1));
+        for j = 1:num_cell-1
+            Jp_Z(i+1,j+1) = -(q*Vt*N_dos*mobil/dx)*(p_mob(i+1,j+1)*fullp(i+1,j+1)*Bp_negZ(i+1,j+1)-p_mob(i+1,j+1)*fullp(i+1,j)*Bp_posZ(i+1,j+1));     
+            Jn_Z(i+1,j+1) =  (q*Vt*N_dos*mobil/dx)*(n_mob(i+1,j+1)*fulln(i+1,j+1)*Bn_posZ(i+1,j+1)-n_mob(i+1,j+1)*fulln(i+1,j)*Bn_negZ(i+1,j+1));
             
-            Jp_X(i+1,j+1) = -(q*Vt*N/dx)*(p_mob(i+1,j+1)*fullp(i+1,j+1)*Bp_negX(i+1)-p_mob(i+1,j+1)*fullp(i,j)*Bp_posX(i+1,j+1));     
-            Jn_X(i+1,j+1) =  (q*Vt*N/dx)*(n_mob(i+1,j+1)*fulln(i+1,j+1)*Bn_posX(i+1,j+1)-n_mob(i+1,j+1)*fulln(i)*Bn_negX(i+1,j+1));
+            Jp_X(i+1,j+1) = -(q*Vt*N_dos*mobil/dx)*(p_mob(i+1,j+1)*fullp(i+1,j+1)*Bp_negX(i+1,j+1)-p_mob(i+1,j+1)*fullp(i,j+1)*Bp_posX(i+1,j+1));     
+            Jn_X(i+1,j+1) =  (q*Vt*N_dos*mobil/dx)*(n_mob(i+1,j+1)*fulln(i+1,j+1)*Bn_posX(i+1,j+1)-n_mob(i+1,j+1)*fulln(i,j+1)*Bn_negX(i+1,j+1));
         end
     end
     J_total_Z = Jp_Z + Jn_Z;
@@ -361,17 +393,19 @@ for Va_cnt = 0:num_V +1
     
     if(Va_cnt ==0)
         equil = fopen(fullfile('Equil.txt'),'w');
-        for i = 2:num_cell
-            fprintf(equil,'%.8e %.8e %.8e %.8e %.8e \r\n ',i*dx, j*dx, Vt*fullV(i,j), N*fullp(i,j), N*fulln(i,j));
+        for j = 2:num_cell
+            i = floor(num_cell/2);
+            fprintf(equil,'%.2e %.2e %.8e %.8e %.8e \r\n ',(i-1)*dx, (j-1)*dx, Vt*fullV(i,j), N_dos*fullp(i,j), N_dos*fulln(i,j));
         end
         fclose(equil);
     end
     
    if(Va_cnt > 0)
-        for i = 2:num_cell
-            for j = 2:num_cell
-                fprintf(fid,'%.2e %.2e %.8e %.8e %.8e %.8e %.8e %.8e %.8e %.8e\r\n', i*dx, j*dx, Vt*fullV(i,j), N*fullp(i,j), N*fulln(i,j), J_total_X(i,j), J_total_Z(i,j), Up(i-1,j-1), w, tolerance);
-            end
+        for j = 2:num_cell
+            i = floor(num_cell/2);     %JUST OUTPUT LINE PROFILE ALONG Z --> otherwise hard to compare results to 1D model
+%             for j = 2:num_cell
+                fprintf(fid,'%.2e %.2e %.8e %.8e %.8e %.8e %.8e %.8e %.8e %.8e\r\n', (i-1)*dx, (j-1)*dx, Vt*fullV(i,j), N_dos*fullp(i,j), N_dos*fulln(i,j), J_total_X(i,j), J_total_Z(i,j), Up(i-1,j-1), w, tolerance);
+%             end
         end
     end
     fclose(fid);
@@ -385,7 +419,6 @@ end
 fclose(file2);
 
 %% Final Plots: done for the last Va
-
 str = sprintf('%.2g', Va);
     
 end
@@ -397,18 +430,18 @@ ylabel({'Electric Potential (V)'},'interpreter','latex','FontSize',14);
 
 figure
 %plot p
-surf(1:N+2,1:N+2, log(N*fullp))
+surf(1:N+2,1:N+2, log(N_dos*fullp))
 hold on
-surf(1:N+2,1:N+2, log(N*fulln))
+surf(1:N+2,1:N+2, log(N_dos*fulln))
 hold off
 xlabel('Position ($m$)','interpreter','latex','FontSize',14);
 zlabel({'Log of carrier densities ($1/m^3$)'},'interpreter','latex','FontSize',14);
 
 %plot line profiles of charge densities in the thickness direction
 figure
-plot(log(N*fullp(1,1:N+2)))
+plot(log(N_dos*fullp(1,1:N+2)))
 hold on
-plot(log(N*fulln(1,1:N+2)))
+plot(log(N_dos*fulln(1,1:N+2)))
 hold off
 xlabel('Position ($m$)','interpreter','latex','FontSize',14);
 ylabel({'Log of carrier densities ($1/m^3$)'},'interpreter','latex','FontSize',14);
@@ -417,5 +450,3 @@ figure
 plot(Vt*fullV(1,1:N+2))
 xlabel('Position ($m$)','interpreter','latex','FontSize',14);
 ylabel({'Electric Potential (V)'},'interpreter','latex','FontSize',14);
-
-

@@ -19,27 +19,19 @@ for i = 2:num_cell+1
     end
 end
 
-%ISSUE IS THAT, since my dV_X are near 0 --> in bernoullli fnc get
-%denominator: exp^0 - 1 = 0 --> 0 denominator BLOWS UP!!
-
-%NEED TO USE THE FACT THAT THE LIMIT OF x/(e^x -1) as x goeos to 0 is 1
-%So if dV is too small --> set bernoulli to = 1...
-
-
-%add the injection steps here
 
 for i = 1:num_cell
     for j = 1:num_cell
-        if(dV_X(i+1,j+1) < 10^-13)  %to prevent blowup due  to 0 denominator
-            Bn_posX(i,j) = 1.;
-            Bn_negX(i,j) = 1.;
+        if(abs(dV_X(i+1,j+1)) < 10^-13)  %to prevent blowup due  to 0 denominator
+            Bn_posX(i,j) = 0;%1 -  dV_X(i+1,j+1)/2 + (dV_X(i+1,j+1))^2/12 - (dV_X(i+1,j+1))^4/720;
+            Bn_negX(i,j) =  0;%Bn_posX(i,j)*exp(dV_X(i+1));  %these will not blow up
         else
-            Bn_posX(i,j) = dV_X(i+1,j+1)/(exp(dV_X(i+1,j+1))-1.0);  %the +1's b/c dV's are defined as from 2, and 1 corresponds to the boundary...
-            Bn_negX(i,j) =  Bn_posX(i,j)*exp(dV_X(i+1));
+            Bn_posX(i,j) = 0;%dV_X(i+1,j+1)/(exp(dV_X(i+1,j+1))-1.0);  %the +1's b/c dV's are defined as from 2, and 1 corresponds to the boundary...
+            Bn_negX(i,j) =  0;%Bn_posX(i,j)*exp(dV_X(i+1));
         end
-        if(dV_Z(i+1,j+1) < 10^-13)
+        if(abs(dV_Z(i+1,j+1)) < 10^-13)
              Bn_posZ(i,j) = 1.;
-             Bn_negZ(i,j) = 1.;
+             Bn_negZ(i,j) =  Bn_posZ(i,j)*exp(dV_Z(i+1,j+1));
         else
             Bn_posZ(i,j) = dV_Z(i+1,j+1)/(exp(dV_Z(i+1,j+1))-1.0);
             Bn_negZ(i,j) =  Bn_posZ(i,j)*exp(dV_Z(i+1,j+1));

@@ -7,16 +7,20 @@ SOURCES += \
     bernoulli.cpp \
     photogeneration.cpp \
     recombination.cpp \
-    Set_diagonals.cpp \
-    set_rhs.cpp \
     thomas_tridiag_solve.cpp \
-    main.cpp
+    main.cpp \
+    simulation.cpp \
+    poisson.cpp \
+    continuity_n.cpp \
+    continuity_p.cpp
 
 HEADERS += \
     bernoulli.h \
     parameters.h \
     photogeneration.h \
     recombination.h \
-    Set_diagonals.h \
-    set_rhs.h \
-    thomas_tridiag_solve.h
+    thomas_tridiag_solve.h \
+    simulation.h \
+    poisson.h \
+    continuity_n.h \
+    continuity_p.h

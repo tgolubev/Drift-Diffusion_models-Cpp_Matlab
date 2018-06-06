@@ -2,7 +2,7 @@ function bV = SetbV_2D(p_matrix, n_matrix, epsilon)
 global V_leftBC V_bottomBC V_topBC V_rightBC N CV;
 
  %set up rhs of Poisson equation. Note for epsilons, are assuming that
-    %epsilons at the boundaries are the same as espilon 1 cell into interior of
+    %epsilons at the boundaries are the same as espilon cell into interior of
     %device
     index = 0;
     for j = 1:N

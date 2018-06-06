@@ -3,7 +3,7 @@ global Cp num_elements p_topBC p_leftBC p_rightBC p_bottomBC N;
 
 bp = zeros(num_elements,1);
 %Note: assuming for BC's that mobility  on bndry is same as mobility just
-%inside the boundary (so not doing any mobs averaging)
+%inside the boundary (so not doing any mobs averaging there)
 
 %extract variables from struct (for brevity in eqns)
 Bp_posX = Bernoulli_p_values.Bp_posX;
@@ -13,7 +13,7 @@ Bp_negZ = Bernoulli_p_values.Bp_negZ;
 
 index = 0;
     for j = 1:N
-        if(j ==1)  %different for 1st subblock
+        if(j ==1)  %different for 1st sub-block
             for i = 1:N   
                 index = index +1;
                 if (i==1)  %1st element has 2 BC's

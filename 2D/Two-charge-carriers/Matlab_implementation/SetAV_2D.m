@@ -6,8 +6,6 @@ global num_elements N
 
 AV_val = zeros(num_elements, 5);   %this is a matrix which will just store the non-zero diagonals of 2D Poisson matrix
 
-%These are listed in order from lowest diagonal to highest diagonal
-
 %NOTE: index is not neccesarily equal to i (the x index of V), it is the
 %index of the diagonal arrays.
 

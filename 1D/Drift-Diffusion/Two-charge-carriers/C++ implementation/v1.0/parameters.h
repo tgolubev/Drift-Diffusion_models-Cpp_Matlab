@@ -1,8 +1,6 @@
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
 
-#include <cmath>
-
 //Physical Constants (these should not be changed)
 const double q =  1.60217646e-19;         //elementary charge, C
 const double kb = 1.3806503e-23;          //Boltzmann const., J/k
@@ -10,12 +8,17 @@ const double T = 296.;                      //temperature
 const double Vt = (kb*T)/q;                  //thermal voltage
 const double epsilon_0 =  8.85418782e-12; //F/m
 
+//Thicknesses (in m)
+const double L = 300.0e-9;             //device length in meters. Note: if change this and using a gen_rate file, need to update the number of elements in file to = num_cell-2
+const double dx = 1.e-9;
+const int num_cell = L/dx;            //number of cells
+
 const double N_LUMO = 10e24;
 const double N_HOMO = 10e24;
 const double N = 10e24;     //scaling factor helps CV be on order of 1
 const double Nsqrd = N*N;
 
-const double Photogen_scaling =  7e27;  //max photogeneration rate
+const double G_max =  7e27;  //max photogeneration rate
 
 //injection barriers
 const double phi_a = 0.2;
@@ -47,9 +50,19 @@ const double n1 = N_LUMO*exp(-(active_CB - E_trap)/Vt);
 const double p1 = N_HOMO*exp(-(E_trap - active_VB)/Vt);
 
 //////////////////////////////////////////
+//Voltage sweep setup
+const double Va_min = -0.5;
+const double Va_max = 1.2;
+const double increment = 0.01;
+const int num_V = floor((Va_max-Va_min)/increment)+1;
 
+//Simulation parameters
+const double w_eq = 0.01;                     //for 1st equil convergence weighting factor
+const double w_i = 0.2;                       // %set up of weighting factor
+const double tolerance_eq = 100*5e-12;        //error tolerance for equil run
+const double tolerance_i = 5e-12;             //initial error tolerance for 1st non-equil Va (1s tVa with generation)d\
 
-double  dx = 1.e-9;
+const double Cp = dx*dx/(Vt*N*mobil);          //note: scaled p_mob and n_mob are inside matrices
 const double Cn = dx*dx/(Vt*N*mobil);
 const double CV = N*dx*dx*q/(epsilon_0*Vt);    //relative permitivity was moved into the matrix
 

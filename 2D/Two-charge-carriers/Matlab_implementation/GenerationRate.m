@@ -8,7 +8,7 @@ global G_max num_cell
 
 G(1:num_cell-1, 1:num_cell-1) = 1;  %ONLY DEFINE IT IN THE INTERIOR OF THE DEVICE
 
-G = G_max*G;  %skip the endpoints b/c we don't need them in Un....
+G = G_max*G;  %skip the endpoints b/c we don't need them in Un...
 
 
 

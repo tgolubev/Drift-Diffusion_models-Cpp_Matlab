@@ -12,8 +12,6 @@ Bp_negZ = Bernoulli_p_values.Bp_negZ;
 
 Ap_val = zeros(num_elements, 5);   %this is a matrix which will just store the non-zero diagonals of 2D hole continuity eqn
 
-%These are listed in order from lowest diagonal to highest diagonal
-
 %NOTE: index is not neccesarily equal to i (the x index of V), it is the
 %index of the diagonal arrays.
 
@@ -25,7 +23,7 @@ for index = 1:N*(N-1)      %(1st element corresponds to Nth row  (number of elem
     end
     j = 1 + floor((index-1)/N);    %this is the y index of V which element corresponds to. 1+ floor(index/4)determines which subblock this corresponds to and thus determines j, since the j's for each subblock are all the same.
     
-    Ap_val(index,1) = -((p_mob(i,j) + p_mob(i+1, j))/2.)*Bp_posZ(i,j);
+    Ap_val(index,1) = -((p_mob(i,j) + p_mob(i+1, j))/2.)*fBp_posZ(i,j);
 end
 
 %main lower diagonal (below main diagonal): corresponds to V(i-1,j)
@@ -84,6 +82,6 @@ Ap = spdiags(Ap_val, [-N -1 0 1 N], num_elements, num_elements); %A = spdiags(B,
 %diagonals  [-N -1 0 1 N].  -N and N b/c the far diagonals are in next
 %subblocks, N diagonals away from main diag.
 
-%TO SEE THE FULL MATRIX
-Ap_matrix = full(Ap);
+
+%Ap_matrix = full(Ap); %use to see the full matrix
 

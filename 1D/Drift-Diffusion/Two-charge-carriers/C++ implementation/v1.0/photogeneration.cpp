@@ -4,17 +4,12 @@
 #include "parameters.h"
 #include <fstream>
 #include <algorithm>
-#include "photogeneration.h"
-
 
 //Generation rate file should contain num_cell -2 number of entries in a single column, corresponding to
 //the the generation rate at each mesh point (except the endpoints).
+std::vector<double> PhotogenerationRate(){
 
-//constructor definition
-Photogeneration::Photogeneration(Simulation &simul, double Photogen_scaling){  //requires input of the scaling factor
-
-    //PhotogenRate(simul.get_num_cell());
-    PhotogenRate_max = Photogen_scaling;
+    std::vector<double> G(num_cell);
 
     std::ifstream GenRateFile;
 
@@ -24,14 +19,14 @@ Photogeneration::Photogeneration(Simulation &simul, double Photogen_scaling){  /
          std::cerr << "Unable to open file gen_rate.txt";
          exit(1);   // call system to stop
      }
-     for(int i=1;i<=simul.get_num_cell()-1;i++){
-         GenRateFile >> PhotogenRate[i];
+     for(int i=1;i<=num_cell-1;i++){
+         GenRateFile >> G[i];
          //std::cout << "G(i) " << G[i] <<std::endl;
      }
-     double maxOfGPhotogenRate = *std::max_element(PhotogenRate.begin(),PhotogenRate.end());
+     double maxOfG = *std::max_element(G.begin(),G.end());
 
-     for(int i= 1;i<=simul.get_num_cell()-1;i++){
-         PhotogenRate[i] = PhotogenRate_max*PhotogenRate[i]/maxOfGPhotogenRate;
+     for(int i= 1;i<=num_cell-1;i++){
+         G[i] = G_max*G[i]/maxOfG;
          //std::cout << "G(i) " << G[i] <<std::endl;
 
          GenRateFile.close();
@@ -41,4 +36,6 @@ Photogeneration::Photogeneration(Simulation &simul, double Photogen_scaling){  /
      //Using constant generation rate
      //std::fill(G.begin(), G.end(), G_max);
 
+
+     return G;
 }

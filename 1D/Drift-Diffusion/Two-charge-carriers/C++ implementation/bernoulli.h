@@ -3,7 +3,6 @@
 
 
 #include<vector>
-#include "parameters.h"
 #include "simulation.h"  //needs this to know what Simulation is
 
 void BernoulliFnc_n(Simulation &simul, const std::vector<double> &V, std::vector<double> &B_n1, std::vector<double> &B_n2);

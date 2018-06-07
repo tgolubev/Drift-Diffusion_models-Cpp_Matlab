@@ -3,6 +3,7 @@
 
 #include <vector>
 #include "simulation.h"  //needs this to know what Simulation is
+#include "parameters.h"
 
 class Poisson
 {
@@ -25,6 +26,7 @@ private:
     std::vector<double> upper_diag;
     std::vector<double> lower_diag;
     std::vector<double> rhs;
+    const double CV = N*dx*dx*q/(epsilon_0*Vt);    //relative permitivity was moved into the matrix
 };
 
 #endif // POISSON_H

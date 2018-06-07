@@ -1,5 +1,4 @@
 #include<vector>
-#include "parameters.h"
 #include<iostream>
 #include "recombination.h"
 

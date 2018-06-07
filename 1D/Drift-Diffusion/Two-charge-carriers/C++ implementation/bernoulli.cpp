@@ -1,6 +1,5 @@
 #include <vector>
 #include <cmath>
-#include"parameters.h"
 #include <iostream>
 #include "bernoulli.h"
 

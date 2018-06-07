@@ -220,6 +220,7 @@ Makefile: 1D_general_DD.pro C:\Qt\5.8\msvc2015_64\mkspecs\win32-msvc2015\qmake.c
 		C:\Qt\5.8\msvc2015_64\mkspecs\features\qt_config.prf \
 		C:\Qt\5.8\msvc2015_64\mkspecs\win32-msvc2015\qmake.conf \
 		C:\Qt\5.8\msvc2015_64\mkspecs\features\spec_post.prf \
+		.qmake.stash \
 		C:\Qt\5.8\msvc2015_64\mkspecs\features\exclusive_builds.prf \
 		C:\Qt\5.8\msvc2015_64\mkspecs\features\toolchain.prf \
 		C:\Qt\5.8\msvc2015_64\mkspecs\features\default_pre.prf \
@@ -386,6 +387,7 @@ C:\Qt\5.8\msvc2015_64\mkspecs\features\qt_functions.prf:
 C:\Qt\5.8\msvc2015_64\mkspecs\features\qt_config.prf:
 C:\Qt\5.8\msvc2015_64\mkspecs\win32-msvc2015\qmake.conf:
 C:\Qt\5.8\msvc2015_64\mkspecs\features\spec_post.prf:
+.qmake.stash:
 C:\Qt\5.8\msvc2015_64\mkspecs\features\exclusive_builds.prf:
 C:\Qt\5.8\msvc2015_64\mkspecs\features\toolchain.prf:
 C:\Qt\5.8\msvc2015_64\mkspecs\features\default_pre.prf:

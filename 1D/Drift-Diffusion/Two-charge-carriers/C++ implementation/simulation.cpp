@@ -1,5 +1,4 @@
 #include "simulation.h"
-#include "parameters.h"
 
 #include<cmath>
 
@@ -25,7 +24,7 @@ Simulation::Simulation()      //this will read from file and setup all of the si
     //geometry parameters
     //Thicknesses (in m)
     L = 300.0e-9;             //device length in meters. Note: if change this and using a gen_rate file, need to update the number of elements in file to = num_cell-2
-    dx = 1.e-9;
+    //dx = 1.e-9;
     num_cell = L/dx;            //number of cells
 
 }

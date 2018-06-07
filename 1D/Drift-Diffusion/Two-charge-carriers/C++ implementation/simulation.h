@@ -1,6 +1,7 @@
 #ifndef SIMULATION_H
 #define SIMULATION_H
 
+#include "parameters.h"
 
 class Simulation
 {
@@ -23,7 +24,9 @@ public:
     double get_increment() const {return increment;}
     //double dx() const {return dx;}
 
-private:
+private:     //note: seems CANNOT declare unitiliazed constants here and then initialize them later. IF IT IS A CONST, then you must specify the value
+    //when it is declared.
+    //if want to declare+define/initialize const in a class: use 'static const' or 'static constexpr' (if known at compile time) --> makes sure there is just 1 per class, instead of 1 per object in the class
     double w;
     double w_reduce_factor;
     double tolerance;
@@ -32,7 +35,7 @@ private:
     double tolerance_eq, tolerance_i, w_i, w_eq;
     double L;
     int num_cell;
-    //const double dx;
+    //double dx;
 
     double Va_min, Va_max, increment;
     int num_V;

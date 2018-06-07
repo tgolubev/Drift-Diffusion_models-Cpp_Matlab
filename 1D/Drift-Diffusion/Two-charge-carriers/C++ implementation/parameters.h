@@ -49,8 +49,8 @@ const double p1 = N_HOMO*exp(-(E_trap - active_VB)/Vt);
 //////////////////////////////////////////
 
 
-double  dx = 1.e-9;
-const double Cn = dx*dx/(Vt*N*mobil);
-const double CV = N*dx*dx*q/(epsilon_0*Vt);    //relative permitivity was moved into the matrix
+const double dx = 1.e-9;
+
+
 
 #endif // PARAMETERS_H

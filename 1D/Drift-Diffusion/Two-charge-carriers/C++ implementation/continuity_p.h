@@ -3,6 +3,7 @@
 
 #include <vector>
 #include "simulation.h"  //needs this to know what Simulation is
+#include "parameters.h"
 
 class Continuity_p
 {
@@ -25,6 +26,7 @@ private:
     std::vector<double> upper_diag;
     std::vector<double> lower_diag;
     std::vector<double> rhs;
+    const double Cp = dx*dx/(Vt*N*mobil);  //can't use static, b/c dx wasn't defined as const, so at each initialization of Continuity_p object, new const will be made.
 };
 
 #endif // CONTINUITY_P_H

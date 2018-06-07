@@ -3,6 +3,7 @@
 
 #include <vector>
 #include "simulation.h"  //needs this to know what Simulation is
+#include "parameters.h"
 
 class Continuity_n
 {
@@ -25,7 +26,7 @@ private:
     std::vector<double> upper_diag;
     std::vector<double> lower_diag;
     std::vector<double> rhs;
-    //const double Cp = dx*dx/(Vt*N*mobil);          //note: scaled p_mob and n_mob are inside matrices
+    const double Cn = dx*dx/(Vt*N*mobil);
 };
 
 #endif // CONTINUITY_N_H

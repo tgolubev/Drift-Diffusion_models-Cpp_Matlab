@@ -33,13 +33,13 @@
 
 #include "parameters.h"
 #include "simulation.h"
-#include "bernoulli.h"
 #include "poisson.h"
 #include "continuity_p.h"
 #include "continuity_n.h"
 #include "recombination.h"
 #include "photogeneration.h"
 #include "thomas_tridiag_solve.h"
+#include "bernoulli.h"
 
 
 int main()
@@ -51,8 +51,6 @@ int main()
     Simulation simul;   //constuct Simulation object (this will initialize all simulation parameters, in future will read from file)
 
     double old_error;
-
-
 
     //Fill the RELATIVE dielectric constant vector (can be position dependent, as long as piecewise constant)
     std::vector<double> epsilon(simul.get_num_cell()+1);
@@ -100,6 +98,7 @@ int main()
     }
     V[simul.get_num_cell()] = V_rightBC;
 
+
     //////////////////////MAIN LOOP////////////////////////////////////////////////////////////////////////////////////////////////////////
     int iter;
     double error_np;
@@ -108,12 +107,12 @@ int main()
     int Va_cnt;
     double Va;
 
+
     Poisson poisson(simul);  //set up a poisson eqn object
     Recombo recombo(simul, k_rec, E_trap, n1, p1);  //set up recombination object
-    Photogeneration photogen(simul, Photogen_scaling);
     Continuity_n continuity_n(simul);
     Continuity_p continuity_p(simul);
-
+    Photogeneration photogen(simul, Photogen_scaling);
 
     std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();  //start clock timer
     for(Va_cnt = 0; Va_cnt <=simul.get_num_V() +1;Va_cnt++){  //+1 b/c 1st Va is the equil run
@@ -240,6 +239,7 @@ int main()
         //---------------------Write current Va step's data to file---------------------------------------------
         //Write charge densities, recombination rates, etc
         std::string filename = std::to_string(Va);
+        filename += ".txt";  //add .txt extension
         VaData.open(filename); //this will need to have a string as file name
         for(int i = 1;i<=simul.get_num_cell();i++){
             VaData << std::setw(15) << std::setprecision(8) << dx*i;
@@ -263,6 +263,8 @@ int main()
         }
     }
     JV.close();
+
+
 
     return 0;
 }

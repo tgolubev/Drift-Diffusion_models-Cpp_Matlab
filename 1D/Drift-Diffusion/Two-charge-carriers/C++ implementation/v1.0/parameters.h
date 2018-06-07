@@ -11,7 +11,7 @@ const double epsilon_0 =  8.85418782e-12; //F/m
 //Thicknesses (in m)
 const double L = 300.0e-9;             //device length in meters. Note: if change this and using a gen_rate file, need to update the number of elements in file to = num_cell-2
 const double dx = 1.e-9;
-const int num_cell = L/dx;            //number of cells
+const int num_cell = 300;  //L/dx;            //number of cells
 
 const double N_LUMO = 10e24;
 const double N_HOMO = 10e24;

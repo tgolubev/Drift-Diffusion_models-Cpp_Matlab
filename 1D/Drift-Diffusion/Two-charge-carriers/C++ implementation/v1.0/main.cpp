@@ -234,6 +234,7 @@ int main()
         //---------------------Write current Va step's data to file---------------------------------------------
         //Write charge densities, recombination rates, etc
         std::string filename = std::to_string(Va);
+        filename += ".txt";
         VaData.open(filename); //this will need to have a string as file name
         for(int i = 1;i<=num_cell;i++){
             VaData << std::setw(15) << std::setprecision(8) << dx*i;

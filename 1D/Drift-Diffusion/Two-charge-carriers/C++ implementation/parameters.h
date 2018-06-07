@@ -3,16 +3,16 @@
 
 #include <cmath>
 
-//Physical Constants (these should not be changed)
-const double q =  1.60217646e-19;         //elementary charge, C
-const double kb = 1.3806503e-23;          //Boltzmann const., J/k
-const double T = 296.;                      //temperature
-const double Vt = (kb*T)/q;                  //thermal voltage
-const double epsilon_0 =  8.85418782e-12; //F/m
+//Physical Constants (these should not be changed)  (constexpr b/c known at compile-time)
+constexpr double q =  1.60217646e-19;         //elementary charge, C
+constexpr double kb = 1.3806503e-23;          //Boltzmann const., J/k
+constexpr double T = 296.;                      //temperature
+constexpr double Vt = (kb*T)/q;                  //thermal voltage
+constexpr double epsilon_0 =  8.85418782e-12; //F/m
 
 const double N_LUMO = 10e24;
 const double N_HOMO = 10e24;
-const double N = 10e24;     //scaling factor helps CV be on order of 1
+const double N = N_HOMO;     //scaling factor helps CV be on order of 1
 const double Nsqrd = N*N;
 
 const double Photogen_scaling =  7e27;  //max photogeneration rate
@@ -42,9 +42,6 @@ const double Vbi = WF_anode - WF_cathode +phi_a +phi_c;
 
 //Recombination parameters
 const double k_rec= 6e-17;  //m^3/s  Langevin recombination for active layer
-const double E_trap = active_VB + E_gap/2.0;  //this is assumption used--> trap assisted recombo is most effective when trap is located mid-gap--> take VB and add 1/2 of bandgap
-const double n1 = N_LUMO*exp(-(active_CB - E_trap)/Vt);
-const double p1 = N_HOMO*exp(-(E_trap - active_VB)/Vt);
 
 //////////////////////////////////////////
 

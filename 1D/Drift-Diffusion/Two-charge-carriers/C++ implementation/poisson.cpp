@@ -1,4 +1,5 @@
 #include "poisson.h"
+#include <iostream>
 
 //---------------Setup AV diagonals (Poisson solve)---------------------------------------------------------------
 //this is a in tridiag_solver

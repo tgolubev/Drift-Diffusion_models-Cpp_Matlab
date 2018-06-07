@@ -25,6 +25,8 @@ Simulation::Simulation()      //this will read from file and setup all of the si
     //Thicknesses (in m)
     L = 300.0e-9;             //device length in meters. Note: if change this and using a gen_rate file, need to update the number of elements in file to = num_cell-2
     //dx = 1.e-9;
-    num_cell = L/dx;            //number of cells
+    //num_cell = L/dx;            //number of cells
+
+    num_cell = 300;  //there's some issue, that gives 299 when do L/dx, so for now, just hard code
 
 }

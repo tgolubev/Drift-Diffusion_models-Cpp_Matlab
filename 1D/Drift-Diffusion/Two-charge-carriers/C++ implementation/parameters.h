@@ -2,6 +2,11 @@
 #define PARAMETERS_H
 
 #include "constants.h"
+#include <string>
+#include<cmath>
+#include <fstream>
+#include <iostream>
+#include <iomanip>
 
 
 struct Parameters   //parameters need to be accessble, so all members are public.
@@ -13,17 +18,22 @@ struct Parameters   //parameters need to be accessble, so all members are public
     void use_tolerance_i() {tolerance = tolerance_i;}
     void use_w_i() {w = w_i;}
     void use_w_eq() {w = w_eq;}
+
     void Initialize();
+    void isPositive(double input, std::string comment);
+    void isPositive(int input, std::string comment);
+    void isNegative(double input, std::string comment);
+    void isNegative(int input, std::string comment);
 
     //getters
-    double get_tolerance() const {return tolerance;}
-    double get_w() const {return w;}   //const specifies that fnc shouldn't change w
-    int get_num_cell() const {return num_cell;}
+    //double get_tolerance() const {return tolerance;}
+    //double get_w() const {return w;}   //const specifies that fnc shouldn't change w
+    //int get_num_cell() const {return num_cell;}
     //int get_num_V() const {return num_V;}
-    double get_Va_min() const {return Va_min;}
-    double get_Va_max() const {return Va_max;}
-    double get_increment() const {return increment;}
-    //double dx() const {return dx;}
+    //double get_Va_min() const {return Va_min;}
+    //double get_Va_max() const {return Va_max;}
+    //double get_increment() const {return increment;}
+
     double N_LUMO, N_HOMO, phi_a, phi_c, eps_active, p_mob_active, n_mob_active;
     double dx, mobil;
     double E_gap, active_CB, active_VB, WF_anode, WF_cathode, N, Nsqrd;
@@ -42,7 +52,6 @@ struct Parameters   //parameters need to be accessble, so all members are public
     int num_cell;
 
     double Va_min, Va_max, increment;
-
 
 };
 

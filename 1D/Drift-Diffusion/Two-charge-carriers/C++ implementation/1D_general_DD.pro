@@ -1,7 +1,7 @@
 TEMPLATE = app
 CONFIG += console c++11
 CONFIG -= app_bundle
-CONFIG -= qt
+CONFIG -= qt -O2
 
 SOURCES += \
     bernoulli.cpp \

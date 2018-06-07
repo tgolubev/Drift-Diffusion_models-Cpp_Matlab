@@ -8,7 +8,7 @@
 class Continuity_n
 {
 public:
-    Continuity_n(Parameters &params): main_diag(params.get_num_cell()), upper_diag(params.get_num_cell()-1), lower_diag(params.get_num_cell()-1),  rhs(params.get_num_cell())
+    Continuity_n(Parameters &params): main_diag(params.num_cell), upper_diag(params.num_cell-1), lower_diag(params.num_cell-1),  rhs(params.num_cell)
     {
         Cn = params.dx*params.dx/(Vt*params.N*params.mobil);
         n_leftBC = (params.N_LUMO*exp(-(params.E_gap - params.phi_a)/Vt))/params.N;       //this is anode

@@ -53,7 +53,7 @@ int main()
     params.Initialize();  //reads parameters from file
 
     double old_error;
-    const int num_cell = params.get_num_cell();   //create a local num_cell so don't have to type num_cell everywhere
+    const int num_cell = params.num_cell;   //create a local num_cell so don't have to type num_cell everywhere
     double Vbi = params.WF_anode - params.WF_cathode +params.phi_a +params.phi_c;
     int num_V = floor((params.Va_max-params.Va_min)/params.increment)+1;
     params.tolerance_eq = params.tolerance_i*100;  //THIS 100 CAN BE MADE OPTIONAL PARAMETER
@@ -121,7 +121,7 @@ int main()
     for(Va_cnt = 0; Va_cnt <=num_V +1;Va_cnt++){  //+1 b/c 1st Va is the equil run
         not_converged = false;
         not_cnv_cnt = 0;
-        if(params.get_tolerance() > 1e-5){
+        if(params.tolerance > 1e-5){
             std::cerr<<"ERROR: Tolerance has been increased to > 1e-5" <<std::endl;
         }
         if(Va_cnt==0){
@@ -130,7 +130,7 @@ int main()
             Va = 0;
         }
         else{
-            Va = params.get_Va_min()+params.get_increment()*(Va_cnt-1);
+            Va = params.Va_min+params.increment*(Va_cnt-1);
         }
         if(Va_cnt ==1){
             params.use_tolerance_i();  //reset tolerance back
@@ -147,7 +147,7 @@ int main()
 
         error_np = 1.0;
         iter = 0;
-        while(error_np > params.get_tolerance()){
+        while(error_np > params.tolerance){
             std::cout << "error np " << error_np <<std::endl;
             std::cout << "Va " << Va <<std::endl;
 
@@ -163,7 +163,7 @@ int main()
             //Mix old and new solutions for V
             if(iter>0){
                 for(int i =  1;i<num_cell;i++){
-                    V[i] = newV[i]*params.get_w() + oldV[i]*(1.-params.get_w());
+                    V[i] = newV[i]*params.w + oldV[i]*(1.-params.w);
                 }
             }
             else V = newV;
@@ -216,8 +216,8 @@ int main()
 
             //Linear mixing for n and p
             for(int i = 1;i<num_cell;i++){
-                p[i] = newp[i]*params.get_w() + oldp[i]*(1.-params.get_w());
-                n[i] = newn[i]*params.get_w() + oldn[i]*(1.-params.get_w());
+                p[i] = newp[i]*params.w + oldp[i]*(1.-params.w);
+                n[i] = newn[i]*params.w + oldn[i]*(1.-params.w);
             }
             iter = iter+1;
         }
@@ -251,8 +251,8 @@ int main()
             VaData << std::setw(15) << std::setprecision(8) << Un[i];
             VaData << std::setw(15) << std::setprecision(8) << PhotogenRate[i];
             VaData << std::setw(15) << std::setprecision(8) << R_Langevin[i];
-            VaData << std::setw(15) << std::setprecision(8) << params.get_w();
-            VaData << std::setw(15) << std::setprecision(8) << params.get_tolerance() <<std::endl;
+            VaData << std::setw(15) << std::setprecision(8) << params.w;
+            VaData << std::setw(15) << std::setprecision(8) << params.tolerance <<std::endl;
         }
         VaData.close();
 

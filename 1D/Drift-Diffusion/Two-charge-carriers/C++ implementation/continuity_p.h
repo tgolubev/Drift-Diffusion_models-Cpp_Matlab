@@ -8,7 +8,7 @@
 class Continuity_p
 {
 public:
-    Continuity_p(Parameters &params): main_diag(params.get_num_cell()), upper_diag(params.get_num_cell()-1), lower_diag(params.get_num_cell()-1), rhs(params.get_num_cell())
+    Continuity_p(Parameters &params): main_diag(params.num_cell), upper_diag(params.num_cell-1), lower_diag(params.num_cell-1), rhs(params.num_cell)
     {
         Cp = params.dx*params.dx/(Vt*params.N*params.mobil);  //can't use static, b/c dx wasn't defined as const, so at each initialization of Continuity_p object, new const will be made.
         p_leftBC = (params.N_HOMO*exp(-params.phi_a/Vt))/params.N;

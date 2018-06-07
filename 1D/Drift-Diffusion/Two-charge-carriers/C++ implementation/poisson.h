@@ -8,7 +8,7 @@
 class Poisson
 {
 public:
-    Poisson(Parameters &params): main_diag(params.get_num_cell()), upper_diag(params.get_num_cell()-1), lower_diag(params.get_num_cell()-1), rhs(params.get_num_cell())
+    Poisson(Parameters &params): main_diag(params.num_cell), upper_diag(params.num_cell-1), lower_diag(params.num_cell-1), rhs(params.num_cell)
     {
         CV = params.N*params.dx*params.dx*q/(epsilon_0*Vt);
     } //constructor

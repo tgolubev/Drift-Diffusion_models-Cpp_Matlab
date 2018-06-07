@@ -9,9 +9,9 @@
 class Recombo{
 public:
     Recombo(Parameters &params, double k_rec)
-             : k_rec{k_rec}, E_trap{E_trap}, n1{n1}, p1{p1}, R_Langevin(params.get_num_cell())
+             : k_rec{k_rec}, R_Langevin(params.num_cell)
     {
-        E_trap = params.active_VB + params.E_gap/2.0;  //this is assumption used--> trap assisted recombo is most effective when trap is located mid-gap--> take VB and add 1/2 of bandgap
+        E_trap = params.active_VB + params.E_gap/2.0;  //trap assisted recombo is most effective when trap is located mid-gap--> take VB and add 1/2 of bandgap
         n1 = params.N_LUMO*exp(-(params.active_CB - E_trap)/Vt);
         p1 = params.N_HOMO*exp(-(E_trap - params.active_VB)/Vt);       //constructor
     }
@@ -20,7 +20,7 @@ public:
     void set_k_rec(double k_rec_input){ k_rec = k_rec_input;}
 private:
     double k_rec;
-    double E_trap; //this is assumption used--> trap assisted recombo is most effective when trap is located mid-gap--> take VB and add 1/2 of bandgap
+    double E_trap;
     double n1;
     double p1;
     std::vector<double> R_Langevin;

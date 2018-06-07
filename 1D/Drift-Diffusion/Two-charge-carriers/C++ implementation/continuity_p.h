@@ -2,13 +2,18 @@
 #define CONTINUITY_P_H
 
 #include <vector>
-#include "simulation.h"  //needs this to know what Simulation is
-#include "parameters.h"
+#include "parameters.h"  //needs this to know what parameters is
+#include "constants.h"
 
 class Continuity_p
 {
 public:
-    Continuity_p(Simulation &simul): main_diag(simul.get_num_cell()), upper_diag(simul.get_num_cell()-1), lower_diag(simul.get_num_cell()-1), rhs(simul.get_num_cell()) { }
+    Continuity_p(Parameters &params): main_diag(params.get_num_cell()), upper_diag(params.get_num_cell()-1), lower_diag(params.get_num_cell()-1), rhs(params.get_num_cell())
+    {
+        Cp = params.dx*params.dx/(Vt*params.N*params.mobil);  //can't use static, b/c dx wasn't defined as const, so at each initialization of Continuity_p object, new const will be made.
+        p_leftBC = (params.N_HOMO*exp(-params.phi_a/Vt))/params.N;
+        p_rightBC = (params.N_HOMO*exp(-(params.E_gap - params.phi_c)/Vt))/params.N;
+    }
     void setup_eqn(std::vector<double> &p_mob, std::vector<double> &B_p1, std::vector<double> & B_p2, std::vector<double> & Up);
 
     //getters
@@ -24,9 +29,9 @@ private:
     std::vector<double> upper_diag;
     std::vector<double> lower_diag;
     std::vector<double> rhs;
-    const double Cp = dx*dx/(Vt*N*mobil);  //can't use static, b/c dx wasn't defined as const, so at each initialization of Continuity_p object, new const will be made.
-    const double p_leftBC = (N_HOMO*exp(-phi_a/Vt))/N;
-    const double p_rightBC = (N_HOMO*exp(-(E_gap - phi_c)/Vt))/N;
+    double Cp;
+    double p_leftBC;
+    double p_rightBC;
 
     void set_main_diag(const std::vector<double> &p_mob,const  std::vector<double> &B_p1,const  std::vector<double> &B_p2);
     void set_upper_diag(const std::vector<double> &p_mob,const  std::vector<double> &B_p1);

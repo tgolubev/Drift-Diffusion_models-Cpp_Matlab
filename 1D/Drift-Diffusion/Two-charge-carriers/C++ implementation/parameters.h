@@ -1,53 +1,49 @@
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
 
-#include <cmath>
-
-//Physical Constants (these should not be changed)  (constexpr b/c known at compile-time)
-constexpr double q =  1.60217646e-19;         //elementary charge, C
-constexpr double kb = 1.3806503e-23;          //Boltzmann const., J/k
-constexpr double T = 296.;                      //temperature
-constexpr double Vt = (kb*T)/q;                  //thermal voltage
-constexpr double epsilon_0 =  8.85418782e-12; //F/m
-
-const double N_LUMO = 10e24;
-const double N_HOMO = 10e24;
-const double N = N_HOMO;     //scaling factor helps CV be on order of 1
-const double Nsqrd = N*N;
-
-const double Photogen_scaling =  7e27;  //max photogeneration rate
-
-//injection barriers
-const double phi_a = 0.2;
-const double phi_c = 0.1;
-
-//Relative dielectric constants (epsilon/epsilon_0)
-const double eps_active = 3.0;
-
-//Mobilities
-const double p_mob_active =  4.5e-6;
-const double n_mob_active =  4.5e-6;
-
-const double mobil = 5e-6; //scaling for mobility
-
-//Energetics
-const double E_gap = 1.5;        //active layer bandgap (eV)
-const double active_CB = -3.9;   //active layer conduction band energy (eV)
-const double active_VB = -5.4;   //active layer valence band energy (eV)
-
-const double WF_anode = 4.8;
-const double WF_cathode = 3.7;
-
-const double Vbi = WF_anode - WF_cathode +phi_a +phi_c;
-
-//Recombination parameters
-const double k_rec= 6e-17;  //m^3/s  Langevin recombination for active layer
-
-//////////////////////////////////////////
+#include "constants.h"
 
 
-const double dx = 1.e-9;
+struct Parameters   //parameters need to be accessble, so all members are public.
+{
+    Parameters();
+    void reduce_w(){w = w/w_reduce_factor;}
+    void relax_tolerance(){tolerance = tolerance*tol_relax_factor;}
+    void use_tolerance_eq() {tolerance = tolerance_eq;}
+    void use_tolerance_i() {tolerance = tolerance_i;}
+    void use_w_i() {w = w_i;}
+    void use_w_eq() {w = w_eq;}
+    void Initialize();
+
+    //getters
+    double get_tolerance() const {return tolerance;}
+    double get_w() const {return w;}   //const specifies that fnc shouldn't change w
+    int get_num_cell() const {return num_cell;}
+    //int get_num_V() const {return num_V;}
+    double get_Va_min() const {return Va_min;}
+    double get_Va_max() const {return Va_max;}
+    double get_increment() const {return increment;}
+    //double dx() const {return dx;}
+    double N_LUMO, N_HOMO, phi_a, phi_c, eps_active, p_mob_active, n_mob_active;
+    double dx, mobil;
+    double E_gap, active_CB, active_VB, WF_anode, WF_cathode, N, Nsqrd;
+    double Photogen_scaling, k_rec_input;
+
+    //note: seems CANNOT declare unitiliazed constants here and then initialize them later. IF IT IS A CONST, then you must specify the value
+    //when it is declared.
+    //if want to declare+define/initialize const in a class: use 'static const' or 'static constexpr' (if known at compile time) --> makes sure there is just 1 per class, instead of 1 per object in the class
+    double w;
+    double w_reduce_factor;
+    double tolerance;
+    double tol_relax_factor;
+    double Vmin, Vmax;
+    double tolerance_eq, tolerance_i, w_i, w_eq;
+    double L;
+    int num_cell;
+
+    double Va_min, Va_max, increment;
 
 
+};
 
 #endif // PARAMETERS_H

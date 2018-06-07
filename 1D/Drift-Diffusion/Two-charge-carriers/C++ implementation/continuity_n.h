@@ -2,13 +2,18 @@
 #define CONTINUITY_N_H
 
 #include <vector>
-#include "simulation.h"  //needs this to know what Simulation is
-#include "parameters.h"
+#include "parameters.h"  //needs this to know what parameters are
+#include "constants.h"
 
 class Continuity_n
 {
 public:
-    Continuity_n(Simulation &simul): main_diag(simul.get_num_cell()), upper_diag(simul.get_num_cell()-1), lower_diag(simul.get_num_cell()-1),  rhs(simul.get_num_cell()) { }
+    Continuity_n(Parameters &params): main_diag(params.get_num_cell()), upper_diag(params.get_num_cell()-1), lower_diag(params.get_num_cell()-1),  rhs(params.get_num_cell())
+    {
+        Cn = params.dx*params.dx/(Vt*params.N*params.mobil);
+        n_leftBC = (params.N_LUMO*exp(-(params.E_gap - params.phi_a)/Vt))/params.N;       //this is anode
+        n_rightBC = (params.N_LUMO*exp(-params.phi_c/Vt))/params.N;
+    }
 
     void setup_eqn(std::vector<double> &n_mob, std::vector<double> &B_n1, std::vector<double> &B_n2, std::vector<double> &Un);
 
@@ -25,9 +30,9 @@ private:
     std::vector<double> upper_diag;
     std::vector<double> lower_diag;
     std::vector<double> rhs;
-    const double Cn = dx*dx/(Vt*N*mobil);
-    const double n_leftBC = (N_LUMO*exp(-(E_gap - phi_a)/Vt))/N;       //this is anode
-    const double n_rightBC = (N_LUMO*exp(-phi_c/Vt))/N;
+    double Cn;
+    double n_leftBC;        //this is anode
+    double n_rightBC;
 
     void set_main_diag(const std::vector<double> &n_mob,const  std::vector<double> &B_n1,const  std::vector<double> &B_n2);
     void set_upper_diag(const std::vector<double> &n_mob,const  std::vector<double> &B_n1);

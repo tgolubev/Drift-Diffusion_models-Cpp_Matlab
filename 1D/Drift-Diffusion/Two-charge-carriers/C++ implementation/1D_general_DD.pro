@@ -9,18 +9,18 @@ SOURCES += \
     recombination.cpp \
     thomas_tridiag_solve.cpp \
     main.cpp \
-    simulation.cpp \
     poisson.cpp \
     continuity_n.cpp \
-    continuity_p.cpp
+    continuity_p.cpp \
+    parameters.cpp
 
 HEADERS += \
     bernoulli.h \
-    parameters.h \
     photogeneration.h \
     recombination.h \
     thomas_tridiag_solve.h \
-    simulation.h \
     poisson.h \
     continuity_n.h \
-    continuity_p.h
+    continuity_p.h \
+    constants.h \
+    parameters.h

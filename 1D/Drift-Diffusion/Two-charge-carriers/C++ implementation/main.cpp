@@ -3,7 +3,10 @@
 %     Solving 1D Poisson + Drift Diffusion semiconductor eqns using
 %                    Scharfetter-Gummel discretization
 %
-%                  Coded by Timofey Golubev (2018.05.26)
+%                         Written by Timofey Golubev
+%                     Version 2.0  6/7/2018 (object oriented + file input)
+%                     Version 1.0   5/26/17  (no objects)
+%
 %               NOTE: i=1 corresponds to x=0, i=nx to x=L
 %
 %     The code as is will calculate and plot a JV curve
@@ -31,9 +34,10 @@
 #include <string>
 #include <time.h>
 #include <fstream>
+#include <string>
 
+#include "constants.h"        //these contain physics constants only
 #include "parameters.h"
-#include "simulation.h"
 #include "poisson.h"
 #include "continuity_p.h"
 #include "continuity_n.h"
@@ -43,64 +47,59 @@
 #include "bernoulli.h"
 
 
-
 int main()
 {
-    //input from file the parameters
-    std::ifstream parameters;
-    parameters.open("parameters.txt");
-    double test;
-    parameters >> test;
+    Parameters params;   //constuct Parameters object (this will initialize all Parameters parameters, in future will read from file)
+    params.Initialize();  //reads parameters from file
 
-    std::cout << test;
+    double old_error;
+    const int num_cell = params.get_num_cell();   //create a local num_cell so don't have to type num_cell everywhere
+    double Vbi = params.WF_anode - params.WF_cathode +params.phi_a +params.phi_c;
+    int num_V = floor((params.Va_max-params.Va_min)/params.increment)+1;
+    params.tolerance_eq = params.tolerance_i*100;  //THIS 100 CAN BE MADE OPTIONAL PARAMETER
 
-    exit(1);
-
-    Simulation simul;   //constuct Simulation object (this will initialize all simulation parameters, in future will read from file)
     std::ofstream JV, VaData;
     JV.open("JV.txt");  //note: file will be created inside the build directory
 
-    double old_error;
-    const double num_cell = simul.get_num_cell();   //create a local num_cell so don't have to type num_cell everywhere
+    //-------------------------------------------------------------------------------------------------------
 
     //Fill the RELATIVE dielectric constant vector (can be position dependent, as long as piecewise constant)
     std::vector<double> epsilon(num_cell+1);
-    std::fill(epsilon.begin(), epsilon.end(), eps_active);
+    std::fill(epsilon.begin(), epsilon.end(), params.eps_active);
 
     //Fill the mobilities vectors (can be position dependent, as long as piecewise constant)
     std::vector<double> p_mob(num_cell+1), n_mob(num_cell+1);
-    std::fill(p_mob.begin(), p_mob.end(), p_mob_active);
-    std::fill(n_mob.begin(), n_mob.end(), n_mob_active);
+    std::fill(p_mob.begin(), p_mob.end(), params.p_mob_active);
+    std::fill(n_mob.begin(), n_mob.end(), params.n_mob_active);
     for(int i = 0;i<= num_cell;i++){
-        p_mob[i] = p_mob[i]/mobil;
-        n_mob[i] = n_mob[i]/mobil;
+        p_mob[i] = p_mob[i]/params.mobil;
+        n_mob[i] = n_mob[i]/params.mobil;
     }
 
+    //-------------------------------------------------------------------------------------------------------
+
     //Initialize other vectors
-    //Note: vectors are automatically initialized to 0.
     //Will use indicies for n and p... starting from 1 --> since is more natural--> corresponds to 1st node inside the device...
     std::vector<double> n(num_cell), p(num_cell), oldp(num_cell), newp(num_cell), oldn(num_cell), newn(num_cell), oldV(num_cell+1), newV(num_cell+1), V(num_cell+1);
     std::vector<double> Un(num_cell), Up(num_cell), R_Langevin(num_cell), PhotogenRate(num_cell);  //store the results of these..
     std::vector<double> Jp(num_cell),Jn(num_cell), J_total(num_cell);
     std::vector<double> error_np_vector(num_cell);  //for storing errors between iterations
-
-    //DO SOMETHING WITH BERNOULLIS--> PUT  AS PART OF CONTINUITY CLASSES?
     std::vector<double> B_n1(num_cell+1), B_n2(num_cell+1), B_p1(num_cell+1), B_p2(num_cell+1); //vectors for storing Bernoulli fnc values
 
     //Construct objects
-    Poisson poisson(simul);
-    Recombo recombo(simul, k_rec);
-    Continuity_n continuity_n(simul);
-    Continuity_p continuity_p(simul);
-    Photogeneration photogen(simul, Photogen_scaling);
+    Poisson poisson(params);
+    Recombo recombo(params, params.k_rec_input);
+    Continuity_p continuity_p(params);
+    Continuity_n continuity_n(params);
+    Photogeneration photogen(params, params.Photogen_scaling);
 
     //Initial conditions
     double min_dense = std::min(continuity_n.get_n_leftBC(),  continuity_p.get_p_rightBC());
     std::fill(n.begin()+1, n.end(), min_dense);
     std::fill(p.begin()+1, p.end(), min_dense);
 
-    double V_leftBC = -((Vbi)/(2*Vt)-phi_a/Vt);
-    double V_rightBC = (Vbi)/(2*Vt)-phi_c/Vt;
+    double V_leftBC = -((Vbi)/(2*Vt)-params.phi_a/Vt);
+    double V_rightBC = (Vbi)/(2*Vt)-params.phi_c/Vt;
     double diff = (V_rightBC-V_leftBC)/num_cell;
     V[0] = V_leftBC;  //fill V(0) here for use in Beroulli later
     for(int i = 1; i<=num_cell-1; i++){
@@ -113,44 +112,47 @@ int main()
     std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();  //start clock timer
 
     //////////////////////MAIN LOOP////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     int iter, not_cnv_cnt, Va_cnt;
     double error_np;
     bool not_converged;
     double Va;
 
-    for(Va_cnt = 0; Va_cnt <=simul.get_num_V() +1;Va_cnt++){  //+1 b/c 1st Va is the equil run
+    for(Va_cnt = 0; Va_cnt <=num_V +1;Va_cnt++){  //+1 b/c 1st Va is the equil run
         not_converged = false;
         not_cnv_cnt = 0;
-        if(simul.get_tolerance() > 1e-5){
+        if(params.get_tolerance() > 1e-5){
             std::cerr<<"ERROR: Tolerance has been increased to > 1e-5" <<std::endl;
         }
         if(Va_cnt==0){
-            simul.use_tolerance_eq();  //relaxed tolerance for equil. run
-            simul.use_w_eq();
+            params.use_tolerance_eq();  //relaxed tolerance for equil. run
+            params.use_w_eq();
             Va = 0;
         }
         else{
-            Va = simul.get_Va_min()+simul.get_increment()*(Va_cnt-1);
+            Va = params.get_Va_min()+params.get_increment()*(Va_cnt-1);
         }
         if(Va_cnt ==1){
-            simul.use_tolerance_i();  //reset tolerance back
-            simul.use_w_i();
+            params.use_tolerance_i();  //reset tolerance back
+            params.use_w_i();
             PhotogenRate = photogen.getPhotogenRate();    //otherwise PhotogenRate is pre-initialized to 0 in this main.cpp when declared
         }
         std::cout << "Va = " << Va <<std::endl;
 
         //Apply the voltage boundary conditions
-        V_leftBC = -((Vbi  -Va)/(2*Vt)-phi_a/Vt);
-        V_rightBC = (Vbi- Va)/(2*Vt) - phi_c/Vt;
+        V_leftBC = -((Vbi  -Va)/(2*Vt)-params.phi_a/Vt);
+        V_rightBC = (Vbi- Va)/(2*Vt) - params.phi_c/Vt;
         V[0] = V_leftBC;
         V[num_cell] = V_rightBC;
 
         error_np = 1.0;
         iter = 0;
-        while(error_np > simul.get_tolerance()){
+        while(error_np > params.get_tolerance()){
             std::cout << "error np " << error_np <<std::endl;
             std::cout << "Va " << Va <<std::endl;
+
             //-----------------Solve Poisson Equation------------------------------------------------------------------
+
             poisson.set_rhs(epsilon, n, p, V_leftBC, V_rightBC); //setup RHS of Poisson eqn (bV)
             oldV = V;  //old V is fine
             newV = Thomas_solve(poisson.get_main_diag(), poisson.get_upper_diag(), poisson.get_lower_diag(), poisson.get_rhs());
@@ -161,13 +163,14 @@ int main()
             //Mix old and new solutions for V
             if(iter>0){
                 for(int i =  1;i<num_cell;i++){
-                    V[i] = newV[i]*simul.get_w() + oldV[i]*(1.-simul.get_w());
+                    V[i] = newV[i]*params.get_w() + oldV[i]*(1.-params.get_w());
                 }
             }
             else V = newV;
 
             //------------------------------Calculate Net Generation Rate----------------------------------------------------------
-            R_Langevin = recombo.ComputeR_Langevin(n,p);
+
+            R_Langevin = recombo.ComputeR_Langevin(params,n,p);
 
             for(int i = 1;i<num_cell;i++){
                 Un[i] = PhotogenRate[i] - R_Langevin[i];
@@ -175,6 +178,7 @@ int main()
             Up = Un;
 
             //--------------------------------Solve equations for n and p------------------------------------------------------------ 
+
             //setup the matrices
             BernoulliFnc_n(V, B_n1, B_n2);  //fills B_p1 and B_p2 with the values of Bernoulli fnc
             continuity_n.setup_eqn(n_mob, B_n1, B_n2, Un);
@@ -205,15 +209,15 @@ int main()
             //auto decrease w if not converging
             if(error_np>=old_error) not_cnv_cnt = not_cnv_cnt+1;
             if(not_cnv_cnt>2000){
-                //simul.reduce_w();
-                simul.relax_tolerance();
+                //params.reduce_w();
+                params.relax_tolerance();
                 not_cnv_cnt = 0;
             }
 
             //Linear mixing for n and p
             for(int i = 1;i<num_cell;i++){
-                p[i] = newp[i]*simul.get_w() + oldp[i]*(1.-simul.get_w());
-                n[i] = newn[i]*simul.get_w() + oldn[i]*(1.-simul.get_w());
+                p[i] = newp[i]*params.get_w() + oldp[i]*(1.-params.get_w());
+                n[i] = newn[i]*params.get_w() + oldn[i]*(1.-params.get_w());
             }
             iter = iter+1;
         }
@@ -223,30 +227,32 @@ int main()
         std::cout << "1 Va CPU time = " << time.count() << std::endl;
 
         //-------------------Calculate Currents using Scharfetter-Gummel definition--------------------------
+
         p[0] = continuity_p.get_p_leftBC();
         n[0]  = continuity_n.get_n_leftBC();
         for(int i = 1; i<num_cell;i++){
-            Jp[i] = -(q*Vt*N*mobil/dx)*p_mob[i]*(p[i]*B_p2[i]-p[i-1]*B_p1[i]);
-            Jn[i] =  (q*Vt*N*mobil/dx)*n_mob[i]*(n[i]*B_n1[i]-n[i-1]*B_n2[i]);
+            Jp[i] = -(q*Vt*params.N*params.mobil/params.dx)*p_mob[i]*(p[i]*B_p2[i]-p[i-1]*B_p1[i]);
+            Jn[i] =  (q*Vt*params.N*params.mobil/params.dx)*n_mob[i]*(n[i]*B_n1[i]-n[i-1]*B_n2[i]);
             J_total[i] = Jp[i] + Jn[i];
         }
 
         //---------------------Write current Va step's data to file---------------------------------------------
+
         //Write charge densities, recombination rates, etc
         std::string filename = std::to_string(Va);
         filename += ".txt";  //add .txt extension
         VaData.open(filename); //this will need to have a string as file name
         for(int i = 1;i<=num_cell;i++){
-            VaData << std::setw(15) << std::setprecision(8) << dx*i;
+            VaData << std::setw(15) << std::setprecision(8) << params.dx*i;
             VaData << std::setw(15) << std::setprecision(8) << Vt*V[i];
-            VaData << std::setw(15) << std::setprecision(8) << N*p[i];         //setprecision(8) sets that use 8 sigfigs
-            VaData << std::setw(15) << std::setprecision(8) << N*n[i];
+            VaData << std::setw(15) << std::setprecision(8) << params.N*p[i];         //setprecision(8) sets that use 8 sigfigs
+            VaData << std::setw(15) << std::setprecision(8) << params.N*n[i];
             VaData << std::setw(15) << std::setprecision(8) << J_total[i];
             VaData << std::setw(15) << std::setprecision(8) << Un[i];
             VaData << std::setw(15) << std::setprecision(8) << PhotogenRate[i];
             VaData << std::setw(15) << std::setprecision(8) << R_Langevin[i];
-            VaData << std::setw(15) << std::setprecision(8) << simul.get_w();
-            VaData << std::setw(15) << std::setprecision(8) << simul.get_tolerance() <<std::endl;
+            VaData << std::setw(15) << std::setprecision(8) << params.get_w();
+            VaData << std::setw(15) << std::setprecision(8) << params.get_tolerance() <<std::endl;
         }
         VaData.close();
 
@@ -258,8 +264,6 @@ int main()
         }
     }
     JV.close();
-
-
 
     return 0;
 }

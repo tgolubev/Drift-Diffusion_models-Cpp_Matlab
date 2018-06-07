@@ -2,13 +2,13 @@
 #define PHOTOGENERATION_H
 
 #include<vector>
+#include "constants.h"
 #include "parameters.h"
-#include "simulation.h"
 
 class Photogeneration
 {
 public:
-    Photogeneration(Simulation &simul, const double Photogen_scaling);   //constructor will get the generation rate from file
+    Photogeneration(Parameters &params, double Photogen_scaling);   //constructor will get the generation rate from file
     std::vector<double> getPhotogenRate() {return PhotogenRate;}
 private:
     std::vector<double> PhotogenRate;

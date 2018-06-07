@@ -2,13 +2,16 @@
 #define POISSON_H
 
 #include <vector>
-#include "simulation.h"  //needs this to know what Simulation is
-#include "parameters.h"
+#include "parameters.h"  //needs this to know what paramsation is
+#include "constants.h"
 
 class Poisson
 {
 public:
-    Poisson(Simulation &simul): main_diag(simul.get_num_cell()), upper_diag(simul.get_num_cell()-1), lower_diag(simul.get_num_cell()-1), rhs(simul.get_num_cell()) { } //constructor
+    Poisson(Parameters &params): main_diag(params.get_num_cell()), upper_diag(params.get_num_cell()-1), lower_diag(params.get_num_cell()-1), rhs(params.get_num_cell())
+    {
+        CV = params.N*params.dx*params.dx*q/(epsilon_0*Vt);
+    } //constructor
 
     void setup_matrix(std::vector<double> &epsilon);
     void set_rhs(const std::vector<double> &epsilon, const std::vector<double> &n, const std::vector<double> &p, double V_leftBC, double V_rightBC);
@@ -24,7 +27,7 @@ private:
     std::vector<double> upper_diag;
     std::vector<double> lower_diag;
     std::vector<double> rhs;
-    const double CV = N*dx*dx*q/(epsilon_0*Vt);    //relative permitivity was moved into the matrix
+    double CV;    //relative permitivity was moved into the matrix
 
     void set_main_diag(const std::vector<double> &epsilon);
     void set_upper_diag(const std::vector<double> &epsilon);

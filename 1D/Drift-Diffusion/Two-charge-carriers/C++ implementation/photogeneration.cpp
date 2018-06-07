@@ -10,9 +10,9 @@
 //the the generation rate at each mesh point (except the endpoints).
 
 //constructor definition
-Photogeneration::Photogeneration(Simulation &simul, const double Photogen_scaling){  //requires input of the scaling factor
+Photogeneration::Photogeneration(Parameters &params, double Photogen_scaling){  //requires input of the scaling factor
 
-    PhotogenRate.resize(simul.get_num_cell());  //if vector already initialized (in .h), then can't use {} initialization again! Use resize, to give it a size.
+    PhotogenRate.resize(params.get_num_cell());  //if vector already initialized (in .h), then can't use {} initialization again! Use resize, to give it a size.
     PhotogenRate_max = Photogen_scaling;
 
     std::ifstream GenRateFile;
@@ -24,13 +24,13 @@ Photogeneration::Photogeneration(Simulation &simul, const double Photogen_scalin
          exit(1);   // call system to stop
      }
 
-     for(int i=1;i<=simul.get_num_cell()-1;i++){
+     for(int i=1;i<=params.get_num_cell()-1;i++){
          GenRateFile >> PhotogenRate[i];
          //std::cout << "G(i) " << G[i] <<std::endl;
      }
      double maxOfGPhotogenRate = *std::max_element(PhotogenRate.begin(),PhotogenRate.end());
 
-     for(int i= 1;i<=simul.get_num_cell()-1;i++){
+     for(int i= 1;i<=params.get_num_cell()-1;i++){
          PhotogenRate[i] = PhotogenRate_max*PhotogenRate[i]/maxOfGPhotogenRate;
          //std::cout << "G(i) " << G[i] <<std::endl;
 

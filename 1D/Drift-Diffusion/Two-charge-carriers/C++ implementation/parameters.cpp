@@ -1,10 +1,8 @@
 #include "parameters.h"
-#include <string>
 
 
-Parameters::Parameters ()      //this will read from file and setup all of the Parameters parameters
+Parameters::Parameters ()
 {
-
 
 }
 
@@ -12,10 +10,10 @@ void Parameters::Initialize()
 {
     //input from file the parameters
     std::ifstream parameters;
-    parameters.open("parameters.txt");
+    parameters.open("parameters.inp");
     //check if file was opened
     if (!parameters) {
-        std::cerr << "Unable to open file parameters.txt";
+        std::cerr << "Unable to open file parameters.inp";
         exit(1);   // call system to stop
     }
 
@@ -70,6 +68,7 @@ void Parameters::Initialize()
         isPositive(w_reduce_factor,comment);
         parameters >> tol_relax_factor >> comment;
         isPositive(tol_relax_factor,comment);
+        parameters >> GenRateFileName >> comment;
         parameters.close();
         N = N_HOMO;     //scaling factor helps CV be on order of 1
 

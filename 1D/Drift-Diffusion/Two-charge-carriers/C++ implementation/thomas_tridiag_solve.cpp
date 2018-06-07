@@ -15,8 +15,6 @@ double cdiag_ratio;
 std::vector<double> x(num_elements+2);
 std::vector<double> diagonal = a;  //this is so the actual a value is unchanged, so can precalculate a before the loop...
 
-//I checked and there is no oppurtunity for more precalculation here
-
 //Forward substition
 for (int i = 2; i <= num_elements; i++) {
     cdiag_ratio = c[i-1]/diagonal[i-1];   //i-1 b/c need to use c1 and a1, and i starts at 2...

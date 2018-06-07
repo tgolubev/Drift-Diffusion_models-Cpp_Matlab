@@ -4,11 +4,15 @@
 #include<vector>
 #include "constants.h"
 #include "parameters.h"
+#include <iomanip>
+#include <fstream>
+#include <algorithm>
+#include <string>
 
 class Photogeneration
 {
 public:
-    Photogeneration(Parameters &params, double Photogen_scaling);   //constructor will get the generation rate from file
+    Photogeneration(Parameters &params, double Photogen_scaling, std::string GenRateFileName);   //constructor will get the generation rate from file
     std::vector<double> getPhotogenRate() {return PhotogenRate;}
 private:
     std::vector<double> PhotogenRate;

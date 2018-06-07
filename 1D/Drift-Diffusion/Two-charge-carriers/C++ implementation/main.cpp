@@ -1,29 +1,27 @@
-/*
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%     Solving 1D Poisson + Drift Diffusion semiconductor eqns using
-%                    Scharfetter-Gummel discretization
+/*%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%  Solving 1D Poisson + Drift Diffusion semiconductor eqns for a solar cell using
+%                      Scharfetter-Gummel discretization
 %
 %                         Written by Timofey Golubev
 %                     Version 2.0  6/7/2018 (object oriented + file input)
 %                     Version 1.0   5/26/17  (no objects)
 %
-%               NOTE: i=1 corresponds to x=0, i=nx to x=L
 %
 %     The code as is will calculate and plot a JV curve
 %     as well as carrier densities, current densities, and electric field
-%     distributions of a generic solar cell. More equations for carrier
-%     recombination can be added. Generation rate will be inputted from gen_rate.txt
-%     file (i.e. the output of an optical model can be used) or an analytic expression
+%     distributions of a generic solar cell made of an active layer and electrodes.
+%     More equations for carrier recombination can be easily added.
+%
+%     Photogeneration rate will be inputed from gen_rate.inp file
+%     (i.e. the output of an optical model can be used) or an analytic expression
 %     for photogeneration rate can be added to photogeneration.cpp. Generation rate file
-%     should contain num_cell -2 number of entries in a single column, corresponding to
+%     should contain num_cell-2 number of entries in a single column, corresponding to
 %     the the generation rate at each mesh point (except the endpoints).
 %
-%     The code can also be applied to any semiconductor device by
-%     setting photogeneration rate to 0 and adding equations for
-%     loss mechanisms.
+%     The code can also be applied to non-illuminated devices by
+%     setting photogeneration rate to 0.
 %
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-*/
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
 #include <iostream>
 #include <vector>
@@ -49,14 +47,13 @@
 
 int main()
 {
-    Parameters params;   //constuct Parameters object (this will initialize all Parameters parameters, in future will read from file)
+    Parameters params;    //params is struct storing all parameters
     params.Initialize();  //reads parameters from file
 
-    double old_error;
-    const int num_cell = params.num_cell;   //create a local num_cell so don't have to type num_cell everywhere
+    const int num_cell = params.num_cell;   //create a local num_cell so don't have to type params.num_cell everywhere
     double Vbi = params.WF_anode - params.WF_cathode +params.phi_a +params.phi_c;
-    int num_V = floor((params.Va_max-params.Va_min)/params.increment)+1;
-    params.tolerance_eq = params.tolerance_i*100;  //THIS 100 CAN BE MADE OPTIONAL PARAMETER
+    int num_V = static_cast<int>(floor((params.Va_max-params.Va_min)/params.increment))+1;  //floor returns double, explicitely cast to int
+    params.tolerance_eq = 100.*params.tolerance_i;
 
     std::ofstream JV, VaData;
     JV.open("JV.txt");  //note: file will be created inside the build directory
@@ -91,7 +88,7 @@ int main()
     Recombo recombo(params, params.k_rec_input);
     Continuity_p continuity_p(params);
     Continuity_n continuity_n(params);
-    Photogeneration photogen(params, params.Photogen_scaling);
+    Photogeneration photogen(params, params.Photogen_scaling, params.GenRateFileName);
 
     //Initial conditions
     double min_dense = std::min(continuity_n.get_n_leftBC(),  continuity_p.get_p_rightBC());
@@ -114,7 +111,7 @@ int main()
     //////////////////////MAIN LOOP////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     int iter, not_cnv_cnt, Va_cnt;
-    double error_np;
+    double error_np, old_error;
     bool not_converged;
     double Va;
 
@@ -153,8 +150,8 @@ int main()
 
             //-----------------Solve Poisson Equation------------------------------------------------------------------
 
-            poisson.set_rhs(epsilon, n, p, V_leftBC, V_rightBC); //setup RHS of Poisson eqn (bV)
-            oldV = V;  //old V is fine
+            poisson.set_rhs(epsilon, n, p, V_leftBC, V_rightBC);
+            oldV = V;
             newV = Thomas_solve(poisson.get_main_diag(), poisson.get_upper_diag(), poisson.get_lower_diag(), poisson.get_rhs());
             //add on the BC's --> b/c matrix solver just outputs the insides...
             newV[0] = V[0];
@@ -259,7 +256,7 @@ int main()
         //Write JV file
         if(Va_cnt >0){
             if(JV.is_open()) {
-                JV << Va << " " << J_total[num_cell-1] << " " << iter << "\n";  //NOTE: still some issue here, floor(num_cell/2), in the middle get different currents
+                JV << Va << " " << J_total[num_cell-1] << " " << iter << "\n";
             }
         }
     }

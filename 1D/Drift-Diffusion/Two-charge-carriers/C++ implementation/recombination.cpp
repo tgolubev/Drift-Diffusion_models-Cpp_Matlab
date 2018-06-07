@@ -2,6 +2,15 @@
 #include<iostream>
 #include "recombination.h"
 
+Recombo:: Recombo(Parameters &params, double k_rec_input)      //constructor
+{
+    k_rec = k_rec_input;
+    R_Langevin.resize(params.num_cell);
+    E_trap = params.active_VB + params.E_gap/2.0;  //trap assisted recombo is most effective when trap is located mid-gap--> take VB and add 1/2 of bandgap
+    n1 = params.N_LUMO*exp(-(params.active_CB - E_trap)/Vt);
+    p1 = params.N_HOMO*exp(-(E_trap - params.active_VB)/Vt);
+}
+
 std::vector<double> Recombo::ComputeR_Langevin(Parameters &params, const std::vector<double> &n, const std::vector<double> &p)
 {
     for(int i = 1;i<p.size();i++){

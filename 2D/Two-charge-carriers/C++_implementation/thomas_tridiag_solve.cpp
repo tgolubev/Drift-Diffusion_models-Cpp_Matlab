@@ -24,8 +24,7 @@ for (int i = 2; i <= num_elements; i++) {
 
 //Backward substitution
 x[num_elements] = rhs[num_elements]/diagonal[num_elements]; //linear eqn corresponding to last row
-for (int i = num_elements; i > 1; i--)
-    x[i-1] = (rhs[i-1] - x[i]*b[i-1])/diagonal[i-1];
+for (int i = num_elements; i >1; i--) x[i-1] = (rhs[i-1]-x[i]*b[i-1])/diagonal[i-1];
 
 return x;
 }

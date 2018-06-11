@@ -1,18 +1,18 @@
-# Commet lines
+# Comment lines
 # Here we define compiler option, libraries and the target
 FLAGS = -O2 -Wall
 
 # Here we make the executable file
 SRCS =   main.cpp bernoulli.cpp continuity_n.cpp continuity_p.cpp parameters.cpp photogeneration.cpp poisson.cpp recombination.cpp thomas_tridiag_solve.cpp
 OBJS = $(subst .cpp,.o,$(SRCS))
-all: DD
+all: 1D_DD
 
 # Whereas here we create the object file
 DD: $(OBJS) constants.h
-	mpic++ ${FLAGS} -o 1D_DD $(OBJS) # note: must use mpic++ compiler for MPI with cpp files (mpicc for .c)
+	g++ ${FLAGS} -o 1D_DD $(OBJS) 
 
 %.o: %.cpp  constants.h
-	mpic++ $(FLAGS) -c $<
+	g++ $(FLAGS) -c $<
 
 # Clean
 clean:

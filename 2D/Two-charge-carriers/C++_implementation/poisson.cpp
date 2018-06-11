@@ -13,7 +13,7 @@ void Poisson::setup_matrix(std::vector<double> &epsilon)  //Note: this is on pur
 //this is a in tridiag_solver
 void Poisson::set_main_diag(const std::vector<double> &epsilon)
 {
-    for (int i = 1; i < main_diag.size(); i++) {
+    for (int i=1; i<main_diag.size();i++){
         main_diag[i] = -2.*epsilon[i];
     }
 }
@@ -21,7 +21,7 @@ void Poisson::set_main_diag(const std::vector<double> &epsilon)
 //this is b in tridiag_solver
 void Poisson::set_upper_diag(const std::vector<double> &epsilon)
 {
-    for (int i = 1; i < upper_diag.size(); i++) {
+    for (int i = 1; i<upper_diag.size(); i++){
         upper_diag[i] = epsilon[i];
     }
 }
@@ -29,7 +29,7 @@ void Poisson::set_upper_diag(const std::vector<double> &epsilon)
 //this is c in tridiag_solver
 void Poisson::set_lower_diag(const std::vector<double> &epsilon)
 {
-    for (int i = 1; i < lower_diag.size(); i++) {
+    for (int i = 1; i<lower_diag.size(); i++){
         lower_diag[i] = epsilon[i];
     }
 }
@@ -37,7 +37,7 @@ void Poisson::set_lower_diag(const std::vector<double> &epsilon)
 //------------------------------------------------------------------------------------
 void Poisson::set_rhs(const std::vector<double> &epsilon, const std::vector<double> &n, const std::vector<double> &p, double V_leftBC, double V_rightBC)
 {
-    for (int i = 1; i <= rhs.size()-1; i++) {
+    for(int i = 1;i<=rhs.size()-1; i++){
         rhs[i] = CV*(n[i] - p[i]);
         //std::cout << "bV " << bV[i] << std::endl;
     }

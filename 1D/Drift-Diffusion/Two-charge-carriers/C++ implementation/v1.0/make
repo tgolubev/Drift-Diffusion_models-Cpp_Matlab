@@ -1,4 +1,4 @@
-# Commet lines
+# Comment lines
 # Here we define compiler option, libraries and the target
 FLAGS = -O2 -Wall
 
@@ -9,12 +9,12 @@ all: DD
 
 # Whereas here we create the object file
 DD: $(OBJS) parameters.h #need to put this explicitely b/ doesn't have an associated .cpp
-	mpic++ ${FLAGS} -o DD $(OBJS) # note: must use mpic++ compiler for MPI with cpp files (mpicc for .c)
+	g++ ${FLAGS} -o DD $(OBJS) 
 #	export OMP_NUM_THREADS=20
 #	./md
 
 %.o: %.cpp  parameters.h
-	mpic++ $(FLAGS) -c $<
+	g++ $(FLAGS) -c $<
 
 
 # Clean

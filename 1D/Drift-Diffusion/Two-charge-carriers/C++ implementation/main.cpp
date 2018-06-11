@@ -75,11 +75,12 @@ int main()
 
     //Initialize other vectors
     //Will use indicies for n and p... starting from 1 --> since is more natural--> corresponds to 1st node inside the device...
-    std::vector<double> n(num_cell), p(num_cell), oldp(num_cell), newp(num_cell), oldn(num_cell), newn(num_cell), oldV(num_cell+1), newV(num_cell+1), V(num_cell+1);
+    std::vector<double> n(num_cell), p(num_cell), oldp(num_cell), newp(num_cell), oldn(num_cell), newn(num_cell);
+    std::vector<double> oldV(num_cell+1), newV(num_cell+1), V(num_cell+1);
     std::vector<double> Un(num_cell), Up(num_cell), R_Langevin(num_cell), PhotogenRate(num_cell);  //store the results of these..
     std::vector<double> Jp(num_cell),Jn(num_cell), J_total(num_cell);
     std::vector<double> error_np_vector(num_cell);  //for storing errors between iterations
-    std::vector<double> B_n1(num_cell+1), B_n2(num_cell+1), B_p1(num_cell+1), B_p2(num_cell+1); //vectors for storing Bernoulli fnc values
+    std::vector<double> B_p1(num_cell+1), B_p2(num_cell+1); //vectors for storing Bernoulli fnc values
 
     //Initial conditions
     double min_dense = std::min(continuity_n.get_n_leftBC(),  continuity_p.get_p_rightBC());
@@ -170,8 +171,7 @@ int main()
             //--------------------------------Solve equations for n and p------------------------------------------------------------ 
 
             //setup the matrices
-            BernoulliFnc_n(V, B_n1, B_n2);  //fills B_p1 and B_p2 with the values of Bernoulli fnc
-            continuity_n.setup_eqn(B_n1, B_n2, Un);
+            continuity_n.setup_eqn(V, Un);
             oldn = n;
             newn = Thomas_solve(continuity_n.get_main_diag(), continuity_n.get_upper_diag(), continuity_n.get_lower_diag(), continuity_n.get_rhs());
 
@@ -222,7 +222,7 @@ int main()
         n[0]  = continuity_n.get_n_leftBC();
         for (int i = 1; i < num_cell; i++) {
             Jp[i] = -(q*Vt*params.N*params.mobil/params.dx) * continuity_p.get_p_mob()[i] * (p[i]*B_p2[i] - p[i-1]*B_p1[i]);
-            Jn[i] =  (q*Vt*params.N*params.mobil/params.dx) * continuity_n.get_n_mob()[i] * (n[i]*B_n1[i] - n[i-1]*B_n2[i]);
+            Jn[i] =  (q*Vt*params.N*params.mobil/params.dx) * continuity_n.get_n_mob()[i] * (n[i]*continuity_n.get_B_n1()[i] - n[i-1]*continuity_n.get_B_n2()[i]);
             J_total[i] = Jp[i] + Jn[i];
         }
 

@@ -6,8 +6,9 @@ Continuity_n::Continuity_n(Parameters &params)
    upper_diag.resize(params.num_cell-1);
    lower_diag.resize(params.num_cell-1);
    rhs.resize(params.num_cell);
+   B_n1.resize(params.num_cell+1);
+   B_n2.resize(params.num_cell+1);
    n_mob.resize(params.num_cell+1);
-   B_n1.resize(params.num_cell+1), B_n2.resize(params.num_cell+1),
    std::fill(n_mob.begin(), n_mob.end(), params.n_mob_active/params.mobil);
 
    Cn = params.dx*params.dx/(Vt*params.N*params.mobil);

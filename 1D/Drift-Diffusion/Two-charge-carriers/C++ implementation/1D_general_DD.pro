@@ -5,7 +5,6 @@ CONFIG -= qt
 
 
 SOURCES += \
-    bernoulli.cpp \
     photogeneration.cpp \
     recombination.cpp \
     thomas_tridiag_solve.cpp \
@@ -13,10 +12,10 @@ SOURCES += \
     poisson.cpp \
     continuity_n.cpp \
     continuity_p.cpp \
-    parameters.cpp
+    parameters.cpp \
+    Utilities.cpp
 
 HEADERS += \
-    bernoulli.h \
     photogeneration.h \
     recombination.h \
     thomas_tridiag_solve.h \
@@ -24,4 +23,5 @@ HEADERS += \
     continuity_n.h \
     continuity_p.h \
     constants.h \
-    parameters.h
+    parameters.h \
+    Utilities.h

@@ -30,13 +30,14 @@ Continuity_n::Continuity_n(const Parameters &params)
 }
 
 //Calculates Bernoulli fnc values, then sets the diagonals and rhs
-void Continuity_n::setup_eqn(const std::vector<double> &V, const std::vector<double> &Un)
+//use the V_matrix for setup, to be able to write equations in terms of (x,z) coordingates
+void Continuity_n::setup_eqn(const Eigen::MatrixXd &V_matrix, const Eigen::MatrixXd &Un_matrix)
 {
-    BernoulliFnc_n(V);
+    BernoulliFnc_n(V_matrix);
     set_main_diag();
     set_upper_diag();
     set_lower_diag();
-    set_rhs(Un);
+    set_rhs(Un_matrix);
 
 }
 
@@ -65,7 +66,7 @@ void Continuity_n::set_lower_diag()
 }
 
 
-void Continuity_n::set_rhs(const std::vector<double> &Un)
+void Continuity_n::set_rhs(const Eigen::MatrixXd &Un_matrix)
 {
     for (int i = 1; i < rhs.size(); i++) {
         rhs[i] = -Cn*Un[i];
@@ -76,19 +77,38 @@ void Continuity_n::set_rhs(const std::vector<double> &Un)
 }
 
 //------------------------
+//Note: are using the V matrix for Bernoulli calculations.
+//Makes it clearer to write indices in terms of (x,z) real coordinate values.
 
-void Continuity_n::BernoulliFnc_n(const std::vector<double> &V)
+void Continuity_n::Bernoulli_n_X(const Eigen::MatrixXd &V_matrix)
 {
+    Eigen::MatrixXd dV = Eigen::MatrixXd::Zero(num_cell+1,num_cell+1);
 
-    std::vector<double> dV(V.size());
+    for (int i = 1; i < num_cell+1; i++)             //Note: the indices are shifted by 1 from Matlab version (here bndry is at index 0)
+        for (int j = 1; j < num_cell+1; j++)
+            dV(i,j) =  V_matrix(i,j)-V_matrix(i-1,j);
 
-    for (int i = 1; i < V.size(); i++) {
-        dV[i] =  V[i]-V[i-1];
-    }
 
-    for (int i = 1; i < V.size(); i++) {
-        B_n1[i] = dV[i]/(exp(dV[i]) - 1.0);
-        B_n2[i] = B_n1[i]*exp(dV[i]);
+    for (int i = 1; i < num_cell+1; i++) {           //note: the indexing done a bit different than Matlab (see 1D C++ version)
+        for (int j = 1; j < num_cell+1; j++) {
+            Bn_posX(i,j) = dV(i,j)/(exp(dV(i,j)) - 1.0);
+            Bn_negX(i,j) = Bn_posX(i,j)*exp(dV(i,j));
+        }
     }
 }
 
+void Continuity_n::Bernoulli_n_Z(const Eigen::MatrixXd &V_matrix)
+{
+    Eigen::MatrixXd dV = Eigen::MatrixXd::Zero(num_cell+1,num_cell+1);
+
+    for (int i = 1; i < num_cell+1; i++)
+       for (int j = 1; j < num_cell+1; j++)
+           dV(i,j) =  V_matrix(i,j)-V_matrix(i,j-1);
+
+    for (int i = 1; i < num_cell+1; i++) {
+        for (int j = 1; j < num_cell+1; j++) {
+            Bn_posZ(i,j) = dV(i,j)/(exp(dV(i,j)) - 1.0);
+            Bn_negZ(i,j) =  Bn_posZ(i,j)*exp(dV(i,j));
+        }
+    }
+}

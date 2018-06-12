@@ -15,7 +15,14 @@ public:
     //!Sets up the matrix equation An*n = bn for continuity equation for electrons.
     //!\param V stores the voltage and is needed to calculate Bernoulli fnc.'s.
     //!\param Un stores the net generation rate, needed for the right hand side.
-    void setup_eqn(const std::vector<double> &V, const std::vector<double> &Un);
+    void setup_eqn(const Eigen::MatrixXd &V_matrix, const Eigen::MatrixXd &Un_matrix);
+
+    //setters for BC's:
+    //for left and right BC's, will use input from the n matrix to determine
+    std::vector<double> set_n_topBC();
+    std::vector<double> set_n_bottomBC();
+    std::vector<double> set_n_leftBC();
+    std::vector<double> set_n_rightBC();
 
     //getters (const keyword ensures that fnc doesn't change anything)
     std::vector<double> get_main_diag() const {return main_diag;}
@@ -24,10 +31,13 @@ public:
     std::vector<double> get_rhs() const {return rhs;}
     //std::vector<std::vector<double> > get_n_mob() const {return n_mob;}
     Eigen::MatrixXd get_n_mob() const {return n_mob;}
-    std::vector<double> get_B_n1() const {return B_n1;}
-    std::vector<double> get_B_n2() const {return B_n2;}
-    double get_n_topBC() const {return n_topBC;}
-    double get_n_bottomBC() const {return n_bottomBC;}
+    //std::vector<double> get_B_n1() const {return B_n1;}
+    //std::vector<double> get_B_n2() const {return B_2;}
+
+    std::vector<double> get_n_topBC() const {return n_topBC;}
+    std::vector<double> get_n_bottomBC() const {return n_bottomBC;}
+    std::vector<double> get_n_leftBC() const {return n_leftBC;}
+    std::vector<double> get_n_rightBC() const {return n_rightBC;}
 
 private:
     std::vector<double> main_diag;
@@ -35,18 +45,23 @@ private:
     std::vector<double> lower_diag;
     std::vector<double> rhs;
     Eigen::MatrixXd n_mob;  //!Matrix storing the position dependent electron mobility
-    //std::vector<std::vector<double> > n_mob; //!Matrix storing the position dependent electron mobility
-    std::vector<double> B_n1;  //bernoulli (+dV)
-    std::vector<double> B_n2;  //bernoulli (-dV)
+
+    //Boundary conditions
+    std::vector<double> n_leftBC, n_rightBC, n_bottomBC, n_topBC;
+
+    Eigen::MatrixXd Bn_posX;  //bernoulli (+dV_x)
+    Eigen::MatrixXd Bn_negX;  //bernoulli (-dV_x)
+    Eigen::MatrixXd Bn_posZ;  //bernoulli (+dV_z)
+    Eigen::MatrixXd Bn_negZ;  //bernoulli (-dV_z)
+
     double Cn;
-    std::vector<double> n_leftBC, n_rightBC;        //this is anode
-    double n_bottomBC, n_topBC;
     int num_cell;
 
+    //!Calculates the Bernoulli functions for dV in x direction and updates member arrays
+    void Bernoulli_n_X(const Eigen::MatrixXd &V_matrix);
 
-    //!Calculates the Bernoulli functions and updates member arrays
-    //! \param B_n1 = B(+dV) and \param B_n2 = (-dV)
-    void BernoulliFnc_n(const std::vector<double> &V);
+    //!Calculates the Bernoulli functions for dV in z direction and updates member arrays
+    void Bernoulli_n_Z(const Eigen::MatrixXd &V_matrix);
 
     void set_main_diag();
     void set_upper_diag();

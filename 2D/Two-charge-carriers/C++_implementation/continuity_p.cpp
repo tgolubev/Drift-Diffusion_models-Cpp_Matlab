@@ -30,13 +30,13 @@ Continuity_p::Continuity_p(const Parameters &params)
 }
 
 //Calculates Bernoulli fnc values, then sets the diagonals and rhs
-void Continuity_p::setup_eqn(const std::vector<double> &V, const std::vector<double> &Up)
+void Continuity_p::setup_eqn(const Eigen::MatrixXd &V_matrix, const Eigen::MatrixXd &Up_matrix)
 {
-    BernoulliFnc_p(V);
+    BernoulliFnc_p(V_matrix);
     set_main_diag();
     set_upper_diag();
     set_lower_diag();
-    set_rhs(Up);
+    set_rhs(Up_matrix);
 }
 
 //------------------------------Setup Ap diagonals----------------------------------------------------------------
@@ -64,7 +64,7 @@ void Continuity_p::set_lower_diag()
 }
 
 
-void Continuity_p::set_rhs(const std::vector<double> &Up)
+void Continuity_p::set_rhs(const Eigen::MatrixXd &Up_matrix)
 {
     for (int i = 1; i < rhs.size(); i++) {
         rhs[i] = -Cp*Up[i];
@@ -76,16 +76,34 @@ void Continuity_p::set_rhs(const std::vector<double> &Up)
 
 //---------------------------
 
-void Continuity_p::BernoulliFnc_p(const std::vector<double> &V)
+void Continuity_p::Bernoulli_p_X(const Eigen::MatrixXd &V_matrix)
 {
-    std::vector<double> dV(V.size());
+    Eigen::MatrixXd dV = Eigen::MatrixXd::Zero(num_cell+1,num_cell+1);
+
+    for (int i = 1; i < num_cell+1; i++)
+       for (int j = 1; j < num_cell+1; j++)
+           dV(i,j) =  V_matrix(i,j)-V_matrix(i-1,j);
 
     for (int i = 1; i < V.size(); i++) {
-        dV[i] =  V[i]-V[i-1];
+        for (int j = 1; j < num_cell+1; j++) {
+            Bp_posX(i,j) = dV(i,j)/(exp(dV(i,j)) - 1.0);
+            Bp_negX(i,j) = Bp_posX(i,j)*exp(dV(i,j));
+        }
     }
+}
+
+void Continuity_p::Bernoulli_p_Z(const Eigen::MatrixXd &V_matrix)
+{
+    Eigen::MatrixXd dV = Eigen::MatrixXd::Zero(num_cell+1,num_cell+1);
+
+    for (int i = 1; i < num_cell+1; i++)
+       for (int j = 1; j < num_cell+1; j++)
+           dV(i,j) =  V_matrix(i,j)-V_matrix(i,j-1);
 
     for (int i = 1; i < V.size(); i++) {
-        B_p1[i] = dV[i]/(exp(dV[i]) - 1.0);
-        B_p2[i] = B_p1[i]*exp(dV[i]);
+        for (int j = 1; j < num_cell+1; j++) {
+            Bp_posZ(i,j) = dV(i,j)/(exp(dV(i,j)) - 1.0);
+            Bp_negZ(i,j) =  Bp_posZ(i,j)*exp(dV(i,j));
+        }
     }
 }

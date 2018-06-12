@@ -15,7 +15,14 @@ public:
     //!Sets up the matrix equation Ap*p = bp for continuity equation for holes.
     //!\param V stores the voltage and is needed to calculate Bernoulli fnc.'s.
     //!\param Up stores the net generation rate, needed for the right hand side.
-    void setup_eqn(const std::vector<double> &V, const std::vector<double> & Up);
+    void setup_eqn(const Eigen::MatrixXd &V_matrix, const Eigen::MatrixXd &Up_matrix);
+
+    //setters for BC's:
+    //for left and right BC's, will use input from the n matrix to determine
+    std::vector<double> set_p_topBC();
+    std::vector<double> set_p_bottomBC();
+    std::vector<double> set_p_leftBC();
+    std::vector<double> set_p_rightBC();
 
     //getters
     std::vector<double> get_main_diag() const {return main_diag;}
@@ -24,10 +31,14 @@ public:
     std::vector<double> get_rhs() const {return rhs;}
     //std::vector<std::vector<double> > get_p_mob() const {return p_mob;}
     Eigen::MatrixXd get_p_mob() const {return p_mob;}
-    std::vector<double> get_B_p1() const {return B_p1;}
-    std::vector<double> get_B_p2() const {return B_p2;}
-    double get_p_bottomBC() const {return p_bottomBC;}
-    double get_p_topBC() const {return p_topBC;}
+
+    //std::vector<double> get_B_p1() const {return B_p1;}
+    //std::vector<double> get_B_p2() const {return B_p2;}
+
+    std::vector<double> get_p_topBC() const {return p_topBC;}
+    std::vector<double> get_p_bottomBC() const {return p_bottomBC;}
+    std::vector<double> get_p_leftBC() const {return p_leftBC;}
+    std::vector<double> get_p_rightBC() const {return p_rightBC;}
 
 private:
     std::vector<double> main_diag;
@@ -35,17 +46,24 @@ private:
     std::vector<double> lower_diag;
     std::vector<double> rhs;
     Eigen::MatrixXd p_mob;  //!Matrix storing the position dependent holeelectron mobility
-    //std::vector<std::vector<double> > p_mob; //!Matrix storing the position dependent hole mobility
-    std::vector<double> B_p1;  //bernoulli (+dV)
-    std::vector<double> B_p2;  //bernoulli (-dV)
+
+    //Boundary conditions
+    std::vector<double> p_leftBC, p_rightBC, p_bottomBC, p_topBC;
+
+    //Bernoulli functions
+    Eigen::MatrixXd Bp_posX;  //bernoulli (+dV_x)
+    Eigen::MatrixXd Bp_negX;  //bernoulli (-dV_x)
+    Eigen::MatrixXd Bp_posZ;  //bernoulli (+dV_z)
+    Eigen::MatrixXd Bp_negZ;  //bernoulli (-dV_z)
+
     double Cp;
-    std::vector<double> p_leftBC, p_rightBC;
-    double p_bottomBC, p_topBC;
     int num_cell; //so don't have to keep typing params.
 
-    //!Calculates the Bernoulli functions and updates member arrays
-    //! \param B_n1 = B(+dV) and \param B_n2 = (-dV)
-    void BernoulliFnc_p(const std::vector<double> &V);
+    //!Calculates the Bernoulli functions for dV in x direction and updates member arrays
+    void Bernoulli_p_X(const Eigen::MatrixXd &V_matrix);
+
+    //!Calculates the Bernoulli functions for dV in z direction and updates member arrays
+    void Bernoulli_p_Z(const Eigen::MatrixXd &V_matrix);
 
     void set_main_diag();
     void set_upper_diag();

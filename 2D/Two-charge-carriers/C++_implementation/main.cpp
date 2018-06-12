@@ -56,6 +56,10 @@
 #include <string>
 
 #include <Eigen/Dense>
+#include<Eigen/IterativeLinearSolvers>
+#include <Eigen/SparseCholesky>
+#include<Eigen/SparseQR>
+#include <Eigen/OrderingMethods>
 
 #include "constants.h"        //these contain physics constants only
 #include "parameters.h"
@@ -77,6 +81,7 @@ int main()
     const int num_V = static_cast<int>(floor((params.Va_max-params.Va_min)/params.increment))+1;  //floor returns double, explicitely cast to int
     params.tolerance_eq = 100.*params.tolerance_i;
     const int N = params.num_cell -1;
+    const int num_rows = N*N;  //number of rows in the solution vectors (V, n, p)
 
     std::ofstream JV;
     JV.open("JV.txt");  //note: file will be created inside the build directory
@@ -92,12 +97,23 @@ int main()
 
     //Initialize other vectors
     //Will use indicies for n and p... starting from 1 --> since is more natural--> corresponds to 1st node inside the device...
-    std::vector<double> n(num_cell), p(num_cell), oldp(num_cell), newp(num_cell), oldn(num_cell), newn(num_cell);
-    std::vector<double> oldV(num_cell+1), newV(num_cell+1), V(num_cell+1);
-    std::vector<double> Un(num_cell), Up(num_cell), R_Langevin(num_cell), PhotogenRate(num_cell);  //store the results of these..
-    std::vector<double> Jp(num_cell),Jn(num_cell), J_total(num_cell);
+    std::vector<double> n(num_rows), p(num_rows), oldp(num_rows), newp(num_rows), oldn(num_rows), newn(num_rows);
+    std::vector<double> oldV(num_rows), newV(num_rows), V(num_rows);
+    std::vector<double> Un(num_rows), Up(num_rows), R_Langevin(num_rows), PhotogenRate(num_rows);  //store the results of these..
 
-    Eigen::MatrixXd error_np_vector = MatrixXd::Ones(num_cell+1,num_cell+1);
+    //std::vector<double> Jp(num_rows),Jn(num_cell), J_total(num_cell);
+
+    Eigen::MatrixXd error_np_vector = Eigen::MatrixXd::Ones(num_cell+1,num_cell+1);
+
+    //create matrices to hold the V, n, and p values (including those at the boundaries) according to the (x,z) coordinates.
+    //Allows to write formulas in terms of coordinates.
+    //Note: these matrices are indexed from 0 (corresponds to the BC).
+    Eigen::MatrixXd V_matrix = Eigen::MatrixXd::Zero(num_cell+1,num_cell+1);
+    Eigen::MatrixXd n_matrix = Eigen::MatrixXd::Zero(num_cell+1,num_cell+1);
+    Eigen::MatrixXd p_matrix = Eigen::MatrixXd::Zero(num_cell+1,num_cell+1);
+    Eigen::MatrixXd Un_matrix = Eigen::MatrixXd::Zero(num_cell+1,num_cell+1);
+    Eigen::MatrixXd Up_matrix = Eigen::MatrixXd::Zero(num_cell+1,num_cell+1);
+
     //std::vector<std::vector<double> > error_np_vector;  //matrix for storing errors between iterations
     error_np_vector.resize(num_cell, std::vector<double>(num_cell));
 

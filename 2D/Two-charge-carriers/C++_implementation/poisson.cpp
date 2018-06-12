@@ -10,19 +10,14 @@ Poisson::Poisson(const Parameters &params)
     far_upper_diag.resize(num_elements-N+1);
     rhs.resize(num_cell);
     epsilon.resize(num_cell+1, num_cell+1);  //Eigen matrix object
-    //epsilon.resize(num_cell +1, std::vector<double>(num_cell+1));  //THIS WORKS!, I checked it using quick test on cpp.sh
+
 
     CV = params.N*params.dx*params.dx*q/(epsilon_0*Vt);
     N = params.num_cell -1;  //for convenience define this --> is the number of points in 1D inside the device
     num_elements = params.num_elements;
     num_cell = params.num_cell;
 
-    //This works! Can check on cpp.sh
-    /*
-    for (int i = 0; i < num_cell; i++) {
-        std::fill(epsilon[i].begin(), epsilon[i].end(), params.eps_active);
-    }
-    */
+
 
 } //constructor)
 
@@ -49,7 +44,6 @@ void Poisson::set_far_lower_diag(){
         far_lower_diag[index] = -(epsilon(i,j) + epsilon(i+1,j))/2.;
     }
 }
-
 
 
 //lower diag

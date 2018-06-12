@@ -19,6 +19,7 @@ for i = 2:num_cell+1
 end
 
 
+
 for i = 1:num_cell
     for j = 1:num_cell
         if(abs(dV_X(i+1,j+1)) < 10^-13)  %to prevent blowup due  to 0 denominator

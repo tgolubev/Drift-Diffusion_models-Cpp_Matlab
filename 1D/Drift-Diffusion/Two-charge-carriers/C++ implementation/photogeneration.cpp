@@ -3,18 +3,15 @@
 
 #include "photogeneration.h"
 
-//Generation rate file should contain num_cell -2 number of entries in a single column, corresponding to
-//the the generation rate at each mesh point (except the endpoints).
-
 //constructor definition
-Photogeneration::Photogeneration(Parameters &params, double Photogen_scaling, std::string GenRateFileName){  //requires input of the scaling factor
+Photogeneration::Photogeneration(const Parameters &params, double photogen_scaling, const std::string gen_rate_file_name){
 
-    PhotogenRate.resize(params.num_cell);  //if vector already initialized (in .h), then can't use {} initialization again! Use resize, to give it a size.
-    PhotogenRate_max = Photogen_scaling;
+    PhotogenRate.resize(params.num_cell);
+    PhotogenRate_max = photogen_scaling;
 
     std::ifstream GenRateFile;
 
-     GenRateFile.open(GenRateFileName);
+     GenRateFile.open(gen_rate_file_name);
      //check if file was opened
      if (!GenRateFile) {
          std::cerr << "Unable to open file gen_rate.txt";

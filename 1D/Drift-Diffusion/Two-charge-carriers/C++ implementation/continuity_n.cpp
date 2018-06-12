@@ -1,6 +1,6 @@
 #include "continuity_n.h"
 
-Continuity_n::Continuity_n(Parameters &params)
+Continuity_n::Continuity_n(const Parameters &params)
 {
    main_diag.resize(params.num_cell);
    upper_diag.resize(params.num_cell-1);
@@ -17,7 +17,7 @@ Continuity_n::Continuity_n(Parameters &params)
 }
 
 //Calculates Bernoulli fnc values, then sets the diagonals and rhs
-void Continuity_n::setup_eqn(std::vector<double> &V, std::vector<double> &Un)
+void Continuity_n::setup_eqn(const std::vector<double> &V, const std::vector<double> &Un)
 {
     BernoulliFnc_n(V);
     set_main_diag();
@@ -52,7 +52,7 @@ void Continuity_n::set_lower_diag()
 }
 
 
-void Continuity_n::set_rhs(std::vector<double> &Un)
+void Continuity_n::set_rhs(const std::vector<double> &Un)
 {
     for (int i = 1; i < rhs.size(); i++) {
         rhs[i] = -Cn*Un[i];

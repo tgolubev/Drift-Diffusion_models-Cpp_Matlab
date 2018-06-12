@@ -5,7 +5,7 @@ Utilities::Utilities()
 {
 }
 
-std::vector<double> Utilities::linear_mix(Parameters &params, std::vector<double> &new_values, std::vector<double> &old_values)
+std::vector<double> Utilities::linear_mix(const Parameters &params, const std::vector<double> &new_values,const std::vector<double> &old_values)
 {
     static std::vector<double> result(params.num_cell+1);  //static so only allocate at 1st fnc call
 
@@ -17,7 +17,7 @@ std::vector<double> Utilities::linear_mix(Parameters &params, std::vector<double
 }
 
 
-void Utilities::write_details(Parameters &params, double Va, std::vector<double> &V, std::vector<double> &p,  std::vector<double> &n, std::vector<double> &J_total, std::vector<double>  &Un, std::vector<double> &PhotogenRate, std::vector<double> &R_Langevin)
+void Utilities::write_details(const Parameters &params, double Va, const std::vector<double> &V, const std::vector<double> &p,  const std::vector<double> &n, const std::vector<double> &J_total, const std::vector<double>  &Un, const std::vector<double> &PhotogenRate, const std::vector<double> &R_Langevin)
 {
         static std::ofstream VaData;
         //Write charge densities, recombination rates, etc
@@ -39,7 +39,7 @@ void Utilities::write_details(Parameters &params, double Va, std::vector<double>
         VaData.close();
 }
 
-void Utilities::write_JV(Parameters &params, std::ofstream &JV, double iter, double Va, std::vector<double> &J_total)
+void Utilities::write_JV(const Parameters &params, std::ofstream &JV, double iter, double Va, const std::vector<double> &J_total)
 {
     if (JV.is_open())
         JV << Va << " " << J_total[params.num_cell-1] << " " << iter << "\n";

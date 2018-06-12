@@ -2,7 +2,7 @@ TEMPLATE = app
 CONFIG += console c++11
 CONFIG -= app_bundle
 CONFIG -= qt
-
+#QMAKE_CXXFLAGS_RELEASE += -Ox  //Ox is "full optimization" for Msvc, seems no difference in speedfrom the default -O2
 
 SOURCES += \
     photogeneration.cpp \

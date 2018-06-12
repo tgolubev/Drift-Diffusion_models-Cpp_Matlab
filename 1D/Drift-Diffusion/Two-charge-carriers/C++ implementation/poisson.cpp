@@ -1,7 +1,7 @@
 #include "poisson.h"
 #include <iostream>
 
-Poisson::Poisson(Parameters &params)
+Poisson::Poisson(const Parameters &params)
 {
     main_diag.resize(params.num_cell);
     upper_diag.resize(params.num_cell-1);

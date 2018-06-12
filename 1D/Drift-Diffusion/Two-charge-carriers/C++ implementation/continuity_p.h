@@ -8,8 +8,12 @@
 class Continuity_p
 {
 public:   
-    Continuity_p(Parameters &params);
-    void setup_eqn(std::vector<double> &V, std::vector<double> & Up);
+    Continuity_p(const Parameters &params);
+
+    //!Sets up the matrix equation Ap*p = bp for continuity equation for holes.
+    //!\param V stores the voltage and is needed to calculate Bernoulli fnc.'s.
+    //!\param Up stores the net generation rate, needed for the right hand side.
+    void setup_eqn(const std::vector<double> &V, const std::vector<double> & Up);
 
     //getters
     std::vector<double> get_main_diag() const {return main_diag;}
@@ -34,11 +38,14 @@ private:
     double p_leftBC;
     double p_rightBC;
 
+    //!Calculates the Bernoulli functions and updates member arrays
+    //! \param B_n1 = B(+dV) and \param B_n2 = (-dV)
     void BernoulliFnc_p(const std::vector<double> &V);
+
     void set_main_diag();
     void set_upper_diag();
     void set_lower_diag();
-    void set_rhs(std::vector<double> &Up);
+    void set_rhs(const std::vector<double> &Up);
 };
 
 #endif // CONTINUITY_P_H

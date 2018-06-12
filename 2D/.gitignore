@@ -30,3 +30,13 @@
 
 #data output
 *.txt
+
+#QT builds
+*.stash
+*.pdb
+*.Debug
+*.Release
+Makefile
+*.ilk
+*.pro
+*.user

@@ -1,46 +1,153 @@
 #include "poisson.h"
 #include <iostream>
 
-void Poisson::setup_matrix(std::vector<double> &epsilon)  //Note: this is on purpose different than the setup_eqn used for Continuity eqn's, b/c I need to setup matrix only once
+Poisson::Poisson(const Parameters &params)
 {
-    set_main_diag(epsilon);
-    set_lower_diag(epsilon);
-    set_upper_diag(epsilon);
+    main_diag.resize(num_elements+1);
+    upper_diag.resize(num_elements);
+    lower_diag.resize(num_elements);
+    far_lower_diag.resize(num_elements-N+1);
+    far_upper_diag.resize(num_elements-N+1);
+    rhs.resize(num_cell);
+    epsilon.resize(num_cell+1, num_cell+1);  //Eigen matrix object
+    //epsilon.resize(num_cell +1, std::vector<double>(num_cell+1));  //THIS WORKS!, I checked it using quick test on cpp.sh
+
+    CV = params.N*params.dx*params.dx*q/(epsilon_0*Vt);
+    N = params.num_cell -1;  //for convenience define this --> is the number of points in 1D inside the device
+    num_elements = params.num_elements;
+    num_cell = params.num_cell;
+
+    //This works! Can check on cpp.sh
+    /*
+    for (int i = 0; i < num_cell; i++) {
+        std::fill(epsilon[i].begin(), epsilon[i].end(), params.eps_active);
+    }
+    */
+
+} //constructor)
+
+
+void Poisson::setup_matrix()  //Note: this is on purpose different than the setup_eqn used for Continuity eqn's, b/c I need to setup matrix only once
+{
+    set_main_diag();
+    set_lower_diag();
+    set_upper_diag();
+    set_far_lower_diag();
+    set_far_upper_diag();
 }
 
 
 //---------------Setup AV diagonals (Poisson solve)---------------------------------------------------------------
-//this is a in tridiag_solver
-void Poisson::set_main_diag(const std::vector<double> &epsilon)
-{
-    for (int i=1; i<main_diag.size();i++){
-        main_diag[i] = -2.*epsilon[i];
+
+//far lower diagonal
+void Poisson::set_far_lower_diag(){
+    for(int index = 1; index<= N*(N-1); index++){
+        int i = index % N;
+        if(i==0) i=N;
+        int j = 1 + static_cast<int>(floor((index-1)/N));
+
+        far_lower_diag[index] = -(epsilon(i,j) + epsilon(i+1,j))/2.;
     }
 }
 
-//this is b in tridiag_solver
-void Poisson::set_upper_diag(const std::vector<double> &epsilon)
-{
-    for (int i = 1; i<upper_diag.size(); i++){
-        upper_diag[i] = epsilon[i];
+
+
+//lower diag
+void Poisson::set_lower_diag(){
+    //int num_elements = lower_diag.size() -1;
+
+    for (int index = 1; index<=num_elements-1;index++){  //      %this is the lower diagonal (below main diagonal) (1st element corresponds to 2nd row)
+        int i = index % N;        // %this is x index of V which element corresponds to (note if this = 0, means these are the elements which are 0);
+        int j = 1 + static_cast<int>(floor((index-1)/N));
+
+        if(index % N == 0)
+            lower_diag[index] = 0; //  %these are the elements at subblock corners
+        else
+            lower_diag[index] = -(epsilon(i,j) + epsilon(i,j+1))/2.;
+    }
+
+}
+
+
+//main diagonal
+void Poisson::set_main_diag(){
+    //int num_elements = main_diag.size() - 1;
+
+    for (int index =  1; index<=num_elements;index++){//      %main diagonal
+        int i = index % N;
+        if(i ==0)        //        %the multiples of N correspond to last index
+            i = N;
+        int j = 1 + static_cast<int>(floor((index-1)/N));
+
+        main_diag[index] = (epsilon(i+1,j) + epsilon(i+1,j+1))/2. + (epsilon(i,j) + epsilon(i,j+1))/2. + (epsilon(i,j+1) + epsilon(i+1,j+1))/2. + (epsilon(i,j) + epsilon(i+1,j))/2.;
     }
 }
 
-//this is c in tridiag_solver
-void Poisson::set_lower_diag(const std::vector<double> &epsilon)
-{
-    for (int i = 1; i<lower_diag.size(); i++){
-        lower_diag[i] = epsilon[i];
+//upper diagonal
+void Poisson::set_upper_diag(){
+    //int num_elements = upper_diag.size() -1;  //-1 since vectors fill from 0, but I'm indexing from 1
+    //NOTE: num_elements here, is actually # of elements in the off-diagonal
+
+    for (int index = 1; index <=num_elements-1;index++) {  //      %main uppper diagonal, matlab fills this from the bottom (so i = 2 corresponds to 1st row in matrix)
+        int i = index % N;
+        int j = 1 + static_cast<int>(floor((index-1)/N));
+
+        if(index  % N ==0)
+            upper_diag[index] = 0;
+        else
+            upper_diag[index] =  -(epsilon(i+1,j) + epsilon(i+1,j+1))/2.;
+   }
+}
+
+
+//far upper diagonal
+void Poisson::set_far_upper_diag(){
+
+    for (int index = 1; index <= num_elements-N; index++) { //      %far upper diagonal, matlab fills from bottom, so this starts at 1+N (since 1st element is in the 2nd subblock of matrix)
+        int i = index % N;
+        if(i ==0)      //          %the multiples of N correspond to last index
+            i = N;
+        int j = 1 + static_cast<int>(floor((index-N)/N));
+
+         far_upper_diag[index] = -(epsilon(i,j+1) + epsilon(i+1,j+1))/2.;         //    %1st element corresponds to 1st row.   this has N^2 -N elements
     }
 }
 
-//------------------------------------------------------------------------------------
-void Poisson::set_rhs(const std::vector<double> &epsilon, const std::vector<double> &n, const std::vector<double> &p, double V_leftBC, double V_rightBC)
+void Poisson::set_rhs(const std::vector<double> &n, const std::vector<double> &p, std::vector<double> &V_leftBC, std::vector<double> &V_rightBC, double V_bottomBC, double V_topBC)
 {
-    for(int i = 1;i<=rhs.size()-1; i++){
-        rhs[i] = CV*(n[i] - p[i]);
-        //std::cout << "bV " << bV[i] << std::endl;
-    }
-    rhs[1] -= epsilon[0]*V_leftBC;
-    rhs[rhs.size()-1] -= epsilon[rhs.size()]*V_rightBC;
-}
+            //setup rhs of Poisson eqn.
+            int index2 = 0;
+            for(int j = 1;j<=N;j++){
+                if(j==1){
+                    for(int i = 1;i<=N;i++){
+                        index2++;                //THIS COULD BE MODIFIES TO a switch ,case statement--> might be cleaner
+                        if(i==1){
+                            rhs[index2] = netcharge(i,j) + epsilon(i,j)*(V_leftBC[1] + V_bottomBC);
+                        }else if(i == N)
+                            rhs[index2] = netcharge(i,j) + epsilon(i,j)*(V_rightBC[1] + V_bottomBC);
+                        else
+                            rhs[index2] = netcharge(i,j) + epsilon(i,j)*V_bottomBC;
+                    }
+                }else if(j==N){
+                    for(int i = 1; i<=N;i++){
+                        index2++;
+                        if(i==1)
+                            rhs[index2] = netcharge(i,j) + epsilon(i,j)*(V_leftBC[N] + V_topBC);
+                        else if(i == N)
+                            rhs[index2] = netcharge(i,j) + epsilon(i,j)*(V_rightBC[N] + V_topBC);
+                        else
+                            rhs[index2] = netcharge(i,j) + epsilon(i,j)*V_topBC;
+                    }
+                }else{
+                    for(int i = 1;i<=N;i++){
+                        index2++;
+                        if(i==1)
+                            rhs[index2] = netcharge(i,j) + epsilon(i,j)*V_leftBC[j];
+                        else if(i == N)
+                            rhs[index2] = netcharge(i,j) + epsilon(i,j)*V_rightBC[j];
+                        else
+                            rhs[index2] = netcharge(i,j);
+                    }
+                }
+            }
+        }

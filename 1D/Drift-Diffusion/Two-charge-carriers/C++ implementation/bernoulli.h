@@ -1,1 +1,0 @@
-#define BERNOULLI_H

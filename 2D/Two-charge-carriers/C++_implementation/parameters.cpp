@@ -1,11 +1,6 @@
 #include "parameters.h"
 
 
-Parameters::Parameters ()
-{
-
-}
-
 void Parameters::Initialize()
 {
     //input from file the parameters
@@ -50,8 +45,8 @@ void Parameters::Initialize()
         isPositive(WF_anode ,comment);
         parameters >> WF_cathode >> comment;
         isPositive(WF_cathode,comment);
-        parameters >> k_rec_input >> comment;
-        isPositive(k_rec_input,comment);
+        parameters >> k_rec >> comment;
+        isPositive(k_rec,comment);
         parameters >> dx >> comment;
         isPositive(dx ,comment);
         parameters >> Va_min >> comment;
@@ -70,7 +65,7 @@ void Parameters::Initialize()
         isPositive(tol_relax_factor,comment);
         parameters >> GenRateFileName >> comment;
         parameters.close();
-        N = N_HOMO;     //scaling factor helps CV be on order of 1
+        N_dos = N_HOMO;     //scaling factor helps CV be on order of 1
 
     }
     catch(std::exception &e){
@@ -78,10 +73,11 @@ void Parameters::Initialize()
         exit(1);
     }
 
+    num_elements = (num_cell-1)*(num_cell-1);
 
 }
 
-void Parameters::isPositive(double input, std::string comment)
+void Parameters::isPositive(double input, const std::string &comment)
 {
     if(input <=0){
         std::cerr << "error: Non-positive input for " << comment << std::endl;
@@ -90,7 +86,7 @@ void Parameters::isPositive(double input, std::string comment)
     }
 }
 
-void Parameters::isPositive(int input, std::string comment)
+void Parameters::isPositive(int input, const std::string &comment)
 {
     if(input <=0){
         std::cerr << "error: Non-positive input for " << comment << std::endl;
@@ -99,7 +95,7 @@ void Parameters::isPositive(int input, std::string comment)
     }
 }
 
-void Parameters::isNegative(double input, std::string comment)
+void Parameters::isNegative(double input, const std::string &comment)
 {
     if(input >=0){
         std::cerr << "error: Non-negative input for " << comment << std::endl;
@@ -108,7 +104,7 @@ void Parameters::isNegative(double input, std::string comment)
     }
 }
 
-void Parameters::isNegative(int input, std::string comment)
+void Parameters::isNegative(int input, const std::string &comment)
 {
     if(input >=0){
         std::cerr << "error: Non-negative input for " << comment << std::endl;

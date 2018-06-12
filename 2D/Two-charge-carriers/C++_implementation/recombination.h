@@ -5,19 +5,21 @@
 #include "constants.h"
 #include "parameters.h"
 
-
 class Recombo{
 public:
-    Recombo(Parameters &params, double k_rec_input);  //constructor
+    //!Constructor sets up the recombination member parameters using the input from \param params
+    Recombo(const Parameters &params);
 
-    std::vector<double> ComputeR_Langevin(Parameters &params, const std::vector<double> &n, const std::vector<double> &p);
-    //void set_k_rec(double k_rec_input){ k_rec = k_rec_input;}
+    //!Computes bimolecular Langevin recombination rate.
+    //! This depends on the electron \param n and hole \param p density.
+    std::vector<double> ComputeR_Langevin(const Parameters &params, const std::vector<double> &n, const std::vector<double> &p);
+
 private:
-    double k_rec;
-    double E_trap;
+    double k_rec; //!bimolecular recombination coefficient
+    double E_trap; //!Trap level energy
     double n1;
     double p1;
-    std::vector<double> R_Langevin;
+    std::vector<double> R_Langevin;  //!store the Langevin recombination rate
 };
 
 

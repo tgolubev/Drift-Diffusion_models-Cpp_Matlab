@@ -19,10 +19,10 @@ public:
 
     //setters for BC's:
     //for left and right BC's, will use input from the n matrix to determine
-    std::vector<double> set_n_topBC();
-    std::vector<double> set_n_bottomBC();
-    std::vector<double> set_n_leftBC();
-    std::vector<double> set_n_rightBC();
+    void set_n_topBC();
+    void set_n_bottomBC();
+    void set_n_leftBC(const std::vector<double> &n);
+    void set_n_rightBC(const std::vector<double> &n);
 
     //getters (const keyword ensures that fnc doesn't change anything)
     std::vector<double> get_main_diag() const {return main_diag;}

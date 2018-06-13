@@ -18,6 +18,8 @@ std::vector<double> Recombo::ComputeR_Langevin(const Parameters &params, const s
         if (R_Langevin[i] < 0.0)  R_Langevin[i] = 0.0;  //negative recombo is unphysical
     }
 
+    //for now just use n and p vectors....
+
     return R_Langevin;
 }
 

@@ -17,6 +17,7 @@ Continuity_p::Continuity_p(const Parameters &params)
 
     Cp = params.dx*params.dx/(Vt*params.N_dos*params.mobil);  //can't use static, b/c dx wasn't defined as const, so at each initialization of Continuity_p object, new const will be made.
 
+    //these BC's for now stay constant throughout simulation, so fill them once, upon Continuity_n object construction
     for (int j =  0; j <= N; j++) {
         p_bottomBC[j] = params.N_HOMO*exp(-params.phi_a/Vt)/params.N_dos;
         p_topBC[j] = params.N_HOMO*exp(-(params.E_gap-params.phi_c)/Vt)/params.N_dos;
@@ -26,14 +27,35 @@ Continuity_p::Continuity_p(const Parameters &params)
     N = params.num_cell - 1;
 }
 
+//------------------------------------------------------------------
+//Set BC's
+void Continuity_p::set_p_leftBC(const std::vector<double> &p)
+{
+    for (int j = 1; j <= N; j++) {
+        p_leftBC[j] = p[(j-1)*N + 1];
+    }
+}
+
+void Continuity_p::set_p_rightBC(const std::vector<double> &p)
+{
+    for (int j = 1; j <= N; j++) {
+         p_rightBC[j]= p[j*N];
+    }
+}
+
+
+
+
 //Calculates Bernoulli fnc values, then sets the diagonals and rhs
 void Continuity_p::setup_eqn(const Eigen::MatrixXd &V_matrix, const Eigen::MatrixXd &Up_matrix)
 {
     Bernoulli_p_X(V_matrix);
     Bernoulli_p_Z(V_matrix);
+    set_far_lower_diag();
+    set_lower_diag();
     set_main_diag();
     set_upper_diag();
-    set_lower_diag();
+    set_far_upper_diag();
     set_rhs(Up_matrix);
 }
 
@@ -47,7 +69,7 @@ void Continuity_p::set_far_lower_diag()
         if (i ==0)                //the multiples of N correspond to last index
             i = N;
 
-        int j = 1 + floor((index-1)/N);    //this is the y index of V which element corresponds to. 1+ floor(index/4)determines which subblock this corresponds to and thus determines j, since the j's for each subblock are all the same.
+        int j = 1 + static_cast<int>(floor((index-1)/N));    //this is the y index of V which element corresponds to. 1+ floor(index/4)determines which subblock this corresponds to and thus determines j, since the j's for each subblock are all the same.
 
         far_lower_diag[index] = -((p_mob(i,j) + p_mob(i+1, j))/2.)*Bp_posZ(i,j);
     }
@@ -59,7 +81,7 @@ void Continuity_p::set_lower_diag()
 {
     for (int index = 1; index <= num_elements-1; index++) {
         int i = index % N;
-        int j = 1 + floor((index-1)/N);
+        int j = 1 + static_cast<int>(floor((index-1)/N));
 
         if (index % N == 0)
             lower_diag[index] = 0;      //probably don't need explicitely fill here, since auto intialized to 0
@@ -77,7 +99,7 @@ void Continuity_p::set_main_diag()
         if (i == 0)
             i = N;
 
-        int j = 1 + floor((index-1)/N);
+        int j = 1 + static_cast<int>(floor((index-1)/N));
 
         main_diag[index] = ((p_mob(i,j) + p_mob(i,j+1))/2.)*Bp_negX(i,j) + ((p_mob(i+1,j) + p_mob(i+1,j+1))/2.)*Bp_posX(i+1,j) + ((p_mob(i,j) + p_mob(i+1,j))/2.)*Bp_negZ(i,j) + ((p_mob(i,j+1) + p_mob(i+1,j+1))/2.)*Bp_posZ(i,j+1);
     }
@@ -88,7 +110,7 @@ void Continuity_p::set_upper_diag()
 {
     for (int index = 1; index <= num_elements-1; index++) {
         int i = index % N;
-        int j = 1 + floor((index-1)/N);
+        int j = 1 + static_cast<int>(floor((index-1)/N));
 
         if ((index-1 % N) == 0)
             upper_diag[index] = 0;
@@ -106,7 +128,7 @@ void Continuity_p::set_far_upper_diag()
         if(i == 0)
             i = N;
 
-        int j = 1 + floor((index-N)/N);
+        int j = 1 + static_cast<int>(floor((index-N)/N));
 
         far_upper_diag[index] = -((p_mob(i,j+1) + p_mob(i+1,j+1))/2.)*Bp_negZ(i,j+1);
     }

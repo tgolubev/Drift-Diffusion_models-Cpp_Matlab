@@ -1,7 +1,7 @@
 #include "poisson.h"
 #include <iostream>
 
-Poisson::Poisson(const Parameters &params)
+Poisson::Poisson(const Parameters &params, const Eigen::MatrixXd &netcharge)
 {
     main_diag.resize(num_elements+1);
     upper_diag.resize(num_elements);
@@ -10,19 +10,48 @@ Poisson::Poisson(const Parameters &params)
     far_upper_diag.resize(num_elements-N+1);
     rhs.resize(num_cell);
 
-    epsilon.resize(num_cell+1, num_cell+1);  //Eigen matrix object
+    V_leftBC.resize(num_cell+1);
+    V_rightBC.resize(num_cell+1);
+    V_bottomBC.resize(num_cell+1);
+    V_topBC.resize(num_cell+1);
 
+    epsilon.resize(num_cell+1, num_cell+1);  //Eigen matrix object
 
     CV = params.N_dos*params.dx*params.dx*q/(epsilon_0*Vt);
     N = params.num_cell -1;  //for convenience define this --> is the number of points in 1D inside the device
     num_elements = params.num_elements;
     num_cell = params.num_cell;
 
-
-    //FILL THE top and bottom BC's here
-
-
 } //constructor)
+
+//-------------------------------------------------------
+//Set BC's functions
+
+
+void Poisson::set_V_topBC(const Parameters &params, double Va)
+{
+    for (int i = 0; i <= num_cell; i++)
+        V_topBC[i] = -((params.Vbi-Va)/(2*Vt) - params.phi_a/Vt);
+}
+
+void Poisson::set_V_bottomBC(const Parameters &params, double Va)
+{
+    for (int i = 0; i <= num_cell; i++)
+        V_bottomBC[i] = (params.Vbi-Va)/(2*Vt) - params.phi_c/Vt;
+}
+
+void Poisson::set_V_leftBC(const std::vector<double> &V)
+{
+    for(int i = 1;i<=N;i++)
+        V_leftBC[i] = V[(i-1)*N + 1];
+
+}
+
+void Poisson::set_V_rightBC(const std::vector<double> &V)
+{
+    for(int i = 1;i<=N;i++)
+        V_rightBC[i] = V[i*N];
+}
 
 
 void Poisson::setup_matrix()  //Note: this is on purpose different than the setup_eqn used for Continuity eqn's, b/c I need to setup matrix only once
@@ -110,41 +139,41 @@ void Poisson::set_far_upper_diag(){
     }
 }
 
-void Poisson::set_rhs(const std::vector<double> &n, const std::vector<double> &p, std::vector<double> &V_leftBC, std::vector<double> &V_rightBC, std::vector<double> &V_bottomBC, std::vector<double> &V_topBC)
+void Poisson::set_rhs(const Eigen::MatrixXd &netcharge)
 {
-            //setup rhs of Poisson eqn.
-            int index2 = 0;
-            for(int j = 1;j<=N;j++){
-                if(j==1){
-                    for(int i = 1;i<=N;i++){
-                        index2++;                //THIS COULD BE MODIFIES TO a switch ,case statement--> might be cleaner
-                        if(i==1){
-                            rhs[index2] = netcharge(i,j) + epsilon(i,j)*(V_leftBC[1] + V_bottomBC[i]);
-                        }else if(i == N)
-                            rhs[index2] = netcharge(i,j) + epsilon(i,j)*(V_rightBC[1] + V_bottomBC[i]);
-                        else
-                            rhs[index2] = netcharge(i,j) + epsilon(i,j)*V_bottomBC[i];
-                    }
-                }else if(j==N){
-                    for(int i = 1; i<=N;i++){
-                        index2++;
-                        if(i==1)
-                            rhs[index2] = netcharge(i,j) + epsilon(i,j)*(V_leftBC[N] + V_topBC[i]);
-                        else if(i == N)
-                            rhs[index2] = netcharge(i,j) + epsilon(i,j)*(V_rightBC[N] + V_topBC[i]);
-                        else
-                            rhs[index2] = netcharge(i,j) + epsilon(i,j)*V_topBC[i];
-                    }
-                }else{
-                    for(int i = 1;i<=N;i++){
-                        index2++;
-                        if(i==1)
-                            rhs[index2] = netcharge(i,j) + epsilon(i,j)*V_leftBC[j];
-                        else if(i == N)
-                            rhs[index2] = netcharge(i,j) + epsilon(i,j)*V_rightBC[j];
-                        else
-                            rhs[index2] = netcharge(i,j);
-                    }
-                }
+    //setup rhs of Poisson eqn.
+    int index2 = 0;
+    for(int j = 1;j<=N;j++){
+        if(j==1){
+            for(int i = 1;i<=N;i++){
+                index2++;                //THIS COULD BE MODIFIES TO a switch ,case statement--> might be cleaner
+                if(i==1){
+                    rhs[index2] = netcharge(i,j) + epsilon(i,j)*(V_leftBC[1] + V_bottomBC[i]);
+                }else if(i == N)
+                    rhs[index2] = netcharge(i,j) + epsilon(i,j)*(V_rightBC[1] + V_bottomBC[i]);
+                else
+                    rhs[index2] = netcharge(i,j) + epsilon(i,j)*V_bottomBC[i];
+            }
+        }else if(j==N){
+            for(int i = 1; i<=N;i++){
+                index2++;
+                if(i==1)
+                    rhs[index2] = netcharge(i,j) + epsilon(i,j)*(V_leftBC[N] + V_topBC[i]);
+                else if(i == N)
+                    rhs[index2] = netcharge(i,j) + epsilon(i,j)*(V_rightBC[N] + V_topBC[i]);
+                else
+                    rhs[index2] = netcharge(i,j) + epsilon(i,j)*V_topBC[i];
+            }
+        }else{
+            for(int i = 1;i<=N;i++){
+                index2++;
+                if(i==1)
+                    rhs[index2] = netcharge(i,j) + epsilon(i,j)*V_leftBC[j];
+                else if(i == N)
+                    rhs[index2] = netcharge(i,j) + epsilon(i,j)*V_rightBC[j];
+                else
+                    rhs[index2] = netcharge(i,j);
             }
         }
+    }
+}

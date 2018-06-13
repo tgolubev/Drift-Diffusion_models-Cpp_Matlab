@@ -9,6 +9,8 @@
 #include <algorithm>
 #include <string>
 
+#include <Eigen/Dense>
+
 class Photogeneration
 {
 public:
@@ -18,9 +20,9 @@ public:
     //! \param photogen_scaling is the scaling factor obtained from fit to get the correct short-circuit current.
     Photogeneration(const Parameters &params, double photogen_scaling, const std::string gen_rate_file_name);
 
-    std::vector<double> getPhotogenRate() {return PhotogenRate;}
+    Eigen::MatrixXd getPhotogenRate() {return PhotogenRate;}
 private:
-    std::vector<double> PhotogenRate;
+    Eigen::MatrixXd PhotogenRate;
     double PhotogenRate_max;
 };
 

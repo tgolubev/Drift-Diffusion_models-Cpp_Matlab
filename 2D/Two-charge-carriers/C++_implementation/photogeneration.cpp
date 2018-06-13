@@ -6,8 +6,10 @@
 //constructor definition
 Photogeneration::Photogeneration(const Parameters &params, double photogen_scaling, const std::string gen_rate_file_name){
 
-    PhotogenRate.resize(params.num_cell);
+    PhotogenRate.resize(params.num_cell, params.num_cell);  //need 0 through N indices, and N = num_cell-1
     PhotogenRate_max = photogen_scaling;
+
+    std::vector<double> Photogen_vector; //temporary vector, to input gen rate from file
 
     std::ifstream GenRateFile;
 
@@ -19,18 +21,25 @@ Photogeneration::Photogeneration(const Parameters &params, double photogen_scali
      }
 
      for (int i = 1; i <= params.num_cell-1; i++) {
-         GenRateFile >> PhotogenRate[i];
-         //std::cout << "G(i) " << G[i] <<std::endl;
+         GenRateFile >> Photogen_vector[i];
      }
-     double maxOfGPhotogenRate = *std::max_element(PhotogenRate.begin(),PhotogenRate.end());
+
+     //----normalize the photogen rate--------------------------
+
+     double maxOfGPhotogenRate = *std::max_element(Photogen_vector.begin(),Photogen_vector.end());
 
      for (int i= 1; i <= params.num_cell-1; i++) {
-         PhotogenRate[i] = PhotogenRate_max*PhotogenRate[i]/maxOfGPhotogenRate;
+         Photogen_vector[i] = PhotogenRate_max*Photogen_vector[i]/maxOfGPhotogenRate;
          //std::cout << "G(i) " << G[i] <<std::endl;
-
-         GenRateFile.close();
      }
 
+     //-------------------------------------
+     //fill PhotogenRate matrix
+     for (int i = 1; i <= params.num_cell - 1; i++)
+         for (int j = 1; j <= params.num_cell - 1; j++)
+             PhotogenRate(i,j) = Photogen_vector[i];
+
+     GenRateFile.close();
 
      //Using constant generation rate
      //std::fill(G.begin(), G.end(), G_max);

@@ -77,7 +77,7 @@ int main()
     params.Initialize();  //reads parameters from file
 
     const int num_cell = params.num_cell;   //create a local num_cell so don't have to type params.num_cell everywhere
-    const double Vbi = params.WF_anode - params.WF_cathode +params.phi_a +params.phi_c;
+
     const int num_V = static_cast<int>(floor((params.Va_max-params.Va_min)/params.increment))+1;  //floor returns double, explicitely cast to int
     params.tolerance_eq = 100.*params.tolerance_i;
     const int N = params.num_cell -1;
@@ -87,75 +87,71 @@ int main()
     JV.open("JV.txt");  //note: file will be created inside the build directory
 
     //-------------------------------------------------------------------------------------------------------
-    //Construct objects
-    Poisson poisson(params);
-    Recombo recombo(params);
-    Continuity_p continuity_p(params);
-    Continuity_n continuity_n(params);
-    Photogeneration photogen(params, params.Photogen_scaling, params.GenRateFileName);
-    Utilities utils;
-
     //Initialize other vectors
     //Will use indicies for n and p... starting from 1 --> since is more natural--> corresponds to 1st node inside the device...
-    std::vector<double> n(num_rows), p(num_rows), oldp(num_rows), newp(num_rows), oldn(num_rows), newn(num_rows);
-    std::vector<double> oldV(num_rows), newV(num_rows), V(num_rows);
-    std::vector<double> Un(num_rows), Up(num_rows), R_Langevin(num_rows), PhotogenRate(num_rows);  //store the results of these..
+    //USE SIZE num_rows + 1 b/c don't want to use the 0th index. Mathematically convenient to index the soln vectors from 1 to num_rows
+    //NOTE: ALL THESE INCLUDE THE INTERIOR ELEMENTS ONLY
+    std::vector<double> n(num_rows+ 1), p(num_rows+ 1), oldp(num_rows+ 1), newp(num_rows), oldn(num_rows+ 1), newn(num_rows+ 1);
+    std::vector<double> oldV(num_rows+ 1), newV(num_rows+ 1), V(num_rows+ 1);
 
     //std::vector<double> Jp(num_rows),Jn(num_cell), J_total(num_cell);
-
-    Eigen::MatrixXd error_np_vector = Eigen::MatrixXd::Ones(num_cell+1,num_cell+1);
 
     //create matrices to hold the V, n, and p values (including those at the boundaries) according to the (x,z) coordinates.
     //Allows to write formulas in terms of coordinates.
     //Note: these matrices are indexed from 0 (corresponds to the BC).
-    Eigen::MatrixXd V_matrix = Eigen::MatrixXd::Zero(num_cell+1,num_cell+1);
-    Eigen::MatrixXd n_matrix = Eigen::MatrixXd::Zero(num_cell+1,num_cell+1);
-    Eigen::MatrixXd p_matrix = Eigen::MatrixXd::Zero(num_cell+1,num_cell+1);
-    Eigen::MatrixXd Un_matrix = Eigen::MatrixXd::Zero(num_cell+1,num_cell+1);
-    Eigen::MatrixXd Up_matrix = Eigen::MatrixXd::Zero(num_cell+1,num_cell+1);
+    //last index I need is num_cell - 1 = N
+    Eigen::MatrixXd V_matrix = Eigen::MatrixXd::Zero(N+1,N+1);
+    //Eigen::MatrixXd n_matrix = Eigen::MatrixXd::Zero(N+1,N+1);
+    //Eigen::MatrixXd p_matrix = Eigen::MatrixXd::Zero(N+1,N+1);
+    Eigen::MatrixXd Un_matrix = Eigen::MatrixXd::Zero(N+1,N+1);
+    Eigen::MatrixXd Up_matrix = Eigen::MatrixXd::Zero(N+1,N+1);
+    Eigen::MatrixXd R_Langevin(N+1,N+1), PhotogenRate(N+1,N+1);  //store the results of these..
 
-    //std::vector<std::vector<double> > error_np_vector;  //matrix for storing errors between iterations
-    //error_np_vector.resize(num_cell, std::vector<double>(num_cell));
+    //define initial conditions as min value of BCs
+    //double min_dense = std::min(continuity_n.get_n_bottomBC()[1], continuity_p.get_p_topBC()[1]);  //just use 1st index, the BC's are uniform for IC
 
+    //initially we make the n and p densities inside the device be the same, so netcharge = 0
+    Eigen::MatrixXd netcharge = Eigen::MatrixXd::Zero(num_cell+1,num_cell+1);
 
-    //Define boundary conditions and initial conditions
-    double V_bottomBC = 0.;
-    double V_topBC= Va/Vt;
+//------------------------------------------------------------------------------------
+    //Construct objects
+    Poisson poisson(params, netcharge);
+    Recombo recombo(params);
+    Continuity_p continuity_p(params);  //note this also sets up the constant top and bottom electrode BC's
+    Continuity_n continuity_n(params);  //note this also sets up the constant top and bottom electrode BC's
+    Photogeneration photogen(params, params.Photogen_scaling, params.GenRateFileName);
+    Utilities utils;
+
+//--------------------------------------------------------------------------------------------
+    //Define boundary conditions and initial conditions. Note: electrodes are at the top and bottom.
+    double Va = 0;
+    poisson.set_V_bottomBC(params, Va);
+    poisson.set_V_topBC(params, Va);
 
     //Initial conditions
-    double diff = (V_topBC - V_bottomBC)/num_cell;
+    //std::vector<double> diff;
+    //for (int x = 0; x <= num_cell; x++)
+       //diff[x] = (poisson.get_V_topBC()[x] - poisson.get_V_bottomBC()[x])/num_cell;    //note, the difference can be different at different x values..., diff is in Z directiont
+
+    //for now assume diff is constant everywhere...
+    double diff = (poisson.get_V_topBC()[0] - poisson.get_V_bottomBC()[0])/num_cell;
     int index = 0;
-    for (int j = 1;j<=N;j++){//  %corresponds to z coord
+    for (int j = 1; j <= N; j++) {//  %corresponds to z coord
         index++;
         V[index] = diff*j;
-        for (int i = 2;i<=N;i++){//  %elements along the x direction assumed to have same V
+        for (int i = 2; i <= N; i++) {//  %elements along the x direction assumed to have same V
             index++;
             V[index] = V[index-1];
         }
     }
 
     //side BCs, insulating BC's
-    std::vector<double> V_leftBC(N+1);
-    std::vector<double> V_rightBC(N+1);
-    for(int i = 1;i<=N;i++){
-        V_leftBC[i] = V[(i-1)*N +  1];
-        V_rightBC[i] = V[i*N];
-    }
+    poisson.set_V_leftBC(V);
+    poisson.set_V_rightBC(V);
 
     //-----------------------
 
-    //define initial conditions as min value of BCs
-    double min_dense = std::min(continuity_n.get_n_bottomBC(), continuity_p.get_p_topBC());
-    for i = 1:num_elements
-        p(i,1) = min_dense;
-        n(i,1) = min_dense;
-    end
-
-    //form matrices for easy filling of bp
-    n_matrix = reshape(n,N,N);
-    p_matrix = reshape(p,N,N);
-
-
+    //NOTE: the n and p top and bottom BC's are set when initialize a continuity_n and continuity_p object
 
     poisson.setup_matrix();  //outside of loop since matrix never changes
 
@@ -164,9 +160,9 @@ int main()
     //////////////////////MAIN LOOP////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     int iter, not_cnv_cnt, Va_cnt;
-    double error_np, old_error;
     bool not_converged;
-    double Va;
+    double error_np, old_error;  //this stores max value of the error and the value of max error from previous iteration
+    std::vector<double> error_np_vector(num_cell+1);  //note: since n and p solutions are in vector form, can use vector form here also
 
     for (Va_cnt = 0; Va_cnt <= num_V +1; Va_cnt++) {  //+1 b/c 1st Va is the equil run
         not_converged = false;
@@ -190,10 +186,8 @@ int main()
         std::cout << "Va = " << Va <<std::endl;
 
         //Apply the voltage boundary conditions
-        V_leftBC = -((Vbi-Va)/(2*Vt) - params.phi_a/Vt);
-        V_rightBC = (Vbi-Va)/(2*Vt) - params.phi_c/Vt;
-        V[0] = V_leftBC;
-        V[num_cell] = V_rightBC;
+        poisson.set_V_bottomBC(params, Va);
+        poisson.set_V_topBC(params, Va);
 
         error_np = 1.0;
         iter = 0;
@@ -203,48 +197,55 @@ int main()
 
             //-----------------Solve Poisson Equation------------------------------------------------------------------
 
-            poisson.set_rhs(n, p, V_leftBC, V_rightBC);
+            poisson.set_rhs(netcharge);
             oldV = V;
-            newV = Thomas_solve(poisson.get_main_diag(), poisson.get_upper_diag(), poisson.get_lower_diag(), poisson.get_rhs());
-            //add on the BC's --> b/c matrix solver just outputs the insides...
-            newV[0] = V[0];
-            newV[num_cell] = V[num_cell];
+
+            //MATRIX SOVE WITH EIGEN
 
             //Mix old and new solutions for V
             if (iter > 0)
                 V  = utils.linear_mix(params, newV, oldV);
             else
                 V = newV;
-            //reset BC's
-            V[0] = V_leftBC;
-            V[num_cell] = V_rightBC;
+
+
+            //conversion from V vector to V_matrix (holds only the inside values of V: indices 1 through N
+            for (int index = 1; index <= num_rows; index++) {
+                int i = index % N;    //this gives the i value for matrix
+                if (i == 0) i = N;
+
+                int j = 1 + static_cast<int>(floor((index-1)/N));  // j value for matrix
+
+                V_matrix(i,j) = V[index];
+            }
 
             //------------------------------Calculate Net Generation Rate----------------------------------------------------------
 
-            R_Langevin = recombo.ComputeR_Langevin(params,n,p);
-            for (int i = 1; i < num_cell; i++) {
-                Un[i] = PhotogenRate[i] - R_Langevin[i];
-            }
-            Up = Un;
+            //R_Langevin = recombo.ComputeR_Langevin(params,n,p);
+
+            //------------//////////////////////////////////////////////////////////////
+            //NEED AN R_Langevin in Matrix form--> do the conversion within the function....
+            //////////////////////////////////////////////////////////////////
+
+
+            //FOR NOW CAN USE 0 FOR R_Langevin
+
+            for (int i = 1; i <= N; i++)
+                for (int j = 1; j <= N; i++)
+                    Un_matrix(i,j) = photogen.getPhotogenRate()(i,j); //- R_Langevin(i,j);
+
+            Up_matrix = Un_matrix;
+
 
             //--------------------------------Solve equations for n and p------------------------------------------------------------ 
 
-            //THESE NEED TO BE INSIDE THE LOOP!
-           //side boundary conditions %insulating bc's,: charge at bndry = charge just inside
-            for j = 1:N
-                p_leftBC(j) = p((j-1)*N + 1);
-                p_rightBC(j)= p(j*N);
-                n_leftBC(j) = n((j-1)*N + 1);
-                n_rightBC(j)= n(j*N);
-            end
-
-            continuity_n.setup_eqn(V, Un);
+            continuity_n.setup_eqn(V_matrix, Un_matrix);
             oldn = n;
-            newn = Thomas_solve(continuity_n.get_main_diag(), continuity_n.get_upper_diag(), continuity_n.get_lower_diag(), continuity_n.get_rhs());
+            //MATRIX SOVE WITH EIGEN
 
-            continuity_p.setup_eqn(V, Up);
+            continuity_p.setup_eqn(V_matrix, Up_matrix);
             oldp = p;
-            newp = Thomas_solve(continuity_p.get_main_diag(), continuity_p.get_upper_diag(), continuity_p.get_lower_diag(), continuity_p.get_rhs());
+           //MATRIX SOVE WITH EIGEN
 
             //if get negative p's or n's set them = 0
             for (int i = 1; i < num_cell; i++) {
@@ -273,8 +274,14 @@ int main()
 
             p = utils.linear_mix(params, newp, oldp);
             n = utils.linear_mix(params, newn, oldn);
-            p[0] = continuity_p.get_p_leftBC();
-            n[0]  = continuity_n.get_n_leftBC();
+
+            //Apply continuity equation  BC's
+            //set the  side BC's
+            continuity_n.set_n_leftBC(n);
+            continuity_n.set_n_rightBC(n);
+            continuity_p.set_p_leftBC(p);
+            continuity_p.set_p_rightBC(p);
+            //note: top and bottom BC's don't need to be changed for now, since assumed to be constant... (they are set when initialize continuity objects)
 
             iter = iter+1;
         }
@@ -284,17 +291,17 @@ int main()
         std::cout << "1 Va CPU time = " << time.count() << std::endl;
 
         //-------------------Calculate Currents using Scharfetter-Gummel definition--------------------------
-        p[0] = continuity_p.get_p_leftBC();
-        n[0]  = continuity_n.get_n_leftBC();
+        /*
         for (int i = 1; i < num_cell; i++) {
             Jp[i] = -(q*Vt*params.N*params.mobil/params.dx) * continuity_p.get_p_mob()[i] * (p[i]*continuity_p.get_B_p2()[i] - p[i-1]*continuity_p.get_B_p1()[i]);
             Jn[i] =  (q*Vt*params.N*params.mobil/params.dx) * continuity_n.get_n_mob()[i] * (n[i]*continuity_n.get_B_n1()[i] - n[i-1]*continuity_n.get_B_n2()[i]);
             J_total[i] = Jp[i] + Jn[i];
         }
+        */
 
         //---------------------Write to file----------------------------------------------------------------
-        utils.write_details(params, Va, V, p, n, J_total, Un, PhotogenRate, R_Langevin);
-        if(Va_cnt >0) utils.write_JV(params, JV, iter, Va, J_total);
+        //utils.write_details(params, Va, V, p, n, J_total, Un, PhotogenRate, R_Langevin);
+        //if(Va_cnt >0) utils.write_JV(params, JV, iter, Va, J_total);
 
     }//end of main loop
     JV.close();

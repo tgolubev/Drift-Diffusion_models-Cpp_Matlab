@@ -41,6 +41,8 @@ struct Parameters   //parameters need to be accessble, so all members are public
     int num_cell, num_elements;  //num_elements = (num_cell-1)^2
     std::string GenRateFileName;
     double Va_min, Va_max, increment;
+    double Vbi;
+
 
 };
 

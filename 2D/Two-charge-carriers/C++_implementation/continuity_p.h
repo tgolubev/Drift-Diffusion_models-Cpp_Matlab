@@ -19,10 +19,10 @@ public:
 
     //setters for BC's:
     //for left and right BC's, will use input from the n matrix to determine
-    std::vector<double> set_p_topBC();
-    std::vector<double> set_p_bottomBC();
-    std::vector<double> set_p_leftBC();
-    std::vector<double> set_p_rightBC();
+    void set_p_topBC();
+    void set_p_bottomBC();
+    void set_p_leftBC(const std::vector<double> &p);
+    void set_p_rightBC(const std::vector<double> &p);
 
     //getters
     std::vector<double> get_main_diag() const {return main_diag;}

@@ -74,7 +74,7 @@ private:
     void set_main_diag();
     void set_upper_diag();
     void set_far_upper_diag();
-    void set_rhs(const Eigen::MatrixXd &Up_matrix);
+    void Continuity_p::set_rhs(const Eigen::MatrixXd &Up_matrix);
 };
 
 #endif // CONTINUITY_P_H

@@ -118,25 +118,50 @@ void Continuity_n::set_far_upper_diag()
 
 
 
-
-
-
-
-
-
-
-
 //---------------------------------------------------------------------------
 
 void Continuity_n::set_rhs(const Eigen::MatrixXd &Un_matrix)
 {
-    for (int i = 1; i < rhs.size(); i++) {
-        rhs[i] = -Cn*Un[i];
+    int index = 0;
+
+    for (int j = 1; j <= N; j++) {
+        if (j ==1)  {//different for 1st subblock
+            for (int i = 1; i <= N; i++) {
+                index++;
+                if (i==1)     //1st element has 2 BC's
+                    rhs[index] = Cn*Un_matrix(i,j) + n_mob(i,j)*(Bn_negX(i,j)*n_leftBC[1] + Bn_negZ(i,j)*n_bottomBC[i]);  //NOTE: rhs is +Cp*Un_matrix, b/c diagonal elements are + here, flipped sign from 1D version
+                else if (i==N)
+                    rhs[index] = Cn*Un_matrix(i,j) + n_mob(i,j)*(Bn_negZ(i,j)*n_bottomBC[i] + Bn_posX(i+1,j)*n_rightBC[1]);
+                else
+                    rhs[index] = Cn*Un_matrix(i,j) + n_mob(i,j)*Bn_negZ(i,j)*n_bottomBC[i];
+            }
+        } else if (j == N) {      //different for last subblock
+            for (int i = 1; i <= N; i++) {
+                index++;
+                if (i==1)  //1st element has 2 BC's
+                    rhs[index] = Cn*Un_matrix(i,j) + n_mob(i,j)*(Bn_negX(i,j)*n_leftBC[N] + Bn_posZ(i,j+1)*n_topBC[i]);
+                else if (i==N)
+                        rhs[index] = Cn*Un_matrix(i,j) + n_mob(i,j)*(Bn_posX(i+1,j)*n_rightBC[N] + Bn_posZ(i,j+1)*n_topBC[i]);
+                else
+                rhs[index] = Cn*Un_matrix(i,j) + n_mob(i,j)*Bn_posZ(i,j+1)*n_topBC[i];
+            }
+        } else {     //interior subblocks
+            for (int i = 1; i <= N; i++) {
+                index++;
+                if(i==1)
+                    rhs[index] = Cn*Un_matrix(i,j) + n_mob(i,j)*Bn_negX(i,j)*n_leftBC[j];
+                else if(i==N)
+                        rhs[index] = Cn*Un_matrix(i,j) + n_mob(i,j)*Bn_posX(i+1,j)*n_rightBC[j];
+                else
+                rhs[index] = Cn*Un_matrix(i,j);
+            }
+        }
     }
-    //BCs
-    rhs[1] -= n_mob[0]*B_n2[1]*n_leftBC;
-    rhs[rhs.size()-1] -= n_mob[rhs.size()]*B_n1[rhs.size()]*n_rightBC;
+
 }
+
+
+
 
 //------------------------
 //Note: are using the V matrix for Bernoulli calculations.

@@ -23,7 +23,7 @@ for index = 1:N*(N-1)      %(1st element corresponds to Nth row  (number of elem
     end
     j = 1 + floor((index-1)/N);    %this is the y index of V which element corresponds to. 1+ floor(index/4)determines which subblock this corresponds to and thus determines j, since the j's for each subblock are all the same.
     
-    Ap_val(index,1) = -((p_mob(i,j) + p_mob(i+1, j))/2.)*fBp_posZ(i,j);
+    Ap_val(index,1) = -((p_mob(i,j) + p_mob(i+1, j))/2.)*Bp_posZ(i,j);
 end
 
 %main lower diagonal (below main diagonal): corresponds to V(i-1,j)
@@ -47,7 +47,7 @@ for index =  1:num_elements
     end
     j = 1 + floor((index-1)/N);
     
-    Ap_val(index,3) = ((p_mob(i,j) + p_mob(i,j+1))/2.)*Bp_negX(i,j) + ((p_mob(i+1,j) + p_mob(i+1,j+1))/2.)*Bp_posX(i+1,j) + ((p_mob(i,j) + p_mob(i+1,j))/2.)*Bp_negZ(i,j) + ((p_mob(i,j+1) + p_mob(i+1,j+1))/2.)*Bp_posZ(i,j+1);
+    Ap_val(index,3) = ((p_mob(i,j) + p_mob(i,j+1))/2.)*Bp_negX(i,j) + ((p_mob(i+1,j) + p_mob(i+1,j+1))/2.)*Bp_posX(i+1,j) + ((p_mob(i,j) + p_mob(i+1,j))/2.)*Beclep_negZ(i,j) + ((p_mob(i,j+1) + p_mob(i+1,j+1))/2.)*Bp_posZ(i,j+1);
 end
 
 %main uppper diagonal: corresponds to V(i+1,j)

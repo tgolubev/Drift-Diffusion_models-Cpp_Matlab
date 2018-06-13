@@ -18,7 +18,7 @@ public:
 
     //!Setup the right hand side of Poisson equation. This depends on the electron density \param n,
     //! hole density \param p, and left and right boundary conditions \param V_leftBC and \param V_rightBC
-    void set_rhs(const std::vector<double> &n, const std::vector<double> &p, std::vector<double> &V_leftBC, std::vector<double> &V_rightBC, double V_bottomBC, double V_topBC);
+    void set_rhs(const std::vector<double> &n, const std::vector<double> &p, std::vector<double> &V_leftBC, std::vector<double> &V_rightBC, std::vector<double> &V_bottomBC, std::vector<double> &V_topBC);
 
     //setters for BC's:
     //for left and right BC's, will use input from the n matrix to determine

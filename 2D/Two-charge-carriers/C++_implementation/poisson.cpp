@@ -19,6 +19,8 @@ Poisson::Poisson(const Parameters &params)
     num_cell = params.num_cell;
 
 
+    //FILL THE top and bottom BC's here
+
 
 } //constructor)
 
@@ -108,7 +110,7 @@ void Poisson::set_far_upper_diag(){
     }
 }
 
-void Poisson::set_rhs(const std::vector<double> &n, const std::vector<double> &p, std::vector<double> &V_leftBC, std::vector<double> &V_rightBC, double V_bottomBC, double V_topBC)
+void Poisson::set_rhs(const std::vector<double> &n, const std::vector<double> &p, std::vector<double> &V_leftBC, std::vector<double> &V_rightBC, std::vector<double> &V_bottomBC, std::vector<double> &V_topBC)
 {
             //setup rhs of Poisson eqn.
             int index2 = 0;
@@ -117,21 +119,21 @@ void Poisson::set_rhs(const std::vector<double> &n, const std::vector<double> &p
                     for(int i = 1;i<=N;i++){
                         index2++;                //THIS COULD BE MODIFIES TO a switch ,case statement--> might be cleaner
                         if(i==1){
-                            rhs[index2] = netcharge(i,j) + epsilon(i,j)*(V_leftBC[1] + V_bottomBC);
+                            rhs[index2] = netcharge(i,j) + epsilon(i,j)*(V_leftBC[1] + V_bottomBC[i]);
                         }else if(i == N)
-                            rhs[index2] = netcharge(i,j) + epsilon(i,j)*(V_rightBC[1] + V_bottomBC);
+                            rhs[index2] = netcharge(i,j) + epsilon(i,j)*(V_rightBC[1] + V_bottomBC[i]);
                         else
-                            rhs[index2] = netcharge(i,j) + epsilon(i,j)*V_bottomBC;
+                            rhs[index2] = netcharge(i,j) + epsilon(i,j)*V_bottomBC[i];
                     }
                 }else if(j==N){
                     for(int i = 1; i<=N;i++){
                         index2++;
                         if(i==1)
-                            rhs[index2] = netcharge(i,j) + epsilon(i,j)*(V_leftBC[N] + V_topBC);
+                            rhs[index2] = netcharge(i,j) + epsilon(i,j)*(V_leftBC[N] + V_topBC[i]);
                         else if(i == N)
-                            rhs[index2] = netcharge(i,j) + epsilon(i,j)*(V_rightBC[N] + V_topBC);
+                            rhs[index2] = netcharge(i,j) + epsilon(i,j)*(V_rightBC[N] + V_topBC[i]);
                         else
-                            rhs[index2] = netcharge(i,j) + epsilon(i,j)*V_topBC;
+                            rhs[index2] = netcharge(i,j) + epsilon(i,j)*V_topBC[i];
                     }
                 }else{
                     for(int i = 1;i<=N;i++){

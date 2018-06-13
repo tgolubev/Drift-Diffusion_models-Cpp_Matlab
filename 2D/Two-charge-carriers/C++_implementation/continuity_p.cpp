@@ -38,39 +38,80 @@ void Continuity_p::setup_eqn(const Eigen::MatrixXd &V_matrix, const Eigen::Matri
 }
 
 //------------------------------Setup Ap diagonals----------------------------------------------------------------
-void Continuity_p::set_main_diag()
+void Continuity_p::set_far_lower_diag()
 {
-    for (int i = 1; i < main_diag.size(); i++) {
-        main_diag[i] = -(p_mob[i]*B_p2[i] + p_mob[i+1]*B_p1[i+1]);
+    //Lowest diagonal: corresponds to V(i, j-1)
+    for (int index = 1; index <=N*(N-1); index++) {      //(1st element corresponds to Nth row  (number of elements = N*(N-1)
+        int i = index % N;
+
+        if (i ==0)                //the multiples of N correspond to last index
+            i = N;
+
+        int j = 1 + floor((index-1)/N);    //this is the y index of V which element corresponds to. 1+ floor(index/4)determines which subblock this corresponds to and thus determines j, since the j's for each subblock are all the same.
+
+        far_lower_diag[index] = -((p_mob(i,j) + p_mob(i+1, j))/2.)*Bp_posZ(i,j);
     }
 }
 
-//this is b in tridiag_solver
-void Continuity_p::set_upper_diag()
-{
-    for (int i = 1; i < upper_diag.size(); i++) {
-        upper_diag[i] = p_mob[i+1]*B_p2[i+1];
-    }
-}
 
-//this is c in tridiag_solver
+//main lower diag
 void Continuity_p::set_lower_diag()
 {
-    for (int i = 1; i < lower_diag.size(); i++) {
-        lower_diag[i] = p_mob[i+1]*B_p1[i+1];
+    for (int index = 1; index <= num_elements-1; index++) {
+        int i = index % N;
+        int j = 1 + floor((index-1)/N);
+
+        if (index % N == 0)
+            lower_diag[index] = 0;      //probably don't need explicitely fill here, since auto intialized to 0
+        else
+            lower_diag[index] = -((p_mob(i,j) + p_mob(i,j+1))/2.)*Bp_posX(i,j);
     }
 }
 
 
-void Continuity_p::set_rhs(const Eigen::MatrixXd &Up_matrix)
+void Continuity_p::set_main_diag()
 {
-    for (int i = 1; i < rhs.size(); i++) {
-        rhs[i] = -Cp*Up[i];
+    for (int index = 1; index <= num_elements; index++) {
+        int i = index % N;
+
+        if (i == 0)
+            i = N;
+
+        int j = 1 + floor((index-1)/N);
+
+        main_diag[index] = ((p_mob(i,j) + p_mob(i,j+1))/2.)*Bp_negX(i,j) + ((p_mob(i+1,j) + p_mob(i+1,j+1))/2.)*Bp_posX(i+1,j) + ((p_mob(i,j) + p_mob(i+1,j))/2.)*Bp_negZ(i,j) + ((p_mob(i,j+1) + p_mob(i+1,j+1))/2.)*Bp_posZ(i,j+1);
     }
-    //BCs
-    rhs[1] -= p_mob[0]*B_p1[1]*p_leftBC;
-    rhs[rhs.size()-1] -= p_mob[rhs.size()]*B_p2[rhs.size()]*p_rightBC;
 }
+
+
+void Continuity_p::set_upper_diag()
+{
+    for (int index = 1; index <= num_elements-1; index++) {
+        int i = index % N;
+        int j = 1 + floor((index-1)/N);
+
+        if ((index-1 % N) == 0)
+            upper_diag[index] = 0;
+        else
+            upper_diag[index] = -((p_mob(i+1,j) + p_mob(i+1,j+1))/2.)*Bp_negX(i+1,j);
+    }
+}
+
+
+void Continuity_p::set_far_upper_diag()
+{
+    for (int index = 1; index <= num_elements-N; index++) {
+        int i = index % N;
+
+        if(i == 0)
+            i = N;
+
+        int j = 1 + floor((index-N)/N);
+
+        far_upper_diag[index] = -((p_mob(i,j+1) + p_mob(i+1,j+1))/2.)*Bp_negZ(i,j+1);
+    }
+}
+
 
 //---------------------------
 
@@ -82,7 +123,7 @@ void Continuity_p::Bernoulli_p_X(const Eigen::MatrixXd &V_matrix)
        for (int j = 1; j < num_cell+1; j++)
            dV(i,j) =  V_matrix(i,j)-V_matrix(i-1,j);
 
-    for (int i = 1; i < V.size(); i++) {
+    for (int i = 1; i < num_cell+1; i++) {
         for (int j = 1; j < num_cell+1; j++) {
             Bp_posX(i,j) = dV(i,j)/(exp(dV(i,j)) - 1.0);
             Bp_negX(i,j) = Bp_posX(i,j)*exp(dV(i,j));
@@ -98,10 +139,51 @@ void Continuity_p::Bernoulli_p_Z(const Eigen::MatrixXd &V_matrix)
        for (int j = 1; j < num_cell+1; j++)
            dV(i,j) =  V_matrix(i,j)-V_matrix(i,j-1);
 
-    for (int i = 1; i < V.size(); i++) {
+    for (int i = 1; i < num_cell+1; i++) {
         for (int j = 1; j < num_cell+1; j++) {
             Bp_posZ(i,j) = dV(i,j)/(exp(dV(i,j)) - 1.0);
             Bp_negZ(i,j) =  Bp_posZ(i,j)*exp(dV(i,j));
         }
     }
+}
+
+//--------------------------------------------------------------------------------
+void Continuity_p::set_rhs(const Eigen::MatrixXd &Up_matrix)
+{
+    int index = 0;
+
+    for (int j = 1; j <= N; j++) {
+        if (j ==1)  {//different for 1st subblock
+            for (int i = 1; i <= N; i++) {
+                index++;
+                if (i==1)     //1st element has 2 BC's
+                    rhs[index] = Cp*Up_matrix(i,j) + p_mob(i,j)*(Bp_posX(i,j)*p_leftBC[1] + Bp_posZ(i,j)*p_bottomBC[i]);  //NOTE: rhs is +Cp*Up_matrix, b/c diagonal elements are + here, flipped sign from 1D version
+                else if (i==N)
+                    rhs[index] = Cp*Up_matrix(i,j) + p_mob(i,j)*(Bp_posZ(i,j)*p_bottomBC[i] + Bp_negX(i+1,j)*p_rightBC[1]);
+                else
+                    rhs[index] = Cp*Up_matrix(i,j) + p_mob(i,j)*Bp_posZ(i,j)*p_bottomBC[i];
+            }
+        } else if (j == N) {      //different for last subblock
+            for (int i = 1; i <= N; i++) {
+                index++;
+                if (i==1)  //1st element has 2 BC's
+                    rhs[index] = Cp*Up_matrix(i,j) + p_mob(i,j)*(Bp_posX(i,j)*p_leftBC[N] + Bp_negZ(i,j+1)*p_topBC[i]);
+                else if (i==N)
+                        rhs[index] = Cp*Up_matrix(i,j) + p_mob(i,j)*(Bp_negX(i+1,j)*p_rightBC[N] + Bp_negZ(i,j+1)*p_topBC[i]);
+                else
+                rhs[index] = Cp*Up_matrix(i,j) + p_mob(i,j)*Bp_negZ(i,j+1)*p_topBC[i];
+            }
+        } else {     //interior subblocks
+            for (int i = 1; i <= N; i++) {
+                index++;
+                if(i==1)
+                    rhs[index] = Cp*Up_matrix(i,j) + p_mob(i,j)*Bp_posX(i,j)*p_leftBC[j];
+                else if(i==N)
+                        rhs[index] = Cp*Up_matrix(i,j) + p_mob(i,j)*Bp_negX(i+1,j)*p_rightBC[j];
+                else
+                rhs[index] = Cp*Up_matrix(i,j);
+            }
+        }
+    }
+
 }

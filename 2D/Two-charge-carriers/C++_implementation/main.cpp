@@ -115,7 +115,7 @@ int main()
     Eigen::MatrixXd Up_matrix = Eigen::MatrixXd::Zero(num_cell+1,num_cell+1);
 
     //std::vector<std::vector<double> > error_np_vector;  //matrix for storing errors between iterations
-    error_np_vector.resize(num_cell, std::vector<double>(num_cell));
+    //error_np_vector.resize(num_cell, std::vector<double>(num_cell));
 
 
     //Define boundary conditions and initial conditions

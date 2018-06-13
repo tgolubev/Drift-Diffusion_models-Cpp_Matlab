@@ -7,32 +7,30 @@ Continuity_p::Continuity_p(const Parameters &params)
     upper_diag.resize(num_cell-1);
     lower_diag.resize(num_cell-1);
     rhs.resize(num_cell);
-    B_p1.resize(num_cell+1);
-    B_p2.resize(num_cell+1);
+
+    Bp_posX.resize(num_cell+1, num_cell+1);  //allocate memory for the matrix object
+    Bp_negX.resize(num_cell+1, num_cell+1);
+    Bp_posZ.resize(num_cell+1, num_cell+1);
+    Bp_negZ.resize(num_cell+1, num_cell+1);
 
     p_mob.resize(num_cell+1, num_cell+1);  //note: p_mob is an Eigen Matrix object...
 
-    //p_mob.resize(params.num_cell +1, std::vector<double>(params.num_cell+1));
+    Cp = params.dx*params.dx/(Vt*params.N_dos*params.mobil);  //can't use static, b/c dx wasn't defined as const, so at each initialization of Continuity_p object, new const will be made.
 
-    /*
-    //for now fill matrix, by using fill for each of the vectors inside
-    for (int i = 0; i < params.num_cell; i++) {
-        std::fill(p_mob[i].begin(), p_mob[i].end(), params.p_mob_active/params.mobil);
+    for (int j =  0; j <= N; j++) {
+        p_bottomBC[j] = params.N_HOMO*exp(-params.phi_a/Vt)/params.N_dos;
+        p_topBC[j] = params.N_HOMO*exp(-(params.E_gap-params.phi_c)/Vt)/params.N_dos;
     }
-    */
 
-    Cp = params.dx*params.dx/(Vt*params.N*params.mobil);  //can't use static, b/c dx wasn't defined as const, so at each initialization of Continuity_p object, new const will be made.
-
-    p_bottomBC = params.N_HOMO*exp(-params.phi_a/Vt)/params.N_dos;
-    p_topBC = params.N_HOMO*exp(-(params.E_gap-params.phi_c)/Vt)/params.N_dos;
-
-
+    num_elements = params.num_elements;
+    N = params.num_cell - 1;
 }
 
 //Calculates Bernoulli fnc values, then sets the diagonals and rhs
 void Continuity_p::setup_eqn(const Eigen::MatrixXd &V_matrix, const Eigen::MatrixXd &Up_matrix)
 {
-    BernoulliFnc_p(V_matrix);
+    Bernoulli_p_X(V_matrix);
+    Bernoulli_p_Z(V_matrix);
     set_main_diag();
     set_upper_diag();
     set_lower_diag();

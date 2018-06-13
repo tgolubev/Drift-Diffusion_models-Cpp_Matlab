@@ -7,25 +7,23 @@ Continuity_n::Continuity_n(const Parameters &params)
    upper_diag.resize(num_cell-1);
    lower_diag.resize(num_cell-1);
    rhs.resize(num_cell);
-   B_n1.resize(num_cell+1);
-   B_n2.resize(num_cell+1);
-   //n_mob.resize(params.num_cell +1, std::vector<double>(params.num_cell+1));
+
+   Bn_posX.resize(num_cell+1, num_cell+1);  //allocate memory for the matrix object
+   Bn_negX.resize(num_cell+1, num_cell+1);
+   Bn_posZ.resize(num_cell+1, num_cell+1);  //allocate memory for the matrix object
+   Bn_negZ.resize(num_cell+1, num_cell+1);
 
    n_mob.resize(num_cell+1, num_cell+1);  //note: n_mob is an Eigen Matrix object...
-/*
- //for now  fill matrix, by using fill for each of the vectors inside
-
-   for (int i = 0; i < params.num_cell; i++) {
-       std::fill(n_mob[i].begin(), n_mob[i].end(), params.n_mob_active/params.mobil);
-   }
-   */
 
    Cn = params.dx*params.dx/(Vt*params.N_dos*params.mobil);
 
-   n_bottomBC = params.N_LUMO*exp(-(params.E_gap-params.phi_a)/Vt)/params.N_dos;
-   n_topBC = params.N_LUMO*exp(-params.phi_c/Vt)/params.N_dos;
+   for (int j =  0; j <= N; j++) {
+      n_bottomBC[j] = params.N_LUMO*exp(-(params.E_gap-params.phi_a)/Vt)/params.N_dos;
+      n_topBC[j] = params.N_LUMO*exp(-params.phi_c/Vt)/params.N_dos;
+   }
 
-
+   num_elements = params.num_elements;
+   N = params.num_cell - 1;
 
 }
 
@@ -33,7 +31,8 @@ Continuity_n::Continuity_n(const Parameters &params)
 //use the V_matrix for setup, to be able to write equations in terms of (x,z) coordingates
 void Continuity_n::setup_eqn(const Eigen::MatrixXd &V_matrix, const Eigen::MatrixXd &Un_matrix)
 {
-    BernoulliFnc_n(V_matrix);
+    Bernoulli_n_X(V_matrix);
+    Bernoulli_n_Z(V_matrix);
     set_main_diag();
     set_upper_diag();
     set_lower_diag();
@@ -42,29 +41,92 @@ void Continuity_n::setup_eqn(const Eigen::MatrixXd &V_matrix, const Eigen::Matri
 }
 
 //-------------------------------Setup An diagonals (Continuity/drift-diffusion solve)-----------------------------
-void Continuity_n::set_main_diag()
+
+void Continuity_n::set_far_lower_diag()
 {
-    for (int i = 1; i < main_diag.size(); i++) {
-        main_diag[i] = -(n_mob[i]*B_n1[i] + n_mob[i+1]*B_n2[i+1]);
+    //Lowest diagonal: corresponds to V(i, j-1)
+    for (int index = 1; index <=N*(N-1); index++) {      //(1st element corresponds to Nth row  (number of elements = N*(N-1)
+        int i = index % N;
+
+        if (i ==0)                //the multiples of N correspond to last index
+            i = N;
+
+        int j = 1 + floor((index-1)/N);    //this is the y index of V which element corresponds to. 1+ floor(index/4)determines which subblock this corresponds to and thus determines j, since the j's for each subblock are all the same.
+
+        far_lower_diag[index] = -((n_mob(i,j) + n_mob(i+1, j))/2.)*Bn_negZ(i,j);
     }
 }
 
-//this is b in tridiag_solver
-void Continuity_n::set_upper_diag()
-{
-    for (int i = 1; i < upper_diag.size(); i++) {
-        upper_diag[i] = n_mob[i+1]*B_n1[i+1];
-    }
-}
 
-//this is c in tridiag_solver
+//main lower diag
 void Continuity_n::set_lower_diag()
 {
-    for (int i = 1; i < lower_diag.size(); i++) {
-        lower_diag[i] = n_mob[i+1]*B_n2[i+1];
+    for (int index = 1; index <= num_elements-1; index++) {
+        int i = index % N;
+        int j = 1 + floor((index-1)/N);
+
+        if (index % N == 0)
+            lower_diag[index] = 0;      //probably don't need explicitely fill here, since auto intialized to 0
+        else
+            lower_diag[index] = -((n_mob(i,j) + n_mob(i,j+1))/2.)*Bn_negX(i,j);
     }
 }
 
+
+void Continuity_n::set_main_diag()
+{
+    for (int index = 1; index <= num_elements; index++) {
+        int i = index % N;
+
+        if (i == 0)
+            i = N;
+
+        int j = 1 + floor((index-1)/N);
+
+        main_diag[index] = ((n_mob(i,j) + n_mob(i,j+1))/2.)*Bn_posX(i,j) + ((n_mob(i+1,j) + n_mob(i+1,j+1))/2.)*Bn_negX(i+1,j) + ((n_mob(i,j) + n_mob(i+1,j))/2.)*Bn_posZ(i,j) + ((n_mob(i,j+1) + n_mob(i+1,j+1))/2.)*Bn_negZ(i,j+1);
+    }
+}
+
+
+void Continuity_n::set_upper_diag()
+{
+    for (int index = 1; index <= num_elements-1; index++) {
+        int i = index % N;
+        int j = 1 + floor((index-1)/N);
+
+        if ((index-1 % N) == 0)
+            upper_diag[index] = 0;
+        else
+            upper_diag[index] = -((n_mob(i+1,j) + n_mob(i+1,j+1))/2.)*Bn_posX(i+1,j);
+    }
+}
+
+
+void Continuity_n::set_far_upper_diag()
+{
+    for (int index = 1; index <= num_elements-N; index++) {
+        int i = index % N;
+
+        if(i == 0)
+            i = N;
+
+        int j = 1 + floor((index-N)/N);
+
+        far_upper_diag[index] = -((n_mob(i,j+1) + n_mob(i+1,j+1))/2.)*Bn_posZ(i,j+1);
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+//---------------------------------------------------------------------------
 
 void Continuity_n::set_rhs(const Eigen::MatrixXd &Un_matrix)
 {
@@ -107,6 +169,7 @@ void Continuity_n::Bernoulli_n_Z(const Eigen::MatrixXd &V_matrix)
 
     for (int i = 1; i < num_cell+1; i++) {
         for (int j = 1; j < num_cell+1; j++) {
+
             Bn_posZ(i,j) = dV(i,j)/(exp(dV(i,j)) - 1.0);
             Bn_negZ(i,j) =  Bn_posZ(i,j)*exp(dV(i,j));
         }

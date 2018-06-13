@@ -9,10 +9,11 @@ Poisson::Poisson(const Parameters &params)
     far_lower_diag.resize(num_elements-N+1);
     far_upper_diag.resize(num_elements-N+1);
     rhs.resize(num_cell);
+
     epsilon.resize(num_cell+1, num_cell+1);  //Eigen matrix object
 
 
-    CV = params.N*params.dx*params.dx*q/(epsilon_0*Vt);
+    CV = params.N_dos*params.dx*params.dx*q/(epsilon_0*Vt);
     N = params.num_cell -1;  //for convenience define this --> is the number of points in 1D inside the device
     num_elements = params.num_elements;
     num_cell = params.num_cell;

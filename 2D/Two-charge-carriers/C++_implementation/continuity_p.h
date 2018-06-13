@@ -41,6 +41,8 @@ public:
     std::vector<double> get_p_rightBC() const {return p_rightBC;}
 
 private:
+    std::vector<double> far_lower_diag;
+    std::vector<double> far_upper_diag;
     std::vector<double> main_diag;
     std::vector<double> upper_diag;
     std::vector<double> lower_diag;
@@ -57,7 +59,8 @@ private:
     Eigen::MatrixXd Bp_negZ;  //bernoulli (-dV_z)
 
     double Cp;
-    int num_cell; //so don't have to keep typing params.
+    int num_cell, num_elements; //so don't have to keep typing params.
+    int N;
 
     //!Calculates the Bernoulli functions for dV in x direction and updates member arrays
     void Bernoulli_p_X(const Eigen::MatrixXd &V_matrix);
@@ -65,10 +68,13 @@ private:
     //!Calculates the Bernoulli functions for dV in z direction and updates member arrays
     void Bernoulli_p_Z(const Eigen::MatrixXd &V_matrix);
 
+    //matrix setup functions
+    void set_far_lower_diag();
+    void set_lower_diag();
     void set_main_diag();
     void set_upper_diag();
-    void set_lower_diag();
-    void set_rhs(const std::vector<double> &Up);
+    void set_far_upper_diag();
+    void set_rhs(const Eigen::MatrixXd &Up_matrix);
 };
 
 #endif // CONTINUITY_P_H

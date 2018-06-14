@@ -3,6 +3,10 @@
 
 #include <vector>
 #include <Eigen/Dense>
+#include<Eigen/IterativeLinearSolvers>
+#include <Eigen/SparseCholesky>
+#include<Eigen/SparseQR>
+#include <Eigen/OrderingMethods>
 
 #include "parameters.h"  //needs this to know what paramsation is
 #include "constants.h"
@@ -28,12 +32,14 @@ public:
     void set_V_rightBC(const std::vector<double> &V);
 
     //getters
-    std::vector<double> get_main_diag() const {return main_diag;}
-    std::vector<double> get_upper_diag() const {return upper_diag;}
-    std::vector<double> get_lower_diag() const {return lower_diag;}
-    std::vector<double> get_far_lower_diag() const {return far_lower_diag;}
-    std::vector<double> get_far_upper_diag() const {return far_upper_diag;}
-    std::vector<double> get_rhs() const {return rhs;}
+    //std::vector<double> get_main_diag() const {return main_diag;}
+    //std::vector<double> get_upper_diag() const {return upper_diag;}
+    //std::vector<double> get_lower_diag() const {return lower_diag;}
+    //std::vector<double> get_far_lower_diag() const {return far_lower_diag;}
+    //std::vector<double> get_far_upper_diag() const {return far_upper_diag;}
+    Eigen::VectorXd get_rhs() const {return VecXd_rhs;}  //returns the Eigen object
+    Eigen::SparseMatrix<double> get_sp_matrix() const {return sp_matrix;}
+
 
     std::vector<double> get_V_topBC() const {return V_topBC;}
     std::vector<double> get_V_bottomBC() const {return V_bottomBC;}
@@ -42,6 +48,12 @@ public:
 
 
 private:
+    double CV;    //Note: relative permitivity was moved into the matrix
+
+    int N;  //for convenience define this --> is the number of points in 1D inside the device
+    int num_elements;  //for convience so don't have to keep writing params.
+    int num_cell;
+
     void set_far_lower_diag();
     void set_lower_diag();
     void set_main_diag();
@@ -54,6 +66,8 @@ private:
     std::vector<double> upper_diag;
     std::vector<double> far_upper_diag;
     std::vector<double> rhs;
+    Eigen::VectorXd VecXd_rhs;  //rhs in Eigen object vector form, for sparse matrix solver
+    Eigen::SparseMatrix<double> sp_matrix;
 
     //Boundary conditions
     std::vector<double> V_leftBC, V_rightBC, V_bottomBC, V_topBC;
@@ -62,11 +76,7 @@ private:
     Eigen::MatrixXd epsilon;
     //std::vector<std::vector<double> > epsilon;
 
-    double CV;    //Note: relative permitivity was moved into the matrix
 
-    int N;  //for convenience define this --> is the number of points in 1D inside the device
-    int num_elements;  //for convience so don't have to keep writing params.
-    int num_cell;
 
 };
 

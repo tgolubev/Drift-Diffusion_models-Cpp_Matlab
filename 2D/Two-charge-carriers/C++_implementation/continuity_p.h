@@ -3,6 +3,10 @@
 
 #include <vector>
 #include <Eigen/Dense>
+#include<Eigen/IterativeLinearSolvers>
+#include <Eigen/SparseCholesky>
+#include<Eigen/SparseQR>
+#include <Eigen/OrderingMethods>
 
 #include "parameters.h"  //needs this to know what parameters is
 #include "constants.h"
@@ -25,12 +29,14 @@ public:
     void set_p_rightBC(const std::vector<double> &p);
 
     //getters
-    std::vector<double> get_main_diag() const {return main_diag;}
-    std::vector<double> get_upper_diag() const {return upper_diag;}
-    std::vector<double> get_lower_diag() const {return lower_diag;}
-    std::vector<double> get_rhs() const {return rhs;}
+    //std::vector<double> get_main_diag() const {return main_diag;}
+    //std::vector<double> get_upper_diag() const {return upper_diag;}
+    //std::vector<double> get_lower_diag() const {return lower_diag;}
+    //std::vector<double> get_rhs() const {return rhs;}
     //std::vector<std::vector<double> > get_p_mob() const {return p_mob;}
     Eigen::MatrixXd get_p_mob() const {return p_mob;}
+    Eigen::VectorXd get_rhs() const {return VecXd_rhs;}  //returns the Eigen object
+    Eigen::SparseMatrix<double> get_sp_matrix() const {return sp_matrix;}
 
     //std::vector<double> get_B_p1() const {return B_p1;}
     //std::vector<double> get_B_p2() const {return B_p2;}
@@ -48,6 +54,8 @@ private:
     std::vector<double> lower_diag;
     std::vector<double> rhs;
     Eigen::MatrixXd p_mob;  //!Matrix storing the position dependent holeelectron mobility
+    Eigen::VectorXd VecXd_rhs;  //rhs in Eigen object vector form, for sparse matrix solver
+    Eigen::SparseMatrix<double> sp_matrix;
 
     //Boundary conditions
     std::vector<double> p_leftBC, p_rightBC, p_bottomBC, p_topBC;

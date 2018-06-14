@@ -3,12 +3,17 @@
 
 Poisson::Poisson(const Parameters &params, const Eigen::MatrixXd &netcharge)
 {
+    CV = params.N_dos*params.dx*params.dx*q/(epsilon_0*Vt);
+    N = params.num_cell -1;  //for convenience define this --> is the number of points in 1D inside the device
+    num_elements = params.num_elements;
+    num_cell = params.num_cell;
+
     main_diag.resize(num_elements+1);
     upper_diag.resize(num_elements);
     lower_diag.resize(num_elements);
     far_lower_diag.resize(num_elements-N+1);
     far_upper_diag.resize(num_elements-N+1);
-    rhs.resize(num_cell);
+    rhs.resize(num_elements+1);  //+1 b/c I am filling from index 1
 
     V_leftBC.resize(num_cell+1);
     V_rightBC.resize(num_cell+1);
@@ -17,10 +22,9 @@ Poisson::Poisson(const Parameters &params, const Eigen::MatrixXd &netcharge)
 
     epsilon.resize(num_cell+1, num_cell+1);  //Eigen matrix object
 
-    CV = params.N_dos*params.dx*params.dx*q/(epsilon_0*Vt);
-    N = params.num_cell -1;  //for convenience define this --> is the number of points in 1D inside the device
-    num_elements = params.num_elements;
-    num_cell = params.num_cell;
+    //allocate memory for the sparse matrix and rhs vector (Eig object)
+    sp_matrix.resize(num_elements, num_elements);
+    VecXd_rhs.resize(num_elements);   //only num_elements, b/c filling from index 0 (necessary for the sparse solver)
 
 } //constructor)
 
@@ -61,6 +65,38 @@ void Poisson::setup_matrix()  //Note: this is on purpose different than the setu
     set_upper_diag();
     set_far_lower_diag();
     set_far_upper_diag();
+
+    typedef Eigen::Triplet<double> Trp;
+
+    //generate triplets for Eigen sparse matrix
+    //setup the triplet list for sparse matrix
+     std::vector<Trp> triplet_list(5*num_elements);   //approximate the size that need         // list of non-zeros coefficients in triplet form(row index, column index, value)
+     int trp_cnt = 0;
+     for(int i = 1; i<= num_elements; i++){
+           triplet_list[trp_cnt] = {i-1, i-1, main_diag[i]};
+           trp_cnt++;
+         //triplet_list.push_back(Trp(i-1,i-1,main_diag[i]));;   //triplets for main diag
+     }
+     for(int i = 1;i< upper_diag.size();i++){
+         triplet_list[trp_cnt] = {i-1, i, upper_diag[i]};
+         trp_cnt++;
+         //triplet_list.push_back(Trp(i-1, i, upper_diag[i]));  //triplets for upper diagonal
+      }
+      for(int i = 1;i< lower_diag.size();i++){
+          triplet_list[trp_cnt] = {i, i-1, lower_diag[i]};
+          trp_cnt++;
+         // triplet_list.push_back(Trp(i, i-1, lower_diag[i]));
+      }
+      for(int i = 1;i< far_upper_diag.size();i++){
+          triplet_list[trp_cnt] = {i-1, i-1+N, far_upper_diag[i]};
+          trp_cnt++;
+          //triplet_list.push_back(Trp(i-1, i-1+N, far_upper_diag[i]));
+          triplet_list[trp_cnt] = {i-1+N, i-1, far_lower_diag[i]};
+          trp_cnt++;
+          //triplet_list.push_back(Trp(i-1+N, i-1, far_lower_diag[i]));
+       }
+
+     sp_matrix.setFromTriplets(triplet_list.begin(), triplet_list.end());    //sp_matrix is our sparse matrix
 }
 
 
@@ -176,4 +212,11 @@ void Poisson::set_rhs(const Eigen::MatrixXd &netcharge)
             }
         }
     }
+
+
+    //set up VectorXd Eigen vector object for sparse solver
+    for (int i = 1; i<=num_elements; i++) {
+        VecXd_rhs(i-1) = rhs[i];   //fill VectorXd  rhs of the equation
+    }
+
 }

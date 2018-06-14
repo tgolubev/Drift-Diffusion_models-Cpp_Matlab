@@ -3,6 +3,10 @@
 
 #include <vector>
 #include <Eigen/Dense>
+#include<Eigen/IterativeLinearSolvers>
+#include <Eigen/SparseCholesky>
+#include<Eigen/SparseQR>
+#include <Eigen/OrderingMethods>
 
 #include "parameters.h"  //needs this to know what parameters are
 #include "constants.h"
@@ -25,14 +29,16 @@ public:
     void set_n_rightBC(const std::vector<double> &n);
 
     //getters (const keyword ensures that fnc doesn't change anything)
-    std::vector<double> get_main_diag() const {return main_diag;}
-    std::vector<double> get_upper_diag() const {return upper_diag;}
-    std::vector<double> get_lower_diag() const {return lower_diag;}
-    std::vector<double> get_rhs() const {return rhs;}
+    //std::vector<double> get_main_diag() const {return main_diag;}
+    //std::vector<double> get_upper_diag() const {return upper_diag;}
+    //std::vector<double> get_lower_diag() const {return lower_diag;}
+    //std::vector<double> get_rhs() const {return rhs;}
     //std::vector<std::vector<double> > get_n_mob() const {return n_mob;}
     Eigen::MatrixXd get_n_mob() const {return n_mob;}
     //std::vector<double> get_B_n1() const {return B_n1;}
     //std::vector<double> get_B_n2() const {return B_2;}
+    Eigen::VectorXd get_rhs() const {return VecXd_rhs;}  //returns the Eigen object
+    Eigen::SparseMatrix<double> get_sp_matrix() const {return sp_matrix;}
 
     std::vector<double> get_n_topBC() const {return n_topBC;}
     std::vector<double> get_n_bottomBC() const {return n_bottomBC;}
@@ -47,6 +53,8 @@ private:
     std::vector<double> lower_diag;
     std::vector<double> rhs;
     Eigen::MatrixXd n_mob;  //!Matrix storing the position dependent electron mobility
+    Eigen::VectorXd VecXd_rhs;  //rhs in Eigen object vector form, for sparse matrix solver
+    Eigen::SparseMatrix<double> sp_matrix;
 
     //Boundary conditions
     std::vector<double> n_leftBC, n_rightBC, n_bottomBC, n_topBC;

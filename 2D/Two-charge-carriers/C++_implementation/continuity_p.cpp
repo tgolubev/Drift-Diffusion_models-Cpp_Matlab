@@ -2,29 +2,42 @@
 
 Continuity_p::Continuity_p(const Parameters &params)
 {
+    num_elements = params.num_elements;
+    N = params.num_cell - 1;
     num_cell = params.num_cell;
-    main_diag.resize(num_cell);
-    upper_diag.resize(num_cell-1);
-    lower_diag.resize(num_cell-1);
-    rhs.resize(num_cell);
+
+    main_diag.resize(num_elements+1);
+    upper_diag.resize(num_elements);
+    lower_diag.resize(num_elements);
+    far_lower_diag.resize(num_elements-N+1);
+    far_upper_diag.resize(num_elements-N+1);
+    rhs.resize(num_elements+1);  //+1 b/c I am filling from index 1
 
     Bp_posX.resize(num_cell+1, num_cell+1);  //allocate memory for the matrix object
     Bp_negX.resize(num_cell+1, num_cell+1);
     Bp_posZ.resize(num_cell+1, num_cell+1);
     Bp_negZ.resize(num_cell+1, num_cell+1);
 
+    p_bottomBC.resize(N+1);
+    p_topBC.resize(N+1);
+    p_leftBC.resize(N+1);
+    p_rightBC.resize(N+1);
+
     p_mob.resize(num_cell+1, num_cell+1);  //note: p_mob is an Eigen Matrix object...
 
     Cp = params.dx*params.dx/(Vt*params.N_dos*params.mobil);  //can't use static, b/c dx wasn't defined as const, so at each initialization of Continuity_p object, new const will be made.
 
     //these BC's for now stay constant throughout simulation, so fill them once, upon Continuity_n object construction
+
     for (int j =  0; j <= N; j++) {
         p_bottomBC[j] = params.N_HOMO*exp(-params.phi_a/Vt)/params.N_dos;
         p_topBC[j] = params.N_HOMO*exp(-(params.E_gap-params.phi_c)/Vt)/params.N_dos;
     }
 
-    num_elements = params.num_elements;
-    N = params.num_cell - 1;
+    //allocate memory for the sparse matrix and rhs vector (Eig object)
+    sp_matrix.resize(num_elements, num_elements);
+    VecXd_rhs.resize(num_elements);   //only num_elements, b/c filling from index 0 (necessary for the sparse solver)
+
 }
 
 //------------------------------------------------------------------
@@ -57,6 +70,40 @@ void Continuity_p::setup_eqn(const Eigen::MatrixXd &V_matrix, const Eigen::Matri
     set_upper_diag();
     set_far_upper_diag();
     set_rhs(Up_matrix);
+
+    typedef Eigen::Triplet<double> Trp;
+
+    //THIS COULD BE MOVED TO UTILITIES..., B/C IS BASICALLY THE SAME for the 2 continuity and poisson equations.
+
+    //generate triplets for Eigen sparse matrix
+    //setup the triplet list for sparse matrix
+     std::vector<Trp> triplet_list(5*num_elements);   //approximate the size that need         // list of non-zeros coefficients in triplet form(row index, column index, value)
+     int trp_cnt = 0;
+     for(int i = 1; i<= num_elements; i++){
+           triplet_list[trp_cnt] = {i-1, i-1, main_diag[i]};
+           trp_cnt++;
+         //triplet_list.push_back(Trp(i-1,i-1,main_diag[i]));;   //triplets for main diag
+     }
+     for(int i = 1;i< upper_diag.size();i++){
+         triplet_list[trp_cnt] = {i-1, i, upper_diag[i]};
+         trp_cnt++;
+         //triplet_list.push_back(Trp(i-1, i, upper_diag[i]));  //triplets for upper diagonal
+      }
+      for(int i = 1;i< lower_diag.size();i++){
+          triplet_list[trp_cnt] = {i, i-1, lower_diag[i]};
+          trp_cnt++;
+         // triplet_list.push_back(Trp(i, i-1, lower_diag[i]));
+      }
+      for(int i = 1;i< far_upper_diag.size();i++){
+          triplet_list[trp_cnt] = {i-1, i-1+N, far_upper_diag[i]};
+          trp_cnt++;
+          //triplet_list.push_back(Trp(i-1, i-1+N, far_upper_diag[i]));
+          triplet_list[trp_cnt] = {i-1+N, i-1, far_lower_diag[i]};
+          trp_cnt++;
+          //triplet_list.push_back(Trp(i-1+N, i-1, far_lower_diag[i]));
+       }
+
+     sp_matrix.setFromTriplets(triplet_list.begin(), triplet_list.end());    //sp_matrix is our sparse matrix
 }
 
 //------------------------------Setup Ap diagonals----------------------------------------------------------------
@@ -208,4 +255,8 @@ void Continuity_p::set_rhs(const Eigen::MatrixXd &Up_matrix)
         }
     }
 
+    //set up VectorXd Eigen vector object for sparse solver
+    for (int i = 1; i<=num_elements; i++) {
+        VecXd_rhs(i-1) = rhs[i];   //fill VectorXd  rhs of the equation
+    }
 }

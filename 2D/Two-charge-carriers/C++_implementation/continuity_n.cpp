@@ -2,11 +2,21 @@
 
 Continuity_n::Continuity_n(const Parameters &params)
 {
-   num_cell = params.num_cell;
-   main_diag.resize(num_cell);
-   upper_diag.resize(num_cell-1);
-   lower_diag.resize(num_cell-1);
-   rhs.resize(num_cell);
+    num_elements = params.num_elements;
+    N = params.num_cell - 1;
+    num_cell = params.num_cell;
+
+    main_diag.resize(num_elements+1);
+    upper_diag.resize(num_elements);
+    lower_diag.resize(num_elements);
+    far_lower_diag.resize(num_elements-N+1);
+    far_upper_diag.resize(num_elements-N+1);
+    rhs.resize(num_elements+1);  //+1 b/c I am filling from index 1
+
+   n_bottomBC.resize(N+1);
+   n_topBC.resize(N+1);
+   n_leftBC.resize(N+1);
+   n_rightBC.resize(N+1);
 
    Bn_posX.resize(num_cell+1, num_cell+1);  //allocate memory for the matrix object
    Bn_negX.resize(num_cell+1, num_cell+1);
@@ -23,8 +33,9 @@ Continuity_n::Continuity_n(const Parameters &params)
       n_topBC[j] = params.N_LUMO*exp(-params.phi_c/Vt)/params.N_dos;
    }
 
-   num_elements = params.num_elements;
-   N = params.num_cell - 1;
+   //allocate memory for the sparse matrix and rhs vector (Eig object)
+   sp_matrix.resize(num_elements, num_elements);
+   VecXd_rhs.resize(num_elements);   //only num_elements, b/c filling from index 0 (necessary for the sparse solver)
 
 }
 
@@ -62,6 +73,38 @@ void Continuity_n::setup_eqn(const Eigen::MatrixXd &V_matrix, const Eigen::Matri
     set_upper_diag();
     set_far_upper_diag();
     set_rhs(Un_matrix);
+
+    typedef Eigen::Triplet<double> Trp;
+
+    //generate triplets for Eigen sparse matrix
+    //setup the triplet list for sparse matrix
+     std::vector<Trp> triplet_list(5*num_elements);   //approximate the size that need         // list of non-zeros coefficients in triplet form(row index, column index, value)
+     int trp_cnt = 0;
+     for(int i = 1; i<= num_elements; i++){
+           triplet_list[trp_cnt] = {i-1, i-1, main_diag[i]};
+           trp_cnt++;
+         //triplet_list.push_back(Trp(i-1,i-1,main_diag[i]));;   //triplets for main diag
+     }
+     for(int i = 1;i< upper_diag.size();i++){
+         triplet_list[trp_cnt] = {i-1, i, upper_diag[i]};
+         trp_cnt++;
+         //triplet_list.push_back(Trp(i-1, i, upper_diag[i]));  //triplets for upper diagonal
+      }
+      for(int i = 1;i< lower_diag.size();i++){
+          triplet_list[trp_cnt] = {i, i-1, lower_diag[i]};
+          trp_cnt++;
+         // triplet_list.push_back(Trp(i, i-1, lower_diag[i]));
+      }
+      for(int i = 1;i< far_upper_diag.size();i++){
+          triplet_list[trp_cnt] = {i-1, i-1+N, far_upper_diag[i]};
+          trp_cnt++;
+          //triplet_list.push_back(Trp(i-1, i-1+N, far_upper_diag[i]));
+          triplet_list[trp_cnt] = {i-1+N, i-1, far_lower_diag[i]};
+          trp_cnt++;
+          //triplet_list.push_back(Trp(i-1+N, i-1, far_lower_diag[i]));
+       }
+
+     sp_matrix.setFromTriplets(triplet_list.begin(), triplet_list.end());    //sp_matrix is our sparse matrix
 
 }
 
@@ -183,6 +226,10 @@ void Continuity_n::set_rhs(const Eigen::MatrixXd &Un_matrix)
         }
     }
 
+    //set up VectorXd Eigen vector object for sparse solver
+    for (int i = 1; i<=num_elements; i++) {
+        VecXd_rhs(i-1) = rhs[i];   //fill VectorXd  rhs of the equation
+    }
 }
 
 

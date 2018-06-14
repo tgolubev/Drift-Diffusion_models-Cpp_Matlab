@@ -9,7 +9,7 @@ Photogeneration::Photogeneration(const Parameters &params, double photogen_scali
     PhotogenRate.resize(params.num_cell, params.num_cell);  //need 0 through N indices, and N = num_cell-1
     PhotogenRate_max = photogen_scaling;
 
-    std::vector<double> Photogen_vector; //temporary vector, to input gen rate from file
+    std::vector<double> Photogen_vector(params.num_cell); //temporary vector, to input gen rate from file
 
     std::ifstream GenRateFile;
 

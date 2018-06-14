@@ -94,6 +94,8 @@ int main()
     std::vector<double> n(num_rows+ 1), p(num_rows+ 1), oldp(num_rows+ 1), newp(num_rows), oldn(num_rows+ 1), newn(num_rows+ 1);
     std::vector<double> oldV(num_rows+ 1), newV(num_rows+ 1), V(num_rows+ 1);
 
+    Eigen::VectorXd soln_Xd(num_rows);  //vector for storing solutions to the  sparse solver
+
     //std::vector<double> Jp(num_rows),Jn(num_cell), J_total(num_cell);
 
     //create matrices to hold the V, n, and p values (including those at the boundaries) according to the (x,z) coordinates.
@@ -107,11 +109,14 @@ int main()
     Eigen::MatrixXd Up_matrix = Eigen::MatrixXd::Zero(N+1,N+1);
     Eigen::MatrixXd R_Langevin(N+1,N+1), PhotogenRate(N+1,N+1);  //store the results of these..
 
+
     //define initial conditions as min value of BCs
     //double min_dense = std::min(continuity_n.get_n_bottomBC()[1], continuity_p.get_p_topBC()[1]);  //just use 1st index, the BC's are uniform for IC
 
     //initially we make the n and p densities inside the device be the same, so netcharge = 0
     Eigen::MatrixXd netcharge = Eigen::MatrixXd::Zero(num_cell+1,num_cell+1);
+    //std::cout << netcharge << std::endl;
+
 
 //------------------------------------------------------------------------------------
     //Construct objects
@@ -121,6 +126,8 @@ int main()
     Continuity_n continuity_n(params);  //note this also sets up the constant top and bottom electrode BC's
     Photogeneration photogen(params, params.Photogen_scaling, params.GenRateFileName);
     Utilities utils;
+    Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>, Eigen::UpLoType::Lower, Eigen::AMDOrdering<int>> SCholesky; //Note using NaturalOrdering is much much slower
+/*
 
 //--------------------------------------------------------------------------------------------
     //Define boundary conditions and initial conditions. Note: electrodes are at the top and bottom.
@@ -199,8 +206,18 @@ int main()
 
             poisson.set_rhs(netcharge);
             oldV = V;
+            SCholesky.analyzePattern(poisson.get_sp_matrix());
+            SCholesky.factorize(poisson.get_sp_matrix());
+            soln_Xd = SCholesky.solve(poisson.get_rhs());
 
-            //MATRIX SOVE WITH EIGEN
+            //For now do a little inefficiently, but more convinient. Store soln in the VectorXd object, and convert back to normal std::vector
+            //for rest of processing.
+
+            //save results back into V std::vector. RECALL, I am starting my V vector from index of 1, corresponds to interior pts...
+            for (int i = 1; i<=num_rows; i++) {
+                V[i] = soln_Xd(i-1);   //fill VectorXd  rhs of the equation
+            }
+
 
             //Mix old and new solutions for V
             if (iter > 0)
@@ -241,11 +258,31 @@ int main()
 
             continuity_n.setup_eqn(V_matrix, Un_matrix);
             oldn = n;
-            //MATRIX SOVE WITH EIGEN
+            //don't need to define SCholesky again, since already defined
+            //Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>, Eigen::UpLoType::Lower, Eigen::AMDOrdering<int>> SCholesky; //Note using NaturalOrdering is much much slower
+            SCholesky.analyzePattern(continuity_n.get_sp_matrix());
+            SCholesky.factorize(continuity_n.get_sp_matrix());
+            soln_Xd = SCholesky.solve(continuity_n.get_rhs());
 
+            //save results back into n std::vector. RECALL, I am starting my V vector from index of 1, corresponds to interior pts...
+            for (int i = 1; i<=num_rows; i++) {
+                n[i] = soln_Xd(i-1);   //fill VectorXd  rhs of the equation
+            }
+
+            //-------------------------------------------------------
             continuity_p.setup_eqn(V_matrix, Up_matrix);
             oldp = p;
-           //MATRIX SOVE WITH EIGEN
+            //Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>, Eigen::UpLoType::Lower, Eigen::AMDOrdering<int>> SCholesky; //Note using NaturalOrdering is much much slower
+            SCholesky.analyzePattern(continuity_p.get_sp_matrix());
+            SCholesky.factorize(continuity_p.get_sp_matrix());
+            soln_Xd = SCholesky.solve(continuity_p.get_rhs());
+
+            //save results back into n std::vector. RECALL, I am starting my V vector from index of 1, corresponds to interior pts...
+            for (int i = 1; i<=num_rows; i++) {
+                p[i] = soln_Xd(i-1);   //fill VectorXd  rhs of the equation
+            }
+
+            //------------------------------------------------
 
             //if get negative p's or n's set them = 0
             for (int i = 1; i < num_cell; i++) {
@@ -291,20 +328,24 @@ int main()
         std::cout << "1 Va CPU time = " << time.count() << std::endl;
 
         //-------------------Calculate Currents using Scharfetter-Gummel definition--------------------------
-        /*
+
         for (int i = 1; i < num_cell; i++) {
             Jp[i] = -(q*Vt*params.N*params.mobil/params.dx) * continuity_p.get_p_mob()[i] * (p[i]*continuity_p.get_B_p2()[i] - p[i-1]*continuity_p.get_B_p1()[i]);
             Jn[i] =  (q*Vt*params.N*params.mobil/params.dx) * continuity_n.get_n_mob()[i] * (n[i]*continuity_n.get_B_n1()[i] - n[i-1]*continuity_n.get_B_n2()[i]);
             J_total[i] = Jp[i] + Jn[i];
         }
-        */
+
 
         //---------------------Write to file----------------------------------------------------------------
         //utils.write_details(params, Va, V, p, n, J_total, Un, PhotogenRate, R_Langevin);
         //if(Va_cnt >0) utils.write_JV(params, JV, iter, Va, J_total);
 
     }//end of main loop
+
+    */
     JV.close();
+
+
 
     return 0;
 }

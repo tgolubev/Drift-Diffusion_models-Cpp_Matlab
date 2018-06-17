@@ -7,9 +7,9 @@ Utilities::Utilities()
 
 std::vector<double> Utilities::linear_mix(const Parameters &params, const std::vector<double> &new_values,const std::vector<double> &old_values)
 {
-    static std::vector<double> result(params.num_cell+1);  //static so only allocate at 1st fnc call
+    static std::vector<double> result(params.num_elements+1);  //static so only allocate at 1st fnc call
 
-    for (int i = 1; i < params.num_cell; i++) {  //note: all the changing values in vectors start from 1 (0th index is a BC)
+    for (int i = 1; i <= params.num_elements; i++) {  //note: all the changing values in vectors start from 1 (0th index is a BC)
         result[i] = new_values[i]*params.w + old_values[i]*(1.0 - params.w);
     }
 

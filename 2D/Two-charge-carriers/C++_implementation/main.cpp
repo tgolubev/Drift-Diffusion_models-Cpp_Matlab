@@ -82,6 +82,7 @@ int main()
     params.tolerance_eq = 100.*params.tolerance_i;
     const int N = params.num_cell -1;
     const int num_rows = N*N;  //number of rows in the solution vectors (V, n, p)
+    //NOTE: num_rows is the same as num_elements
 
     std::ofstream JV;
     JV.open("JV.txt");  //note: file will be created inside the build directory
@@ -91,24 +92,25 @@ int main()
     //Will use indicies for n and p... starting from 1 --> since is more natural--> corresponds to 1st node inside the device...
     //USE SIZE num_rows + 1 b/c don't want to use the 0th index. Mathematically convenient to index the soln vectors from 1 to num_rows
     //NOTE: ALL THESE INCLUDE THE INTERIOR ELEMENTS ONLY
-    std::vector<double> n(num_rows+ 1), p(num_rows+ 1), oldp(num_rows+ 1), newp(num_rows), oldn(num_rows+ 1), newn(num_rows+ 1);
+    std::vector<double> n(num_rows+ 1), p(num_rows+ 1), oldp(num_rows+ 1), newp(num_rows+ 1), oldn(num_rows+ 1), newn(num_rows+ 1);
     std::vector<double> oldV(num_rows+ 1), newV(num_rows+ 1), V(num_rows+ 1);
 
-    Eigen::VectorXd soln_Xd(num_rows);  //vector for storing solutions to the  sparse solver
+    Eigen::VectorXd soln_Xd(num_rows);  //vector for storing solutions to the  sparse solver (indexed from 0, so only num_rows size)
 
     //std::vector<double> Jp(num_rows),Jn(num_cell), J_total(num_cell);
 
     //create matrices to hold the V, n, and p values (including those at the boundaries) according to the (x,z) coordinates.
     //Allows to write formulas in terms of coordinates.
     //Note: these matrices are indexed from 0 (corresponds to the BC).
-    //last index I need is num_cell - 1 = N
-    Eigen::MatrixXd V_matrix = Eigen::MatrixXd::Zero(N+1,N+1);
+
+    Eigen::MatrixXd V_matrix = Eigen::MatrixXd::Zero(num_cell+1, num_cell+1);    //this includes the boundaries too, so needs num-cell+1 size (BC's at 0 and num_cell)
     //Eigen::MatrixXd n_matrix = Eigen::MatrixXd::Zero(N+1,N+1);
     //Eigen::MatrixXd p_matrix = Eigen::MatrixXd::Zero(N+1,N+1);
+
+    //For the following, only need gen rate on insides, so N+1 size is enough
     Eigen::MatrixXd Un_matrix = Eigen::MatrixXd::Zero(N+1,N+1);
     Eigen::MatrixXd Up_matrix = Eigen::MatrixXd::Zero(N+1,N+1);
-    Eigen::MatrixXd R_Langevin(N+1,N+1), PhotogenRate(N+1,N+1);  //store the results of these..
-
+    Eigen::MatrixXd R_Langevin(N+1,N+1), PhotogenRate(N+1,N+1);
 
     //define initial conditions as min value of BCs
     //double min_dense = std::min(continuity_n.get_n_bottomBC()[1], continuity_p.get_p_topBC()[1]);  //just use 1st index, the BC's are uniform for IC
@@ -127,7 +129,6 @@ int main()
     Photogeneration photogen(params, params.Photogen_scaling, params.GenRateFileName);
     Utilities utils;
     Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>, Eigen::UpLoType::Lower, Eigen::AMDOrdering<int>> SCholesky; //Note using NaturalOrdering is much much slower
-/*
 
 //--------------------------------------------------------------------------------------------
     //Define boundary conditions and initial conditions. Note: electrodes are at the top and bottom.
@@ -135,17 +136,19 @@ int main()
     poisson.set_V_bottomBC(params, Va);
     poisson.set_V_topBC(params, Va);
 
+
     //Initial conditions
     //std::vector<double> diff;
     //for (int x = 0; x <= num_cell; x++)
        //diff[x] = (poisson.get_V_topBC()[x] - poisson.get_V_bottomBC()[x])/num_cell;    //note, the difference can be different at different x values..., diff is in Z directiont
 
     //for now assume diff is constant everywhere...
-    double diff = (poisson.get_V_topBC()[0] - poisson.get_V_bottomBC()[0])/num_cell;
+    double diff = (poisson.get_V_topBC()[0] - poisson.get_V_bottomBC()[0])/num_cell;  //this is  calculated correctly
+
     int index = 0;
     for (int j = 1; j <= N; j++) {//  %corresponds to z coord
         index++;
-        V[index] = diff*j;
+        V[index] = poisson.get_V_bottomBC()[0] + diff*j;   //for now just  use 1 pt on bottom BC, since is uniform anyway
         for (int i = 2; i <= N; i++) {//  %elements along the x direction assumed to have same V
             index++;
             V[index] = V[index-1];
@@ -156,9 +159,19 @@ int main()
     poisson.set_V_leftBC(V);
     poisson.set_V_rightBC(V);
 
-    //-----------------------
+    for (int i = 1; i<= num_rows; i++) {
+        std::cout << V[i] << std::endl;
+    }
+    exit(1);
 
-    //NOTE: the n and p top and bottom BC's are set when initialize a continuity_n and continuity_p object
+    //-----------------------
+    //Fill n and p with initial conditions (need for error calculation)
+
+    double min_dense = std::min(continuity_n.get_n_bottomBC()[1], continuity_p.get_p_topBC()[1]);  //Note: the bc's along bottom and top are currently uniform, so index, doesn't really matter.
+    for (int i = 1; i<= num_rows; i++) {
+        n[i] = min_dense;
+        p[i] = min_dense;
+    }
 
     poisson.setup_matrix();  //outside of loop since matrix never changes
 
@@ -195,9 +208,16 @@ int main()
         //Apply the voltage boundary conditions
         poisson.set_V_bottomBC(params, Va);
         poisson.set_V_topBC(params, Va);
+        //Add on top and bottom BC's to V_matrix
+        for (int i = 0; i <=num_cell; i++) {
+            V_matrix(i, 0) = poisson.get_V_bottomBC()[i];
+            V_matrix(i,num_cell) = poisson.get_V_topBC()[i];
+        }
 
+        //-----------------------------------------------------------
         error_np = 1.0;
         iter = 0;
+
         while (error_np > params.tolerance) {
             std::cout << "error np " << error_np <<std::endl;
             std::cout << "Va " << Va <<std::endl;
@@ -205,19 +225,24 @@ int main()
             //-----------------Solve Poisson Equation------------------------------------------------------------------
 
             poisson.set_rhs(netcharge);
+
+            //std::cout << poisson.get_sp_matrix() << std::endl;
+            //std::cout << "poisson  main  diag " << poisson.get_main_diag()[1] << std::endl;
+
             oldV = V;
             SCholesky.analyzePattern(poisson.get_sp_matrix());
             SCholesky.factorize(poisson.get_sp_matrix());
             soln_Xd = SCholesky.solve(poisson.get_rhs());
+
+            std::cout << soln_Xd << std::endl;
 
             //For now do a little inefficiently, but more convinient. Store soln in the VectorXd object, and convert back to normal std::vector
             //for rest of processing.
 
             //save results back into V std::vector. RECALL, I am starting my V vector from index of 1, corresponds to interior pts...
             for (int i = 1; i<=num_rows; i++) {
-                V[i] = soln_Xd(i-1);   //fill VectorXd  rhs of the equation
+                newV[i] = soln_Xd(i-1);   //fill VectorXd  rhs of the equation
             }
-
 
             //Mix old and new solutions for V
             if (iter > 0)
@@ -225,8 +250,7 @@ int main()
             else
                 V = newV;
 
-
-            //conversion from V vector to V_matrix (holds only the inside values of V: indices 1 through N
+            //conversion from V vector to V_matrix (holds inside values Plus the BC's). Note: top and bottom BC's are applied outside of while loop, since don't change.
             for (int index = 1; index <= num_rows; index++) {
                 int i = index % N;    //this gives the i value for matrix
                 if (i == 0) i = N;
@@ -235,6 +259,14 @@ int main()
 
                 V_matrix(i,j) = V[index];
             }
+            //set and add on the left and right BC's to V_matrix
+            poisson.set_V_leftBC(V);
+            poisson.set_V_rightBC(V);
+            for (int j = 1; j < num_cell; j++) {   //don't need to set j = 0 and j = num_cell elements, b/c already set when apply top and bottom BC's (are corners)
+                V_matrix(0, j) = poisson.get_V_leftBC()[j];
+                V_matrix(num_cell, j) = poisson.get_V_rightBC()[j];
+            }
+
 
             //------------------------------Calculate Net Generation Rate----------------------------------------------------------
 
@@ -244,15 +276,15 @@ int main()
             //NEED AN R_Langevin in Matrix form--> do the conversion within the function....
             //////////////////////////////////////////////////////////////////
 
-
             //FOR NOW CAN USE 0 FOR R_Langevin
 
-            for (int i = 1; i <= N; i++)
-                for (int j = 1; j <= N; i++)
-                    Un_matrix(i,j) = photogen.getPhotogenRate()(i,j); //- R_Langevin(i,j);
+            for (int i = 1; i <= N; i++) {
+                for (int j = 1; j <= N; j++) {
+                   Un_matrix(i,j) = 0.; //photogen.getPhotogenRate()(i,j); //- R_Langevin(i,j);
+                }
+            }
 
             Up_matrix = Un_matrix;
-
 
             //--------------------------------Solve equations for n and p------------------------------------------------------------ 
 
@@ -263,10 +295,13 @@ int main()
             SCholesky.analyzePattern(continuity_n.get_sp_matrix());
             SCholesky.factorize(continuity_n.get_sp_matrix());
             soln_Xd = SCholesky.solve(continuity_n.get_rhs());
+            //this solutino seems ok, e-11 to e-13 level.  recall the densities are scaled
+
+            std::cout << soln_Xd << std::endl;
 
             //save results back into n std::vector. RECALL, I am starting my V vector from index of 1, corresponds to interior pts...
             for (int i = 1; i<=num_rows; i++) {
-                n[i] = soln_Xd(i-1);   //fill VectorXd  rhs of the equation
+                newn[i] = soln_Xd(i-1);   //fill VectorXd  rhs of the equation
             }
 
             //-------------------------------------------------------
@@ -277,22 +312,24 @@ int main()
             SCholesky.factorize(continuity_p.get_sp_matrix());
             soln_Xd = SCholesky.solve(continuity_p.get_rhs());
 
+            std::cout << soln_Xd << std::endl;
+
             //save results back into n std::vector. RECALL, I am starting my V vector from index of 1, corresponds to interior pts...
             for (int i = 1; i<=num_rows; i++) {
-                p[i] = soln_Xd(i-1);   //fill VectorXd  rhs of the equation
+                newp[i] = soln_Xd(i-1);   //fill VectorXd  rhs of the equation
             }
 
             //------------------------------------------------
 
             //if get negative p's or n's set them = 0
-            for (int i = 1; i < num_cell; i++) {
+            for (int i = 1; i < num_rows; i++) {
                 if (newp[i] < 0.0) newp[i] = 0;
                 if (newn[i] < 0.0) newn[i] = 0;
             }
 
             //calculate the error
             old_error = error_np;
-            for (int i = 1; i < num_cell; i++) {
+            for (int i = 1; i < num_rows; i++) {
                 if (newp[i]!=0 && newn[i] !=0) {
                     error_np_vector[i] = (abs(newp[i]-oldp[i]) + abs(newn[i]-oldn[i]))/abs(oldp[i]+oldn[i]);
                 }
@@ -321,6 +358,11 @@ int main()
             //note: top and bottom BC's don't need to be changed for now, since assumed to be constant... (they are set when initialize continuity objects)
 
             iter = iter+1;
+
+            std::cout << "test" << iter << std::endl;
+if(iter ==10) exit(1);
+
+//SEEMS AFTER SOME NUMBER OF ITERS, IT FAILES...
         }
 
         std::chrono::high_resolution_clock::time_point finish = std::chrono::high_resolution_clock::now();
@@ -328,12 +370,13 @@ int main()
         std::cout << "1 Va CPU time = " << time.count() << std::endl;
 
         //-------------------Calculate Currents using Scharfetter-Gummel definition--------------------------
-
+/*
         for (int i = 1; i < num_cell; i++) {
             Jp[i] = -(q*Vt*params.N*params.mobil/params.dx) * continuity_p.get_p_mob()[i] * (p[i]*continuity_p.get_B_p2()[i] - p[i-1]*continuity_p.get_B_p1()[i]);
             Jn[i] =  (q*Vt*params.N*params.mobil/params.dx) * continuity_n.get_n_mob()[i] * (n[i]*continuity_n.get_B_n1()[i] - n[i-1]*continuity_n.get_B_n2()[i]);
             J_total[i] = Jp[i] + Jn[i];
         }
+        */
 
 
         //---------------------Write to file----------------------------------------------------------------
@@ -342,10 +385,7 @@ int main()
 
     }//end of main loop
 
-    */
     JV.close();
-
-
 
     return 0;
 }

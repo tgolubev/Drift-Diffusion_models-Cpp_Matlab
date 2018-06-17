@@ -36,13 +36,13 @@ Poisson::Poisson(const Parameters &params, const Eigen::MatrixXd &netcharge)
 void Poisson::set_V_topBC(const Parameters &params, double Va)
 {
     for (int i = 0; i <= num_cell; i++)
-        V_topBC[i] = -((params.Vbi-Va)/(2*Vt) - params.phi_a/Vt);
+        V_topBC[i] = (params.Vbi-Va)/(2*Vt) - params.phi_c/Vt;
 }
 
 void Poisson::set_V_bottomBC(const Parameters &params, double Va)
 {
     for (int i = 0; i <= num_cell; i++)
-        V_bottomBC[i] = (params.Vbi-Va)/(2*Vt) - params.phi_c/Vt;
+        V_bottomBC[i] = -((params.Vbi-Va)/(2*Vt) - params.phi_a/Vt);
 }
 
 void Poisson::set_V_leftBC(const std::vector<double> &V)

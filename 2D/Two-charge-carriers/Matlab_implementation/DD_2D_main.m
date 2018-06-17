@@ -128,6 +128,9 @@ for j = 2:N  %corresponds to z coord
     end
 end
 
+V
+stop
+
 %reshape the V vector into the V matrix
 V_matrix = reshape(V,N,N);
 
@@ -215,7 +218,7 @@ for Va_cnt = 0:num_V +1
         else
             V = newV;  %no mixing for 1st iter
         end
-        
+     
         %reshape the V vector into the V matrix
         V_matrix = reshape(V,N,N);
         

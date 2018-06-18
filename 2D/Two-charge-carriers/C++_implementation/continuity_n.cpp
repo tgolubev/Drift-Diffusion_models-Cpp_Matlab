@@ -13,10 +13,10 @@ Continuity_n::Continuity_n(const Parameters &params)
     far_upper_diag.resize(num_elements-N+1);
     rhs.resize(num_elements+1);  //+1 b/c I am filling from index 1
 
-   n_bottomBC.resize(N+1);
-   n_topBC.resize(N+1);
-   n_leftBC.resize(N+1);
-   n_rightBC.resize(N+1);
+   n_bottomBC.resize(num_cell+1);
+   n_topBC.resize(num_cell+1);
+   n_leftBC.resize(num_cell+1);
+   n_rightBC.resize(num_cell+1);
 
    Bn_posX.resize(num_cell+1, num_cell+1);  //allocate memory for the matrix object
    Bn_negX.resize(num_cell+1, num_cell+1);
@@ -29,7 +29,7 @@ Continuity_n::Continuity_n(const Parameters &params)
    Cn = params.dx*params.dx/(Vt*params.N_dos*params.mobil);
 
    //these BC's for now stay constant throughout simulation, so fill them once, upon Continuity_n object construction
-   for (int j =  0; j <= N; j++) {
+   for (int j =  0; j <= num_cell; j++) {
       n_bottomBC[j] = params.N_LUMO*exp(-(params.E_gap-params.phi_a)/Vt)/params.N_dos;
       n_topBC[j] = params.N_LUMO*exp(-params.phi_c/Vt)/params.N_dos;
    }
@@ -64,8 +64,6 @@ void Continuity_n::set_n_rightBC(const std::vector<double> &n)
 }
 
 
-
-
 //Calculates Bernoulli fnc values, then sets the diagonals and rhs
 //use the V_matrix for setup, to be able to write equations in terms of (x,z) coordingates
 void Continuity_n::setup_eqn(const Eigen::MatrixXd &V_matrix, const Eigen::MatrixXd &Un_matrix, const std::vector<double> &n)
@@ -82,6 +80,10 @@ void Continuity_n::setup_eqn(const Eigen::MatrixXd &V_matrix, const Eigen::Matri
     set_n_leftBC(n);
     set_rhs(Un_matrix);
 
+
+    /////////////////////////////
+    //NOTE: THIS CAN BE MOVED INTO THE SET DIAGONALS FUNCTIONS.... could be bit more efficient and clean
+    /////////////////////////////
     //generate triplets for Eigen sparse matrix
     //setup the triplet list for sparse matrix
     typedef Eigen::Triplet<double> Trp;

@@ -3,7 +3,7 @@
 10      //num_cell
 10e24  //N-LUMO
 10e24  //N-HOMO
-7e24   //Photogeneration-scaling
+4e27   //Photogeneration-scaling
 0.2    //phi_a
 0.1    //phi_c
 3.0    //eps_active
@@ -19,9 +19,9 @@
 1.0e-9  //dx
 
 -0.5     //Va_min
-1.2      //Va_max
+1.0      //Va_max
 0.01    //increment
-0.01    //w_eq
+0.05    //w_eq
 0.2    //w_i
 5e-12   //tolerance_i
 2.0     //w_reduce_factor

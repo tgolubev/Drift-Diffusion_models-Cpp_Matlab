@@ -104,13 +104,15 @@ int main()
     //Note: these matrices are indexed from 0 (corresponds to the BC).
 
     Eigen::MatrixXd V_matrix = Eigen::MatrixXd::Zero(num_cell+1, num_cell+1);    //this includes the boundaries too, so needs num-cell+1 size (BC's at 0 and num_cell)
-    //Eigen::MatrixXd n_matrix = Eigen::MatrixXd::Zero(N+1,N+1);
-    //Eigen::MatrixXd p_matrix = Eigen::MatrixXd::Zero(N+1,N+1);
+    Eigen::MatrixXd n_matrix = Eigen::MatrixXd::Zero(num_cell+1, num_cell+1);    //useful for calculating currents at end of each Va
+    Eigen::MatrixXd p_matrix = Eigen::MatrixXd::Zero(num_cell+1, num_cell+1);
 
     //For the following, only need gen rate on insides, so N+1 size is enough
     Eigen::MatrixXd Un_matrix = Eigen::MatrixXd::Zero(N+1,N+1);
     Eigen::MatrixXd Up_matrix = Eigen::MatrixXd::Zero(N+1,N+1);
     Eigen::MatrixXd R_Langevin(N+1,N+1), PhotogenRate(N+1,N+1);
+    Eigen::MatrixXd Jp_Z(num_cell+1, num_cell+1), Jn_Z(num_cell+1, num_cell+1), Jp_X(num_cell+1, num_cell+1), Jn_X(num_cell+1, num_cell+1);
+    Eigen::MatrixXd J_total_Z(num_cell+1, num_cell+1), J_total_X(num_cell+1, num_cell+1);                  //matrices for spacially dependent current
 
     //define initial conditions as min value of BCs
     //double min_dense = std::min(continuity_n.get_n_bottomBC()[1], continuity_p.get_p_topBC()[1]);  //just use 1st index, the BC's are uniform for IC
@@ -137,7 +139,6 @@ int main()
     poisson.set_V_bottomBC(params, Va);
     poisson.set_V_topBC(params, Va);
 
-
     //Initial conditions
     //std::vector<double> diff;
     //for (int x = 0; x <= num_cell; x++)
@@ -160,15 +161,8 @@ int main()
     poisson.set_V_leftBC(V);
     poisson.set_V_rightBC(V);
 
-  /*
-    for (int i = 1; i<= num_rows; i++) {
-        std::cout << V[i] << std::endl;
-    }
-    */
-
     //-----------------------
     //Fill n and p with initial conditions (need for error calculation)
-
     double min_dense = std::min(continuity_n.get_n_bottomBC()[1], continuity_p.get_p_topBC()[1]);  //Note: the bc's along bottom and top are currently uniform, so index, doesn't really matter.
     for (int i = 1; i<= num_rows; i++) {
         n[i] = min_dense;
@@ -227,15 +221,12 @@ int main()
             //-----------------Solve Poisson Equation------------------------------------------------------------------
 
             poisson.set_rhs(netcharge);
-
             //std::cout << poisson.get_sp_matrix() << std::endl;
             //std::cout << "poisson  main  diag " << poisson.get_main_diag()[1] << std::endl;
-
             oldV = V;
             SCholesky.analyzePattern(poisson.get_sp_matrix());
             SCholesky.factorize(poisson.get_sp_matrix());
             soln_Xd = SCholesky.solve(poisson.get_rhs());
-
             //std::cout << soln_Xd << std::endl;
 
             //For now do a little inefficiently, but more convinient. Store soln in the VectorXd object, and convert back to normal std::vector
@@ -268,6 +259,7 @@ int main()
                 V_matrix(num_cell, j) = poisson.get_V_rightBC()[j];
             }
 
+            //std::cout << V_matrix << std::endl;
 
             //------------------------------Calculate Net Generation Rate----------------------------------------------------------
 
@@ -281,7 +273,7 @@ int main()
 
             for (int i = 1; i <= N; i++) {
                 for (int j = 1; j <= N; j++) {
-                   Un_matrix(i,j) = 0.; //photogen.getPhotogenRate()(i,j); //- R_Langevin(i,j);
+                   Un_matrix(i,j) = params.Photogen_scaling;  //This is what was used in Matlab version for testing.   photogen.getPhotogenRate()(i,j); //- R_Langevin(i,j);
                 }
             }
 
@@ -299,14 +291,12 @@ int main()
             //Cholesky Simplical LLT, fails officially (if check .info(), returns a 1 (false)).
             //MUST ALWAYS CHECK IF IT SOLVED SUCCESFULLY, WITH AN IF STATEMENT..., OTHERWISE IT WILL NOT WARN YOU, BUT JUST GIVE BACK THE PREVIOUS SOLUTION!
             //Matlab says Cholesky is not suitable for continuity eqn, I think b/c matrix is not symmetric...
-
             //so will stick with QR for now.
 
             SQR.analyzePattern(continuity_n.get_sp_matrix());
             SQR.factorize(continuity_n.get_sp_matrix());
             soln_Xd = SQR.solve(continuity_n.get_rhs());
-
-            std::cout <<  soln_Xd << std::endl;
+            //std::cout <<  soln_Xd << std::endl;
 
             //save results back into n std::vector. RECALL, I am starting my V vector from index of 1, corresponds to interior pts...
             for (int i = 1; i<=num_rows; i++) {
@@ -315,15 +305,13 @@ int main()
 
             //-------------------------------------------------------
             continuity_p.setup_eqn(V_matrix, Up_matrix, p);
+            //std::cout << continuity_p.get_rhs() << std::endl;   //Note: get rhs, returns an Eigen VectorXd
             oldp = p;
             //Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>, Eigen::UpLoType::Lower, Eigen::AMDOrdering<int>> SCholesky; //Note using NaturalOrdering is much much slower
             SQR.analyzePattern(continuity_p.get_sp_matrix());
             SQR.factorize(continuity_p.get_sp_matrix());
             soln_Xd = SQR.solve(continuity_p.get_rhs());
-
-            std::cout << continuity_p.get_rhs() << std::endl;   //Note: get rhs, returns an Eigen VectorXd
-
-            std::cout << soln_Xd << std::endl;
+            //std::cout << soln_Xd << std::endl;
 
             //save results back into n std::vector. RECALL, I am starting my V vector from index of 1, corresponds to interior pts...
             for (int i = 1; i<=num_rows; i++) {
@@ -352,7 +340,7 @@ int main()
             if (error_np >= old_error)
                 not_cnv_cnt = not_cnv_cnt+1;
             if (not_cnv_cnt > 2000) {
-                //params.reduce_w();
+                params.reduce_w();
                 params.relax_tolerance();
                 not_cnv_cnt = 0;
             }
@@ -369,8 +357,7 @@ int main()
             //note: top and bottom BC's don't need to be changed for now, since assumed to be constant... (they are set when initialize continuity objects)
 
             iter = iter+1;
-
-            std::cout << "test" << iter << std::endl;
+            //std::cout << "test" << iter << std::endl;
         }
 
         std::chrono::high_resolution_clock::time_point finish = std::chrono::high_resolution_clock::now();
@@ -378,18 +365,49 @@ int main()
         std::cout << "1 Va CPU time = " << time.count() << std::endl;
 
         //-------------------Calculate Currents using Scharfetter-Gummel definition--------------------------
-/*
-        for (int i = 1; i < num_cell; i++) {
-            Jp[i] = -(q*Vt*params.N*params.mobil/params.dx) * continuity_p.get_p_mob()[i] * (p[i]*continuity_p.get_B_p2()[i] - p[i-1]*continuity_p.get_B_p1()[i]);
-            Jn[i] =  (q*Vt*params.N*params.mobil/params.dx) * continuity_n.get_n_mob()[i] * (n[i]*continuity_n.get_B_n1()[i] - n[i-1]*continuity_n.get_B_n2()[i]);
-            J_total[i] = Jp[i] + Jn[i];
+        //Convert the n and p to n_matrix and p_matrix
+        for (int index = 1; index <= num_rows; index++) {
+            int i = index % N;    //this gives the i value for matrix
+            if (i == 0) i = N;
+
+            int j = 1 + static_cast<int>(floor((index-1)/N));  // j value for matrix
+
+            n_matrix(i,j) = n[index];
+            p_matrix(i,j) = p[index];
         }
-        */
+        for (int j = 1; j <= N; j++) {
+            n_matrix(0, j) = continuity_n.get_n_leftBC()[j];
+            p_matrix(0, j) = continuity_p.get_p_leftBC()[j];
+            n_matrix(num_cell, j) = continuity_n.get_n_rightBC()[j];
+            p_matrix(num_cell, j) = continuity_p.get_p_rightBC()[j];
+        }
+        for (int i = 0; i <= num_cell; i++) {  //bottom BC's go all the way accross, including corners
+            n_matrix(i, 0) = continuity_n.get_n_bottomBC()[i];
+            n_matrix(i, num_cell) = continuity_n.get_n_topBC()[i];
+            p_matrix(i, 0) = continuity_p.get_p_bottomBC()[i];
+            p_matrix(i, num_cell) = continuity_p.get_p_topBC()[i];
+        }
+
+        //CAN MOVE THESE TO FUNCTIONS INSIDE CONTINUITY EQUATIONS classes
+        for (int i = 1; i < num_cell; i++) {
+            for (int j = 1; j < num_cell; j++) {
+                Jp_Z(i,j) = -(q*Vt*params.N_dos*params.mobil/params.dx) * continuity_p.get_p_mob()(i,j) * (p_matrix(i,j)*continuity_p.get_Bp_negZ()(i,j) - p_matrix(i,j-1)*continuity_p.get_Bp_posZ()(i,j));
+                Jn_Z(i,j) =  (q*Vt*params.N_dos*params.mobil/params.dx) * continuity_n.get_n_mob()(i,j) * (n_matrix(i,j)*continuity_n.get_Bn_posZ()(i,j) - n_matrix(i,j-1)*continuity_n.get_Bn_negZ()(i,j));
+
+                Jp_X(i,j) = -(q*Vt*params.N_dos*params.mobil/params.dx) * continuity_p.get_p_mob()(i,j) * (p_matrix(i,j)*continuity_p.get_Bp_negX()(i,j) - p_matrix(i,j-1)*continuity_p.get_Bp_posX()(i,j));
+                Jn_X(i,j) =  (q*Vt*params.N_dos*params.mobil/params.dx) * continuity_n.get_n_mob()(i,j) * (n_matrix(i,j)*continuity_n.get_Bn_posX()(i,j) - n_matrix(i,j-1)*continuity_n.get_Bn_negX()(i,j));
+            }
+        }
+            J_total_Z = Jp_Z + Jn_Z;
+            J_total_X = Jp_X + Jn_X;
+
+            //std::cout << J_total_Z << std::endl;
+
 
 
         //---------------------Write to file----------------------------------------------------------------
-        //utils.write_details(params, Va, V, p, n, J_total, Un, PhotogenRate, R_Langevin);
-        //if(Va_cnt >0) utils.write_JV(params, JV, iter, Va, J_total);
+        utils.write_details(params, Va, V_matrix, p_matrix, n_matrix, J_total_Z, Un_matrix);
+        if(Va_cnt >0) utils.write_JV(params, JV, iter, Va, J_total_Z);
 
     }//end of main loop
 

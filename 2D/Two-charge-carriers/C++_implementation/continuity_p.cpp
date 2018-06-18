@@ -18,10 +18,10 @@ Continuity_p::Continuity_p(const Parameters &params)
     Bp_posZ.resize(num_cell+1, num_cell+1);
     Bp_negZ.resize(num_cell+1, num_cell+1);
 
-    p_bottomBC.resize(N+1);
-    p_topBC.resize(N+1);
-    p_leftBC.resize(N+1);
-    p_rightBC.resize(N+1);
+    p_bottomBC.resize(num_cell+1);
+    p_topBC.resize(num_cell+1);
+    p_leftBC.resize(num_cell+1);
+    p_rightBC.resize(num_cell+1);
 
     // //MUST FILL WITH THE VALUES OF p_mob!!  WILL NEED TO MODIFY THIS WHEN HAVE SPACE VARYING
     p_mob = (params.p_mob_active/params.mobil)*Eigen::MatrixXd::Ones(num_cell+1, num_cell+1);
@@ -31,7 +31,7 @@ Continuity_p::Continuity_p(const Parameters &params)
 
     //these BC's for now stay constant throughout simulation, so fill them once, upon Continuity_n object construction
 
-    for (int j =  0; j <= N; j++) {
+    for (int j =  0; j <= num_cell; j++) {
         p_bottomBC[j] = params.N_HOMO*exp(-params.phi_a/Vt)/params.N_dos;
         p_topBC[j] = params.N_HOMO*exp(-(params.E_gap-params.phi_c)/Vt)/params.N_dos;
     }

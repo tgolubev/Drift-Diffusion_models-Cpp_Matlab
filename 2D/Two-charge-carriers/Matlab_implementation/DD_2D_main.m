@@ -259,11 +259,7 @@ for Va_cnt = 0:num_V +1
         newn = An\bn;
         
         %spparms('spumoni',2)
-        
-   newp
-   stop
-    
-        
+
         % if get negative p's or n's, make them equal 0
         for i = 1:num_elements
             if(newp(i) <0.0)
@@ -376,7 +372,7 @@ for Va_cnt = 0:num_V +1
     if(Va_cnt ==0)
         equil = fopen(fullfile('Equil.txt'),'w');
         for j = 2:num_cell
-            i = floor(num_cell/2);
+            i = floor(num_cell/2) +1;  %need +1 to match with C++ version--> b/c here indexed from 1, so middle is actually located at num_cell/2 + 1
             fprintf(equil,'%.2e %.2e %.8e %.8e %.8e \r\n ',(i-1)*dx, (j-1)*dx, Vt*fullV(i,j), N_dos*fullp(i,j), N_dos*fulln(i,j));
         end
         fclose(equil);
@@ -384,7 +380,7 @@ for Va_cnt = 0:num_V +1
     
     if(Va_cnt > 0)
         for j = 2:num_cell
-            i = floor(num_cell/2);     %JUST OUTPUT LINE PROFILE ALONG Z --> otherwise hard to compare results to 1D model
+            i = floor(num_cell/2) + 1;    %need +1 to match with C++ version--> b/c here indexed from 1, so middle is actually located at num_cell/2 + 1  %JUST OUTPUT LINE PROFILE ALONG Z --> otherwise hard to compare results to 1D model
             %for j = 2:num_cell    %use if want to output values along the entire grid
             fprintf(fid,'%.2e %.2e %.8e %.8e %.8e %.8e %.8e %.8e %.8e %.8e\r\n', (i-1)*dx, (j-1)*dx, Vt*fullV(i,j), N_dos*fullp(i,j), N_dos*fulln(i,j), J_total_X(i,j), J_total_Z(i,j), Up(i-1,j-1), w, tolerance);
             %end

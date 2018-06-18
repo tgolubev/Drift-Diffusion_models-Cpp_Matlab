@@ -39,8 +39,11 @@ public:
     Eigen::VectorXd get_rhs() const {return VecXd_rhs;}  //returns the Eigen object
     Eigen::SparseMatrix<double> get_sp_matrix() const {return sp_matrix;}
 
-    //std::vector<double> get_B_p1() const {return B_p1;}
-    //std::vector<double> get_B_p2() const {return B_p2;}
+    //Needed for current calculations
+    Eigen::MatrixXd  get_Bp_posX() const {return Bp_posX;}
+    Eigen::MatrixXd  get_Bp_negX() const {return Bp_negX;}
+    Eigen::MatrixXd  get_Bp_posZ() const {return Bp_posZ;}
+    Eigen::MatrixXd  get_Bp_negZ() const {return Bp_negZ;}
 
     std::vector<double> get_p_topBC() const {return p_topBC;}
     std::vector<double> get_p_bottomBC() const {return p_bottomBC;}

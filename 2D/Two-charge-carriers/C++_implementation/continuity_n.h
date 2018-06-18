@@ -39,10 +39,14 @@ public:
     //std::vector<double> get_rhs() const {return rhs;}
     //std::vector<std::vector<double> > get_n_mob() const {return n_mob;}
     Eigen::MatrixXd get_n_mob() const {return n_mob;}
-    //std::vector<double> get_B_n1() const {return B_n1;}
-    //std::vector<double> get_B_n2() const {return B_2;}
     Eigen::VectorXd get_rhs() const {return VecXd_rhs;}  //returns the Eigen object
     Eigen::SparseMatrix<double> get_sp_matrix() const {return sp_matrix;}
+
+    //needed for current calculations
+    Eigen::MatrixXd  get_Bn_posX() const {return Bn_posX;}
+    Eigen::MatrixXd  get_Bn_negX() const {return Bn_negX;}
+    Eigen::MatrixXd  get_Bn_posZ() const {return Bn_posZ;}
+    Eigen::MatrixXd  get_Bn_negZ() const {return Bn_negZ;}
 
     std::vector<double> get_n_topBC() const {return n_topBC;}
     std::vector<double> get_n_bottomBC() const {return n_bottomBC;}

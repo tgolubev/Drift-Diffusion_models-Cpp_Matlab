@@ -130,6 +130,7 @@ int main()
     Utilities utils;
     Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>, Eigen::UpLoType::Lower, Eigen::AMDOrdering<int>> SCholesky; //Note using NaturalOrdering is much much slower
 
+    Eigen::SparseQR<Eigen::SparseMatrix<double>, Eigen::COLAMDOrdering<int>> SQR;
 //--------------------------------------------------------------------------------------------
     //Define boundary conditions and initial conditions. Note: electrodes are at the top and bottom.
     double Va = 0;
@@ -183,7 +184,7 @@ int main()
     int iter, not_cnv_cnt, Va_cnt;
     bool not_converged;
     double error_np, old_error;  //this stores max value of the error and the value of max error from previous iteration
-    std::vector<double> error_np_vector(num_cell+1);  //note: since n and p solutions are in vector form, can use vector form here also
+    std::vector<double> error_np_vector(num_rows+1);  //note: since n and p solutions are in vector form, can use vector form here also
 
     for (Va_cnt = 0; Va_cnt <= num_V +1; Va_cnt++) {  //+1 b/c 1st Va is the equil run
         not_converged = false;
@@ -237,11 +238,8 @@ int main()
 
             //std::cout << soln_Xd << std::endl;
 
-            //IS CORRECT VALUES AT 1ST ITER UP TO HERE
-
             //For now do a little inefficiently, but more convinient. Store soln in the VectorXd object, and convert back to normal std::vector
             //for rest of processing.
-
             //save results back into V std::vector. RECALL, I am starting my V vector from index of 1, corresponds to interior pts...
             for (int i = 1; i<=num_rows; i++) {
                 newV[i] = soln_Xd(i-1);   //fill VectorXd  rhs of the equation
@@ -291,25 +289,24 @@ int main()
 
             //--------------------------------Solve equations for n and p------------------------------------------------------------ 
 
-            continuity_n.setup_eqn(V_matrix, Un_matrix, n);
+            continuity_n.setup_eqn(V_matrix, Un_matrix, n);  //RHS SETUP IS CORRECT
             oldn = n;  //oldn VALUES ARE CORRECT
 
-            //std::cout << continuity_n.get_sp_matrix() << std::endl;  //sparse matrix seems to be correct
+            //std::cout << continuity_n.get_rhs() << std::endl;
 
-            //don't need to define SCholesky again, since already defined
-            //Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>, Eigen::UpLoType::Lower, Eigen::AMDOrdering<int>> SCholesky; //Note using NaturalOrdering is much much slower
-            SCholesky.analyzePattern(continuity_n.get_sp_matrix());
-            SCholesky.factorize(continuity_n.get_sp_matrix());
-            soln_Xd = SCholesky.solve(continuity_n.get_rhs());
+            //NOTE: BiCGSTAB, and congugate gradient cause program crash
+            //Cholesky Simplicial LLDT gives non-sense results
+            //Cholesky Simplical LLT, fails officially (if check .info(), returns a 1 (false)).
+            //MUST ALWAYS CHECK IF IT SOLVED SUCCESFULLY, WITH AN IF STATEMENT..., OTHERWISE IT WILL NOT WARN YOU, BUT JUST GIVE BACK THE PREVIOUS SOLUTION!
+            //Matlab says Cholesky is not suitable for continuity eqn, I think b/c matrix is not symmetric...
 
-            std::cout << continuity_n.get_rhs() << std::endl;   //Note: get rhs, returns an Eigen VectorXd
+            //so will stick with QR for now.
 
+            SQR.analyzePattern(continuity_n.get_sp_matrix());
+            SQR.factorize(continuity_n.get_sp_matrix());
+            soln_Xd = SQR.solve(continuity_n.get_rhs());
 
-            //std::cout << soln_Xd << std::endl;    //SOLUTION HERE IS TOTALLY WRONG
-
-            //RHS SETUP IS WRONG
-
-            exit(1);
+            std::cout <<  soln_Xd << std::endl;
 
             //save results back into n std::vector. RECALL, I am starting my V vector from index of 1, corresponds to interior pts...
             for (int i = 1; i<=num_rows; i++) {
@@ -320,9 +317,11 @@ int main()
             continuity_p.setup_eqn(V_matrix, Up_matrix, p);
             oldp = p;
             //Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>, Eigen::UpLoType::Lower, Eigen::AMDOrdering<int>> SCholesky; //Note using NaturalOrdering is much much slower
-            SCholesky.analyzePattern(continuity_p.get_sp_matrix());
-            SCholesky.factorize(continuity_p.get_sp_matrix());
-            soln_Xd = SCholesky.solve(continuity_p.get_rhs());
+            SQR.analyzePattern(continuity_p.get_sp_matrix());
+            SQR.factorize(continuity_p.get_sp_matrix());
+            soln_Xd = SQR.solve(continuity_p.get_rhs());
+
+            std::cout << continuity_p.get_rhs() << std::endl;   //Note: get rhs, returns an Eigen VectorXd
 
             std::cout << soln_Xd << std::endl;
 
@@ -372,8 +371,6 @@ int main()
             iter = iter+1;
 
             std::cout << "test" << iter << std::endl;
-
-//SEEMS AFTER SOME NUMBER OF ITERS, IT FAILES...
         }
 
         std::chrono::high_resolution_clock::time_point finish = std::chrono::high_resolution_clock::now();

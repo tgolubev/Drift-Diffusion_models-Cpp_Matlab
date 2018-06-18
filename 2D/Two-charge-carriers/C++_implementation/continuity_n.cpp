@@ -38,6 +38,10 @@ Continuity_n::Continuity_n(const Parameters &params)
    sp_matrix.resize(num_elements, num_elements);
    VecXd_rhs.resize(num_elements);   //only num_elements, b/c filling from index 0 (necessary for the sparse solver)
 
+   //setup the triplet list for sparse matrix
+    //triplet_list.resize(5*num_elements);   //approximate the size that need         // list of non-zeros coefficients in triplet form(row index, column index, value)
+
+
 }
 
 //----------------------------------------------------------
@@ -66,6 +70,7 @@ void Continuity_n::set_n_rightBC(const std::vector<double> &n)
 //use the V_matrix for setup, to be able to write equations in terms of (x,z) coordingates
 void Continuity_n::setup_eqn(const Eigen::MatrixXd &V_matrix, const Eigen::MatrixXd &Un_matrix, const std::vector<double> &n)
 {
+    //trp_cnt = 0;  //reset triplet count --> used for setting up Eigen triplets
     Bernoulli_n_X(V_matrix);
     Bernoulli_n_Z(V_matrix);
     set_far_lower_diag();
@@ -77,10 +82,9 @@ void Continuity_n::setup_eqn(const Eigen::MatrixXd &V_matrix, const Eigen::Matri
     set_n_leftBC(n);
     set_rhs(Un_matrix);
 
-    typedef Eigen::Triplet<double> Trp;
-
     //generate triplets for Eigen sparse matrix
     //setup the triplet list for sparse matrix
+    typedef Eigen::Triplet<double> Trp;
      std::vector<Trp> triplet_list(5*num_elements);   //approximate the size that need         // list of non-zeros coefficients in triplet form(row index, column index, value)
      int trp_cnt = 0;
      for(int i = 1; i<= num_elements; i++){
@@ -106,8 +110,8 @@ void Continuity_n::setup_eqn(const Eigen::MatrixXd &V_matrix, const Eigen::Matri
           trp_cnt++;
           //triplet_list.push_back(Trp(i-1+N, i-1, far_lower_diag[i]));
        }
-
      sp_matrix.setFromTriplets(triplet_list.begin(), triplet_list.end());    //sp_matrix is our sparse matrix
+
 
 }
 
@@ -125,6 +129,9 @@ void Continuity_n::set_far_lower_diag()
         int j = 1 + static_cast<int>(floor((index-1)/N));    //this is the y index of V which element corresponds to. 1+ floor(index/4)determines which subblock this corresponds to and thus determines j, since the j's for each subblock are all the same.
 
         far_lower_diag[index] = -((n_mob(i,j) + n_mob(i+1, j))/2.)*Bn_negZ(i,j);
+
+        //triplet_list[trp_cnt] = {i-1, j-1, far_lower_diag[index]};  //i-1 and j-1 b/c Eigen matrices must be indexed from 0
+        //trp_cnt++;
     }
 }
 
@@ -140,6 +147,9 @@ void Continuity_n::set_lower_diag()
             lower_diag[index] = 0;      //probably don't need explicitely fill here, since auto intialized to 0
         else
             lower_diag[index] = -((n_mob(i,j) + n_mob(i,j+1))/2.)*Bn_negX(i,j);
+
+        //triplet_list[trp_cnt] = {i-1, j-1, lower_diag[index]};
+        //trp_cnt++;
     }
 }
 
@@ -155,6 +165,9 @@ void Continuity_n::set_main_diag()
         int j = 1 + static_cast<int>(floor((index-1)/N));
 
         main_diag[index] = ((n_mob(i,j) + n_mob(i,j+1))/2.)*Bn_posX(i,j) + ((n_mob(i+1,j) + n_mob(i+1,j+1))/2.)*Bn_negX(i+1,j) + ((n_mob(i,j) + n_mob(i+1,j))/2.)*Bn_posZ(i,j) + ((n_mob(i,j+1) + n_mob(i+1,j+1))/2.)*Bn_negZ(i,j+1);
+
+        //triplet_list[trp_cnt] = {i-1, j-1, main_diag[index]};
+        //trp_cnt++;
     }
 }
 
@@ -165,11 +178,16 @@ void Continuity_n::set_upper_diag()
         int i = index % N;
         int j = 1 + static_cast<int>(floor((index-1)/N));
 
-        if ((index-1 % N) == 0)
+        if ((index % N) == 0)
             upper_diag[index] = 0;
         else
             upper_diag[index] = -((n_mob(i+1,j) + n_mob(i+1,j+1))/2.)*Bn_posX(i+1,j);
+
+        //triplet_list[trp_cnt] = {i-1, j-1, upper_diag[index]};
+        //trp_cnt++;
     }
+
+
 }
 
 
@@ -184,6 +202,9 @@ void Continuity_n::set_far_upper_diag()
         int j = 1 + static_cast<int>(floor((index-N)/N));
 
         far_upper_diag[index] = -((n_mob(i,j+1) + n_mob(i+1,j+1))/2.)*Bn_posZ(i,j+1);
+
+        //triplet_list[trp_cnt] = {i-1, j-1, far_upper_diag[index]};
+        //trp_cnt++;
     }
 }
 

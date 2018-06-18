@@ -258,7 +258,9 @@ for Va_cnt = 0:num_V +1
         oldn = n;
         newn = An\bn;
         
-   bn
+        %spparms('spumoni',2)
+        
+   newp
    stop
     
         

@@ -13,6 +13,9 @@
 
 class Continuity_n
 {
+
+//typedef Eigen::Triplet<double> Trp;
+
 public:
     Continuity_n(const Parameters &params);
 
@@ -56,6 +59,9 @@ private:
     Eigen::MatrixXd n_mob;  //!Matrix storing the position dependent electron mobility
     Eigen::VectorXd VecXd_rhs;  //rhs in Eigen object vector form, for sparse matrix solver
     Eigen::SparseMatrix<double> sp_matrix;
+
+    //std::vector<Trp> triplet_list;
+    //int trp_cnt;  //for counting the triplets
 
     //Boundary conditions
     std::vector<double> n_leftBC, n_rightBC, n_bottomBC, n_topBC;

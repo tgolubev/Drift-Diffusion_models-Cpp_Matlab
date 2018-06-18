@@ -2,7 +2,7 @@
 
 Continuity_n::Continuity_n(const Parameters &params)
 {
-    num_elements = params.num_elements;
+    num_elements = params.num_elements; //note: num_elements is same thing as num_rows in main.cpp
     N = params.num_cell - 1;
     num_cell = params.num_cell;
 
@@ -64,7 +64,7 @@ void Continuity_n::set_n_rightBC(const std::vector<double> &n)
 
 //Calculates Bernoulli fnc values, then sets the diagonals and rhs
 //use the V_matrix for setup, to be able to write equations in terms of (x,z) coordingates
-void Continuity_n::setup_eqn(const Eigen::MatrixXd &V_matrix, const Eigen::MatrixXd &Un_matrix)
+void Continuity_n::setup_eqn(const Eigen::MatrixXd &V_matrix, const Eigen::MatrixXd &Un_matrix, const std::vector<double> &n)
 {
     Bernoulli_n_X(V_matrix);
     Bernoulli_n_Z(V_matrix);
@@ -73,6 +73,8 @@ void Continuity_n::setup_eqn(const Eigen::MatrixXd &V_matrix, const Eigen::Matri
     set_main_diag();
     set_upper_diag();
     set_far_upper_diag();
+    set_n_rightBC(n);
+    set_n_leftBC(n);
     set_rhs(Un_matrix);
 
     typedef Eigen::Triplet<double> Trp;
@@ -197,8 +199,10 @@ void Continuity_n::set_rhs(const Eigen::MatrixXd &Un_matrix)
         if (j ==1)  {//different for 1st subblock
             for (int i = 1; i <= N; i++) {
                 index++;
-                if (i==1)     //1st element has 2 BC's
+                if (i==1) {     //1st element has 2 BC's
                     rhs[index] = Cn*Un_matrix(i,j) + n_mob(i,j)*(Bn_negX(i,j)*n_leftBC[1] + Bn_negZ(i,j)*n_bottomBC[i]);  //NOTE: rhs is +Cp*Un_matrix, b/c diagonal elements are + here, flipped sign from 1D version
+
+                }
                 else if (i==N)
                     rhs[index] = Cn*Un_matrix(i,j) + n_mob(i,j)*(Bn_negZ(i,j)*n_bottomBC[i] + Bn_posX(i+1,j)*n_rightBC[1]);
                 else
@@ -251,8 +255,13 @@ void Continuity_n::Bernoulli_n_X(const Eigen::MatrixXd &V_matrix)
 
     for (int i = 1; i < num_cell+1; i++) {           //note: the indexing done a bit different than Matlab (see 1D C++ version)
         for (int j = 1; j < num_cell+1; j++) {
-            Bn_posX(i,j) = dV(i,j)/(exp(dV(i,j)) - 1.0);
-            Bn_negX(i,j) = Bn_posX(i,j)*exp(dV(i,j));
+             if (abs(dV(i,j)) < 1e-13) {        //to prevent blowup due  to 0 denominator
+                 Bn_posX(i,j) = 1 - dV(i,j)/2. + (dV(i,j)*dV(i,j))/12. - pow(dV(i,j), 4)/720.;
+                 Bn_negX(i,j) =  Bn_posX(i,j)*exp(dV(i));
+             } else {
+                Bn_posX(i,j) = dV(i,j)/(exp(dV(i,j)) - 1.0);
+                Bn_negX(i,j) = Bn_posX(i,j)*exp(dV(i,j));
+             }
         }
     }
 }
@@ -267,9 +276,13 @@ void Continuity_n::Bernoulli_n_Z(const Eigen::MatrixXd &V_matrix)
 
     for (int i = 1; i < num_cell+1; i++) {
         for (int j = 1; j < num_cell+1; j++) {
-
-            Bn_posZ(i,j) = dV(i,j)/(exp(dV(i,j)) - 1.0);
-            Bn_negZ(i,j) =  Bn_posZ(i,j)*exp(dV(i,j));
+            if (abs(dV(i,j)) < 1e-13) {        //to prevent blowup due  to 0 denominator
+                Bn_posZ(i,j) = 1 - dV(i,j)/2. + (dV(i,j)*dV(i,j))/12. - pow(dV(i,j), 4)/720.;
+                Bn_negZ(i,j) =  Bn_posZ(i,j)*exp(dV(i));
+            } else {
+               Bn_posZ(i,j) = dV(i,j)/(exp(dV(i,j)) - 1.0);
+               Bn_negZ(i,j) = Bn_posZ(i,j)*exp(dV(i,j));
+            }
         }
     }
 }

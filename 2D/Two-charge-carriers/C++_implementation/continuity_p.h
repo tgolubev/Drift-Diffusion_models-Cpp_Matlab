@@ -19,7 +19,8 @@ public:
     //!Sets up the matrix equation Ap*p = bp for continuity equation for holes.
     //!\param V stores the voltage and is needed to calculate Bernoulli fnc.'s.
     //!\param Up stores the net generation rate, needed for the right hand side.
-    void setup_eqn(const Eigen::MatrixXd &V_matrix, const Eigen::MatrixXd &Up_matrix);
+    //!\param p the hole density is needed to setup the boundary conditions.
+    void setup_eqn(const Eigen::MatrixXd &V_matrix, const Eigen::MatrixXd &Up_matrix, const std::vector<double> &p);
 
     //setters for BC's:
     //for left and right BC's, will use input from the n matrix to determine

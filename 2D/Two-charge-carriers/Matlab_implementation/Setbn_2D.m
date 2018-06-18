@@ -27,6 +27,7 @@ index = 0;
                 index = index +1;
                 if (i==1)  %1st element has 2 BC's
                     bn(index,1) = Cn*Un(i,j) + n_mob(i,j)*(Bn_negX(i,j)*n_leftBC(N) + Bn_posZ(i,j+1)*n_topBC);
+                    Bn_posZ(i,j+1)
                 elseif (i==N)
                     bn(index,1) = Cn*Un(i,j) + n_mob(i,j)*(Bn_posX(i+1,j)*n_rightBC(N) + Bn_posZ(i,j+1)*n_topBC);
                 else

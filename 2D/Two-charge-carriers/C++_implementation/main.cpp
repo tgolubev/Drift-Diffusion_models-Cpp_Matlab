@@ -159,10 +159,11 @@ int main()
     poisson.set_V_leftBC(V);
     poisson.set_V_rightBC(V);
 
+  /*
     for (int i = 1; i<= num_rows; i++) {
         std::cout << V[i] << std::endl;
     }
-    exit(1);
+    */
 
     //-----------------------
     //Fill n and p with initial conditions (need for error calculation)
@@ -234,7 +235,9 @@ int main()
             SCholesky.factorize(poisson.get_sp_matrix());
             soln_Xd = SCholesky.solve(poisson.get_rhs());
 
-            std::cout << soln_Xd << std::endl;
+            //std::cout << soln_Xd << std::endl;
+
+            //IS CORRECT VALUES AT 1ST ITER UP TO HERE
 
             //For now do a little inefficiently, but more convinient. Store soln in the VectorXd object, and convert back to normal std::vector
             //for rest of processing.
@@ -288,16 +291,25 @@ int main()
 
             //--------------------------------Solve equations for n and p------------------------------------------------------------ 
 
-            continuity_n.setup_eqn(V_matrix, Un_matrix);
-            oldn = n;
+            continuity_n.setup_eqn(V_matrix, Un_matrix, n);
+            oldn = n;  //oldn VALUES ARE CORRECT
+
+            //std::cout << continuity_n.get_sp_matrix() << std::endl;  //sparse matrix seems to be correct
+
             //don't need to define SCholesky again, since already defined
             //Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>, Eigen::UpLoType::Lower, Eigen::AMDOrdering<int>> SCholesky; //Note using NaturalOrdering is much much slower
             SCholesky.analyzePattern(continuity_n.get_sp_matrix());
             SCholesky.factorize(continuity_n.get_sp_matrix());
             soln_Xd = SCholesky.solve(continuity_n.get_rhs());
-            //this solutino seems ok, e-11 to e-13 level.  recall the densities are scaled
 
-            std::cout << soln_Xd << std::endl;
+            std::cout << continuity_n.get_rhs() << std::endl;   //Note: get rhs, returns an Eigen VectorXd
+
+
+            //std::cout << soln_Xd << std::endl;    //SOLUTION HERE IS TOTALLY WRONG
+
+            //RHS SETUP IS WRONG
+
+            exit(1);
 
             //save results back into n std::vector. RECALL, I am starting my V vector from index of 1, corresponds to interior pts...
             for (int i = 1; i<=num_rows; i++) {
@@ -305,7 +317,7 @@ int main()
             }
 
             //-------------------------------------------------------
-            continuity_p.setup_eqn(V_matrix, Up_matrix);
+            continuity_p.setup_eqn(V_matrix, Up_matrix, p);
             oldp = p;
             //Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>, Eigen::UpLoType::Lower, Eigen::AMDOrdering<int>> SCholesky; //Note using NaturalOrdering is much much slower
             SCholesky.analyzePattern(continuity_p.get_sp_matrix());
@@ -360,7 +372,6 @@ int main()
             iter = iter+1;
 
             std::cout << "test" << iter << std::endl;
-if(iter ==10) exit(1);
 
 //SEEMS AFTER SOME NUMBER OF ITERS, IT FAILES...
         }

@@ -19,7 +19,8 @@ public:
     //!Sets up the matrix equation An*n = bn for continuity equation for electrons.
     //!\param V stores the voltage and is needed to calculate Bernoulli fnc.'s.
     //!\param Un stores the net generation rate, needed for the right hand side.
-    void setup_eqn(const Eigen::MatrixXd &V_matrix, const Eigen::MatrixXd &Un_matrix);
+    //!\param n the electron density is needed to setup the boundary conditions.
+    void setup_eqn(const Eigen::MatrixXd &V_matrix, const Eigen::MatrixXd &Un_matrix, const std::vector<double> &n);
 
     //setters for BC's:
     //for left and right BC's, will use input from the n matrix to determine

@@ -31,7 +31,7 @@ for i = 1:num_cell
             Bp_negX(i,j) = Bp_posX(i,j)*exp(dV_X(i+1,j+1));
         end
         if(abs(dV_Z(i+1,j+1)) < 10^-13)
-              Bp_posZ(i,j) = 1 -  dV_X(i+1,j+1)/2 + (dV_X(i+1,j+1))^2/12 - (dV_X(i+1,j+1))^4/720;
+              Bp_posZ(i,j) = 1 -  dV_Z(i+1,j+1)/2 + (dV_Z(i+1,j+1))^2/12 - (dV_Z(i+1,j+1))^4/720;
               Bp_negZ(i,j) =  Bp_posZ(i,j)*exp(dV_Z(i+1,j+1));
         else
             Bp_posZ(i,j) = dV_Z(i+1,j+1)/(exp(dV_Z(i+1,j+1))-1.0);

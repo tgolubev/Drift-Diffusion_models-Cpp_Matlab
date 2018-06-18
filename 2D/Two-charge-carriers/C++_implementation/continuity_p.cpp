@@ -62,7 +62,7 @@ void Continuity_p::set_p_rightBC(const std::vector<double> &p)
 
 
 //Calculates Bernoulli fnc values, then sets the diagonals and rhs
-void Continuity_p::setup_eqn(const Eigen::MatrixXd &V_matrix, const Eigen::MatrixXd &Up_matrix)
+void Continuity_p::setup_eqn(const Eigen::MatrixXd &V_matrix, const Eigen::MatrixXd &Up_matrix, const std::vector<double> &p)
 {
     Bernoulli_p_X(V_matrix);
     Bernoulli_p_Z(V_matrix);
@@ -71,6 +71,8 @@ void Continuity_p::setup_eqn(const Eigen::MatrixXd &V_matrix, const Eigen::Matri
     set_main_diag();
     set_upper_diag();
     set_far_upper_diag();
+    set_p_leftBC(p);
+    set_p_rightBC(p);
     set_rhs(Up_matrix);
 
     typedef Eigen::Triplet<double> Trp;
@@ -196,8 +198,13 @@ void Continuity_p::Bernoulli_p_X(const Eigen::MatrixXd &V_matrix)
 
     for (int i = 1; i < num_cell+1; i++) {
         for (int j = 1; j < num_cell+1; j++) {
-            Bp_posX(i,j) = dV(i,j)/(exp(dV(i,j)) - 1.0);
-            Bp_negX(i,j) = Bp_posX(i,j)*exp(dV(i,j));
+            if (abs(dV(i,j)) < 1e-13) {        //to prevent blowup due  to 0 denominator
+                Bp_posX(i,j) = 1 - dV(i,j)/2. + (dV(i,j)*dV(i,j))/12. - pow(dV(i,j), 4)/720.;
+                Bp_negX(i,j) =  Bp_posX(i,j)*exp(dV(i));
+            } else {
+               Bp_posX(i,j) = dV(i,j)/(exp(dV(i,j)) - 1.0);
+               Bp_negX(i,j) = Bp_posX(i,j)*exp(dV(i,j));
+            }
         }
     }
 }
@@ -212,8 +219,13 @@ void Continuity_p::Bernoulli_p_Z(const Eigen::MatrixXd &V_matrix)
 
     for (int i = 1; i < num_cell+1; i++) {
         for (int j = 1; j < num_cell+1; j++) {
-            Bp_posZ(i,j) = dV(i,j)/(exp(dV(i,j)) - 1.0);
-            Bp_negZ(i,j) =  Bp_posZ(i,j)*exp(dV(i,j));
+            if (abs(dV(i,j)) < 1e-13) {        //to prevent blowup due  to 0 denominator
+                Bp_posZ(i,j) = 1 - dV(i,j)/2. + (dV(i,j)*dV(i,j))/12. - pow(dV(i,j), 4)/720.;
+                Bp_negZ(i,j) =  Bp_posZ(i,j)*exp(dV(i));
+            } else {
+               Bp_posZ(i,j) = dV(i,j)/(exp(dV(i,j)) - 1.0);
+               Bp_negZ(i,j) = Bp_posZ(i,j)*exp(dV(i,j));
+            }
         }
     }
 }

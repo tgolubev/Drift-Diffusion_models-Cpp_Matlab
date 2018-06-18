@@ -47,7 +47,7 @@ for index =  1:num_elements
     end
     j = 1 + floor((index-1)/N);
     
-    Ap_val(index,3) = ((p_mob(i,j) + p_mob(i,j+1))/2.)*Bp_negX(i,j) + ((p_mob(i+1,j) + p_mob(i+1,j+1))/2.)*Bp_posX(i+1,j) + ((p_mob(i,j) + p_mob(i+1,j))/2.)*Beclep_negZ(i,j) + ((p_mob(i,j+1) + p_mob(i+1,j+1))/2.)*Bp_posZ(i,j+1);
+    Ap_val(index,3) = ((p_mob(i,j) + p_mob(i,j+1))/2.)*Bp_negX(i,j) + ((p_mob(i+1,j) + p_mob(i+1,j+1))/2.)*Bp_posX(i+1,j) + ((p_mob(i,j) + p_mob(i+1,j))/2.)*Bp_negZ(i,j) + ((p_mob(i,j+1) + p_mob(i+1,j+1))/2.)*Bp_posZ(i,j+1);
 end
 
 %main uppper diagonal: corresponds to V(i+1,j)

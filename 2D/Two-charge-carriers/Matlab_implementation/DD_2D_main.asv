@@ -33,8 +33,6 @@ clear; close all; clc;
 global num_cell N num_elements Vt N_dos p_topBC p_leftBC p_rightBC p_bottomBC Cn CV Cp n_leftBC  n_rightBC
 global n_bottomBC n_topBC V_leftBC V_bottomBC V_topBC V_rightBC G_max
 
-tic
-
 %% Physical Constants
 
 q =  1.60217646*10^-19;         %elementary charge (C)
@@ -263,8 +261,11 @@ for Va_cnt = 0:num_V +1
         %newn = lsqr(An, bn, 10^-16, 1000,[] ,[] ,n);  %TRY  WITH QR
         newn = An\bn;
         
-        %An*newn - bn
-
+        An*newn - bn
+        
+        An
+        stop
+        
         %spparms('spumoni',2)
 
         % if get negative p's or n's, make them equal 0
@@ -406,8 +407,6 @@ for Va_cnt = 0:num_V +1
     str = sprintf('%.2g', Va);
     
 end
-
-toc
 
 %plot V
 surf(1:N+2,1:N+2, Vt*fullV)

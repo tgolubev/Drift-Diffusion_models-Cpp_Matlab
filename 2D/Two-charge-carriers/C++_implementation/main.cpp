@@ -60,6 +60,7 @@
 #include <Eigen/SparseCholesky>
 #include<Eigen/SparseQR>
 #include <Eigen/OrderingMethods>
+#include<Eigen/SparseLU>
 
 #include "constants.h"        //these contain physics constants only
 #include "parameters.h"
@@ -73,6 +74,7 @@
 
 int main()
 {
+    std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();  //start clock timer
     Parameters params;    //params is struct storing all parameters
     params.Initialize();  //reads parameters from file
 
@@ -133,6 +135,7 @@ int main()
     Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>, Eigen::UpLoType::Lower, Eigen::AMDOrdering<int>> SCholesky; //Note using NaturalOrdering is much much slower
 
     Eigen::SparseQR<Eigen::SparseMatrix<double>, Eigen::COLAMDOrdering<int>> SQR;
+    Eigen::SparseLU<Eigen::SparseMatrix<double>>  sLU;
 //--------------------------------------------------------------------------------------------
     //Define boundary conditions and initial conditions. Note: electrodes are at the top and bottom.
     double Va = 0;
@@ -170,8 +173,6 @@ int main()
     }
 
     poisson.setup_matrix();  //outside of loop since matrix never changes
-
-    std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();  //start clock timer
 
     //////////////////////MAIN LOOP////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -224,10 +225,14 @@ int main()
             //std::cout << poisson.get_sp_matrix() << std::endl;
             //std::cout << "poisson  main  diag " << poisson.get_main_diag()[1] << std::endl;
             oldV = V;
-            SCholesky.analyzePattern(poisson.get_sp_matrix());
-            SCholesky.factorize(poisson.get_sp_matrix());
+            if (iter == 0) {
+                SCholesky.analyzePattern(poisson.get_sp_matrix());
+                SCholesky.factorize(poisson.get_sp_matrix());         //since numerical values of Poisson matrix don't change for 1 set of BC's, can factorize, just on 1st iter
+            }
             soln_Xd = SCholesky.solve(poisson.get_rhs());
             //std::cout << soln_Xd << std::endl;
+
+             //std::cout << "Poisson solver error " << poisson.get_sp_matrix() * soln_Xd - poisson.get_rhs() << std::endl;
 
             //For now do a little inefficiently, but more convinient. Store soln in the VectorXd object, and convert back to normal std::vector
             //for rest of processing.
@@ -271,32 +276,39 @@ int main()
 
             //FOR NOW CAN USE 0 FOR R_Langevin
 
-            for (int i = 1; i <= N; i++) {
-                for (int j = 1; j <= N; j++) {
-                   Un_matrix(i,j) = params.Photogen_scaling;  //This is what was used in Matlab version for testing.   photogen.getPhotogenRate()(i,j); //- R_Langevin(i,j);
+            if (Va_cnt > 0) {
+                for (int i = 1; i <= N; i++) {
+                    for (int j = 1; j <= N; j++) {
+                        Un_matrix(i,j) = params.Photogen_scaling;  //This is what was used in Matlab version for testing.   photogen.getPhotogenRate()(i,j); //- R_Langevin(i,j);
+                    }
                 }
+                Up_matrix = Un_matrix;
             }
-
-            Up_matrix = Un_matrix;
 
             //--------------------------------Solve equations for n and p------------------------------------------------------------ 
 
-            continuity_n.setup_eqn(V_matrix, Un_matrix, n);  //RHS SETUP IS CORRECT
+            continuity_n.setup_eqn(V_matrix, Un_matrix, n);
             oldn = n;  //oldn VALUES ARE CORRECT
 
-            //std::cout << continuity_n.get_rhs() << std::endl;
+            if (iter == 0 ) sLU.analyzePattern(continuity_n.get_sp_matrix());  //by doing only on first iter, since pattern never changes, save a bit cpu
+            sLU.factorize(continuity_n.get_sp_matrix());
+            soln_Xd = sLU.solve(continuity_n.get_rhs());
 
             //NOTE: BiCGSTAB, and congugate gradient cause program crash
             //Cholesky Simplicial LLDT gives non-sense results
             //Cholesky Simplical LLT, fails officially (if check .info(), returns a 1 (false)).
             //MUST ALWAYS CHECK IF IT SOLVED SUCCESFULLY, WITH AN IF STATEMENT..., OTHERWISE IT WILL NOT WARN YOU, BUT JUST GIVE BACK THE PREVIOUS SOLUTION!
             //Matlab says Cholesky is not suitable for continuity eqn, I think b/c matrix is not symmetric...
-            //so will stick with QR for now.
+            //QR give too high of error, not reliable.
+            //Best solver seems to be SparseLU--> gives low error...
 
-            SQR.analyzePattern(continuity_n.get_sp_matrix());
-            SQR.factorize(continuity_n.get_sp_matrix());
-            soln_Xd = SQR.solve(continuity_n.get_rhs());
+            //SQR.analyzePattern(continuity_n.get_sp_matrix());
+            //SQR.factorize(continuity_n.get_sp_matrix());
+            //soln_Xd = SQR.solve(continuity_n.get_rhs());
+
             //std::cout <<  soln_Xd << std::endl;
+
+            //std::cout << "solver error " << continuity_n.get_sp_matrix() * soln_Xd - continuity_n.get_rhs() << std::endl;
 
             //save results back into n std::vector. RECALL, I am starting my V vector from index of 1, corresponds to interior pts...
             for (int i = 1; i<=num_rows; i++) {
@@ -307,10 +319,14 @@ int main()
             continuity_p.setup_eqn(V_matrix, Up_matrix, p);
             //std::cout << continuity_p.get_rhs() << std::endl;   //Note: get rhs, returns an Eigen VectorXd
             oldp = p;
-            //Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>, Eigen::UpLoType::Lower, Eigen::AMDOrdering<int>> SCholesky; //Note using NaturalOrdering is much much slower
-            SQR.analyzePattern(continuity_p.get_sp_matrix());
-            SQR.factorize(continuity_p.get_sp_matrix());
-            soln_Xd = SQR.solve(continuity_p.get_rhs());
+
+            if (iter == 0 ) sLU.analyzePattern(continuity_p.get_sp_matrix());
+            sLU.factorize(continuity_p.get_sp_matrix()); //matrix needs to be refactorized at every iter b/c bernoulli fnc values and thus matrix values change...
+            soln_Xd = sLU.solve(continuity_p.get_rhs());
+
+            //SQR.analyzePattern(continuity_p.get_sp_matrix());
+            //SQR.factorize(continuity_p.get_sp_matrix());
+            //soln_Xd = SQR.solve(continuity_p.get_rhs());
             //std::cout << soln_Xd << std::endl;
 
             //save results back into n std::vector. RECALL, I am starting my V vector from index of 1, corresponds to interior pts...
@@ -360,10 +376,6 @@ int main()
             //std::cout << "test" << iter << std::endl;
         }
 
-        std::chrono::high_resolution_clock::time_point finish = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> time = std::chrono::duration_cast<std::chrono::duration<double>>(finish-start);
-        std::cout << "1 Va CPU time = " << time.count() << std::endl;
-
         //-------------------Calculate Currents using Scharfetter-Gummel definition--------------------------
         //Convert the n and p to n_matrix and p_matrix
         for (int index = 1; index <= num_rows; index++) {
@@ -412,6 +424,10 @@ int main()
     }//end of main loop
 
     JV.close();
+
+    std::chrono::high_resolution_clock::time_point finish = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> time = std::chrono::duration_cast<std::chrono::duration<double>>(finish-start);
+    std::cout << "CPU time = " << time.count() << std::endl;
 
     return 0;
 }

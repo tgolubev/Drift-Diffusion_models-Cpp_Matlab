@@ -34,8 +34,10 @@ public:
 
     //getters (const keyword ensures that fnc doesn't change anything)
     std::vector<double> get_main_diag() const {return main_diag;}
-    //std::vector<double> get_upper_diag() const {return upper_diag;}
-    //std::vector<double> get_lower_diag() const {return lower_diag;}
+    std::vector<double> get_upper_diag() const {return upper_diag;}
+    std::vector<double> get_lower_diag() const {return lower_diag;}
+    std::vector<double> get_far_upper_diag() const {return far_upper_diag;}
+    std::vector<double> get_far_lower_diag() const {return far_lower_diag;}
     //std::vector<double> get_rhs() const {return rhs;}
     //std::vector<std::vector<double> > get_n_mob() const {return n_mob;}
     Eigen::MatrixXd get_n_mob() const {return n_mob;}

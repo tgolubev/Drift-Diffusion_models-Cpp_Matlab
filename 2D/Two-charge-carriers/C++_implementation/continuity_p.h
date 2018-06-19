@@ -25,6 +25,10 @@ public:
     //!\param p the hole density is needed to setup the boundary conditions.
     void setup_eqn(const Eigen::MatrixXd &V_matrix, const Eigen::MatrixXd &Up_matrix, const std::vector<double> &p);
 
+    void calculate_currents();
+
+    void Continuity_p::to_matrix(const std::vector<double> &p);
+
     //setters for BC's:
     //for left and right BC's, will use input from the n matrix to determine
     void set_p_topBC();
@@ -32,24 +36,15 @@ public:
     void set_p_leftBC(const std::vector<double> &p);
     void set_p_rightBC(const std::vector<double> &p);
 
-    void Continuity_p::to_matrix(const std::vector<double> &p);
-
     //getters
-    Eigen::MatrixXd get_p_mob() const {return p_mob;}
     Eigen::VectorXd get_rhs() const {return VecXd_rhs;}  //returns the Eigen object
     Eigen::SparseMatrix<double> get_sp_matrix() const {return sp_matrix;}
-
-    //Needed for current calculations
-    Eigen::MatrixXd  get_Bp_posX() const {return Bp_posX;}
-    Eigen::MatrixXd  get_Bp_negX() const {return Bp_negX;}
-    Eigen::MatrixXd  get_Bp_posZ() const {return Bp_posZ;}
-    Eigen::MatrixXd  get_Bp_negZ() const {return Bp_negZ;}
     Eigen::MatrixXd get_p_matrix() const {return p_matrix;}
-
-    std::vector<double> get_p_topBC() const {return p_topBC;}
+    std::vector<double> get_p_topBC() const {return p_topBC;} //bottom and top are needed to set initial conditions
     std::vector<double> get_p_bottomBC() const {return p_bottomBC;}
-    std::vector<double> get_p_leftBC() const {return p_leftBC;}
-    std::vector<double> get_p_rightBC() const {return p_rightBC;}
+
+    Eigen::MatrixXd get_Jp_X() const {return Jp_X;}
+    Eigen::MatrixXd get_Jp_Z() const {return Jp_Z;}
 
     //The below getters can be useful for testing and debugging
     //std::vector<double> get_main_diag() const {return main_diag;}
@@ -57,6 +52,14 @@ public:
     //std::vector<double> get_lower_diag() const {return lower_diag;}
     //std::vector<double> get_far_upper_diag() const {return far_upper_diag;}
     //std::vector<double> get_far_lower_diag() const {return far_lower_diag;}
+    //Eigen::MatrixXd  get_Bp_posX() const {return Bp_posX;}
+    //Eigen::MatrixXd  get_Bp_negX() const {return Bp_negX;}
+    //Eigen::MatrixXd  get_Bp_posZ() const {return Bp_posZ;}
+    //Eigen::MatrixXd  get_Bp_negZ() const {return Bp_negZ;}
+    //Eigen::MatrixXd get_p_mob() const {return p_mob;}
+    //std::vector<double> get_p_leftBC() const {return p_leftBC;}
+    //std::vector<double> get_p_rightBC() const {return p_rightBC;}
+
 
 private:
     std::vector<double> far_lower_diag;
@@ -69,9 +72,12 @@ private:
     Eigen::VectorXd VecXd_rhs;  //rhs in Eigen object vector form, for sparse matrix solver
     Eigen::SparseMatrix<double> sp_matrix;
     Eigen::MatrixXd p_matrix;
+    Eigen::MatrixXd Jp_Z;
+    Eigen::MatrixXd Jp_X;
 
     std::vector<Trp> triplet_list;
     int trp_cnt;  //for counting the triplets
+    double J_coeff;  //coefficient for curents eqn
 
     //Boundary conditions
     std::vector<double> p_leftBC, p_rightBC, p_bottomBC, p_topBC;

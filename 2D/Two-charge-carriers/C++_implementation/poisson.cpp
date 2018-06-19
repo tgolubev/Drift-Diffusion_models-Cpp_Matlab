@@ -1,13 +1,14 @@
 #include "poisson.h"
 #include <iostream>
 
-Poisson::Poisson(const Parameters &params, const Eigen::MatrixXd &netcharge)
+Poisson::Poisson(const Parameters &params)
 {
     CV = params.N_dos*params.dx*params.dx*q/(epsilon_0*Vt);
     N = params.num_cell -1;  //for convenience define this --> is the number of points in 1D inside the device
     num_elements = params.num_elements;
     num_cell = params.num_cell;
     V_matrix = Eigen::MatrixXd::Zero(num_cell+1, num_cell+1);    //useful for calculating currents at end of each Va
+    netcharge = Eigen::MatrixXd::Zero(num_cell+1,num_cell+1);
 
     main_diag.resize(num_elements+1);
     upper_diag.resize(num_elements);
@@ -177,8 +178,11 @@ void Poisson::set_far_upper_diag(){
     }
 }
 
-void Poisson::set_rhs(const Eigen::MatrixXd &netcharge)
+void Poisson::set_rhs(const Eigen::MatrixXd n_matrix, const Eigen::MatrixXd p_matrix)
 {
+
+    netcharge = CV*(p_matrix - n_matrix);
+
     //setup rhs of Poisson eqn.
     int index2 = 0;
     for(int j = 1;j<=N;j++){

@@ -19,10 +19,15 @@ Continuity_p::Continuity_p(const Parameters &params)
     Bp_posZ.resize(num_cell+1, num_cell+1);
     Bp_negZ.resize(num_cell+1, num_cell+1);
 
+    Jp_Z.resize(num_cell+1, num_cell+1);
+    Jp_X.resize(num_cell+1, num_cell+1);
+
     p_bottomBC.resize(num_cell+1);
     p_topBC.resize(num_cell+1);
     p_leftBC.resize(num_cell+1);
     p_rightBC.resize(num_cell+1);
+
+    J_coeff = q*Vt*params.N_dos*params.mobil/params.dx;
 
     // //MUST FILL WITH THE VALUES OF p_mob!!  WILL NEED TO MODIFY THIS WHEN HAVE SPACE VARYING
     p_mob = (params.p_mob_active/params.mobil)*Eigen::MatrixXd::Ones(num_cell+1, num_cell+1);
@@ -268,5 +273,16 @@ void Continuity_p::to_matrix(const std::vector<double> &p)
     for (int i = 0; i <= num_cell; i++) {  //bottom BC's go all the way accross, including corners
         p_matrix(i, 0) = p_bottomBC[i];
         p_matrix(i, num_cell) = p_topBC[i];
+    }
+}
+
+
+void Continuity_p::calculate_currents()
+{
+    for (int i = 1; i < num_cell; i++) {
+        for (int j = 1; j < num_cell; j++) {
+            Jp_Z(i,j) = -J_coeff * p_mob(i,j) * (p_matrix(i,j)*Bp_negZ(i,j) - p_matrix(i,j-1)*Bp_posZ(i,j));
+            Jp_X(i,j) = -J_coeff * p_mob(i,j) * (p_matrix(i,j)*Bp_negX(i,j) - p_matrix(i,j-1)*Bp_posX(i,j));
+        }
     }
 }

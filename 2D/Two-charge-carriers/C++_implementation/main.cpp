@@ -102,15 +102,11 @@ int main()
     Eigen::MatrixXd Un_matrix = Eigen::MatrixXd::Zero(N+1,N+1);
     Eigen::MatrixXd Up_matrix = Eigen::MatrixXd::Zero(N+1,N+1);
     Eigen::MatrixXd R_Langevin(N+1,N+1), PhotogenRate(N+1,N+1);
-    Eigen::MatrixXd Jp_Z(num_cell+1, num_cell+1), Jn_Z(num_cell+1, num_cell+1), Jp_X(num_cell+1, num_cell+1), Jn_X(num_cell+1, num_cell+1);
     Eigen::MatrixXd J_total_Z(num_cell+1, num_cell+1), J_total_X(num_cell+1, num_cell+1);                  //matrices for spacially dependent current
-
-    //initially we make the n and p densities inside the device be the same, so netcharge = 0
-    Eigen::MatrixXd netcharge = Eigen::MatrixXd::Zero(num_cell+1,num_cell+1);
 
 //------------------------------------------------------------------------------------
     //Construct objects
-    Poisson poisson(params, netcharge);
+    Poisson poisson(params);
     Recombo recombo(params);
     Continuity_p continuity_p(params);  //note this also sets up the constant top and bottom electrode BC's
     Continuity_n continuity_n(params);  //note this also sets up the constant top and bottom electrode BC's
@@ -156,6 +152,10 @@ int main()
         p[i] = min_dense;
     }
 
+    //Convert the n and p to n_matrix and p_matrix
+    continuity_n.to_matrix(n);
+    continuity_p.to_matrix(p);
+
     poisson.setup_matrix();  //outside of loop since matrix never changes
 
     //////////////////////MAIN LOOP////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -168,9 +168,9 @@ int main()
     for (Va_cnt = 0; Va_cnt <= num_V +1; Va_cnt++) {  //+1 b/c 1st Va is the equil run
         not_converged = false;
         not_cnv_cnt = 0;
-        if (params.tolerance > 1e-5) {
+        if (params.tolerance > 1e-5)
             std::cerr<<"ERROR: Tolerance has been increased to > 1e-5" <<std::endl;
-        }
+
         if (Va_cnt==0) {
             params.use_tolerance_eq();  //relaxed tolerance for equil. run
             params.use_w_eq();
@@ -190,7 +190,6 @@ int main()
         poisson.set_V_bottomBC(params, Va);
         poisson.set_V_topBC(params, Va);
 
-
         //-----------------------------------------------------------
         error_np = 1.0;
         iter = 0;
@@ -199,8 +198,8 @@ int main()
             std::cout << "error np " << error_np <<std::endl;
             std::cout << "Va " << Va <<std::endl;
 
-            //-----------------Solve Poisson Equation------------------------------------------------------------------
-            poisson.set_rhs(netcharge);
+            //-----------------Solve Poisson Equation------------------------------------------------------------------     
+            poisson.set_rhs(continuity_n.get_n_matrix(), continuity_p.get_p_matrix());  //this finds netcharge and sets rhs
             //std::cout << poisson.get_sp_matrix() << std::endl;
             oldV = V;
             if (iter == 0) {
@@ -299,12 +298,16 @@ int main()
             p = utils.linear_mix(params, newp, oldp);
             n = utils.linear_mix(params, newn, oldn);
 
-            //Apply continuity equation  BC's
+            //Apply side continuity equation  BC's
             continuity_n.set_n_leftBC(n);
             continuity_n.set_n_rightBC(n);
             continuity_p.set_p_leftBC(p);
             continuity_p.set_p_rightBC(p);
             //note: top and bottom BC's don't need to be changed for now, since assumed to be constant... (they are set when initialize continuity objects)
+
+            //Convert the n and p to n_matrix and p_matrix
+            continuity_n.to_matrix(n);
+            continuity_p.to_matrix(p);
 
             std::cout << error_np << std::endl;
             std::cout << "weighting factor = " << params.w << std::endl << std::endl;
@@ -313,22 +316,12 @@ int main()
         }
 
         //-------------------Calculate Currents using Scharfetter-Gummel definition--------------------------
-        //Convert the n and p to n_matrix and p_matrix
-        continuity_n.to_matrix(n);
-        continuity_p.to_matrix(p);
 
-        //CAN MOVE THESE TO FUNCTIONS INSIDE CONTINUITY EQUATIONS classes
-        for (int i = 1; i < num_cell; i++) {
-            for (int j = 1; j < num_cell; j++) {
-                Jp_Z(i,j) = -(q*Vt*params.N_dos*params.mobil/params.dx) * continuity_p.get_p_mob()(i,j) * (continuity_p.get_p_matrix()(i,j)*continuity_p.get_Bp_negZ()(i,j) - continuity_p.get_p_matrix()(i,j-1)*continuity_p.get_Bp_posZ()(i,j));
-                Jn_Z(i,j) =  (q*Vt*params.N_dos*params.mobil/params.dx) * continuity_n.get_n_mob()(i,j) * (continuity_n.get_n_matrix()(i,j)*continuity_n.get_Bn_posZ()(i,j) - continuity_n.get_n_matrix()(i,j-1)*continuity_n.get_Bn_negZ()(i,j));
+        continuity_n.calculate_currents();
+        continuity_p.calculate_currents();
 
-                Jp_X(i,j) = -(q*Vt*params.N_dos*params.mobil/params.dx) * continuity_p.get_p_mob()(i,j) * (continuity_p.get_p_matrix()(i,j)*continuity_p.get_Bp_negX()(i,j) - continuity_p.get_p_matrix()(i,j-1)*continuity_p.get_Bp_posX()(i,j));
-                Jn_X(i,j) =  (q*Vt*params.N_dos*params.mobil/params.dx) * continuity_n.get_n_mob()(i,j) * (continuity_n.get_n_matrix()(i,j)*continuity_n.get_Bn_posX()(i,j) - continuity_n.get_n_matrix()(i,j-1)*continuity_n.get_Bn_negX()(i,j));
-            }
-        }
-            J_total_Z = Jp_Z + Jn_Z;
-            J_total_X = Jp_X + Jn_X;
+        J_total_Z = continuity_p.get_Jp_Z() + continuity_n.get_Jn_Z();
+        J_total_X = continuity_p.get_Jp_X() + continuity_n.get_Jn_X();
 
         //---------------------Write to file----------------------------------------------------------------
         utils.write_details(params, Va, poisson.get_V_matrix(), continuity_p.get_p_matrix(), continuity_n.get_n_matrix(), J_total_Z, Un_matrix);

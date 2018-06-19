@@ -24,6 +24,11 @@ Continuity_n::Continuity_n(const Parameters &params)
    Bn_posZ.resize(num_cell+1, num_cell+1);  //allocate memory for the matrix object
    Bn_negZ.resize(num_cell+1, num_cell+1);
 
+   Jn_Z.resize(num_cell+1, num_cell+1);
+   Jn_X.resize(num_cell+1, num_cell+1);
+
+   J_coeff = q*Vt*params.N_dos*params.mobil/params.dx;
+
    // //MUST FILL WITH THE VALUES OF n_mob!!  WILL NEED TO MODIFY THIS WHEN HAVE SPACE VARYING
    n_mob = (params.n_mob_active/params.mobil)*Eigen::MatrixXd::Ones(num_cell+1, num_cell+1);
 
@@ -279,5 +284,15 @@ void Continuity_n::to_matrix(const std::vector<double> &n)
     for (int i = 0; i <= num_cell; i++) {  //bottom BC's go all the way accross, including corners
         n_matrix(i, 0) = n_bottomBC[i];
         n_matrix(i, num_cell) = n_topBC[i];
+    }
+}
+
+void Continuity_n::calculate_currents()
+{
+    for (int i = 1; i < num_cell; i++) {
+        for (int j = 1; j < num_cell; j++) {
+            Jn_Z(i,j) =  J_coeff * n_mob(i,j) * (n_matrix(i,j)*Bn_posZ(i,j) - n_matrix(i,j-1)*Bn_negZ(i,j));
+            Jn_X(i,j) =  J_coeff * n_mob(i,j) * (n_matrix(i,j)*Bn_posX(i,j) - n_matrix(i,j-1)*Bn_negX(i,j));
+        }
     }
 }

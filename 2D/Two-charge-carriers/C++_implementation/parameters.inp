@@ -23,7 +23,7 @@
 0.01    //increment
 0.05    //w_eq
 0.2    //w_i
-1e-15   //tolerance_i
+1e-12   //tolerance_i
 2.0     //w_reduce_factor
 10.0    //tol_relax_factor
 gen_rate.inp  //GenRateFileName

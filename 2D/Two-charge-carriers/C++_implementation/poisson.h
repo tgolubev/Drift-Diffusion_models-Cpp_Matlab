@@ -14,15 +14,17 @@
 class Poisson
 {
 public:
-    Poisson(const Parameters &params, const Eigen::MatrixXd &netcharge);
+    Poisson(const Parameters &params);
 
     //!Setup Poisson equation matrix AV. Note that the matrix will usually be the same throughout the simulation
     //! since it only depends on dielectric constant, so this function should be called only once.
     void setup_matrix();
 
-    //!Setup the right hand side of Poisson equation. This depends on the electron density \param n,
-    //! hole density \param p, and left and right boundary conditions \param V_leftBC and \param V_rightBC
-    void set_rhs(const Eigen::MatrixXd &netcharge);
+    //!Setup the right hand side of Poisson equation. This depends on the electron density \param n_matrix,
+    //! hole density \param p_matrix, and left and right boundary conditions \param V_leftBC and \param V_rightBC
+    void set_rhs(const Eigen::MatrixXd n_matrix, const Eigen::MatrixXd p_matrix);
+
+    void Poisson::to_matrix(const std::vector<double> &V);
 
     //setters for BC's:
     //for left and right BC's, will use input from the n matrix to determine
@@ -31,15 +33,11 @@ public:
     void set_V_leftBC(const std::vector<double> &V);
     void set_V_rightBC(const std::vector<double> &V);
 
-    void Poisson::to_matrix(const std::vector<double> &V);
-
     //getters
     Eigen::VectorXd get_rhs() const {return VecXd_rhs;}  //returns the Eigen object
     Eigen::SparseMatrix<double> get_sp_matrix() const {return sp_matrix;}
-    std::vector<double> get_V_topBC() const {return V_topBC;}
+    std::vector<double> get_V_topBC() const {return V_topBC;}    //top and bottom  bc getters are needed to determine initial V
     std::vector<double> get_V_bottomBC() const {return V_bottomBC;}
-    std::vector<double> get_V_leftBC() const {return V_leftBC;}
-    std::vector<double> get_V_rightBC() const {return V_rightBC;}
     Eigen::MatrixXd get_V_matrix() const {return V_matrix;}
 
     //The below getters can be useful for testing and debugging
@@ -48,6 +46,8 @@ public:
     //std::vector<double> get_lower_diag() const {return lower_diag;}
     //std::vector<double> get_far_lower_diag() const {return far_lower_diag;}
     //std::vector<double> get_far_upper_diag() const {return far_upper_diag;}
+    //std::vector<double> get_V_leftBC() const {return V_leftBC;}
+    //std::vector<double> get_V_rightBC() const {return V_rightBC;}
 
 private:
     double CV;    //Note: relative permitivity was moved into the matrix
@@ -70,6 +70,7 @@ private:
     Eigen::VectorXd VecXd_rhs;  //rhs in Eigen object vector form, for sparse matrix solver
     Eigen::SparseMatrix<double> sp_matrix;
     Eigen::MatrixXd V_matrix;
+    Eigen::MatrixXd netcharge;
 
     //Boundary conditions
     std::vector<double> V_leftBC, V_rightBC, V_bottomBC, V_topBC;

@@ -54,8 +54,8 @@ num_V = floor((Va_max-Va_min)/increment)+1;   %number of V points
 %Simulation parameters
 w_eq = 0.05;               %linear mixing factor for 1st convergence (0 applied voltage, no generation equilibrium case)
 w_i = 0.2;                 %starting linear mixing factor for Va_min (will be auto decreased if convergence not reached)
-tolerance = 5*10^-12;        %error tolerance
-tolerance_i =  5*10^-12;     %initial error tolerance, will be increased if can't converge to this level
+tolerance = 10^-15;        %error tolerance
+tolerance_i =  10^-15;     %initial error tolerance, will be increased if can't converge to this level
 
 %% System Setup
 
@@ -182,7 +182,7 @@ for Va_cnt = 0:num_V +1
     
     %1st iteration is to find the equilibrium values (no generation rate)
     if(Va_cnt ==0)
-        tolerance = tolerance*10^2;       %relax tolerance for equil convergence
+        tolerance = tolerance*10;       %relax tolerance for equil convergence
         w = w_eq;                         %use smaller mixing factor for equil convergence
         Va = 0;
         Up = zeros(num_cell+1,num_cell+1);
@@ -263,8 +263,9 @@ for Va_cnt = 0:num_V +1
         %newn = lsqr(An, bn, 10^-16, 1000,[] ,[] ,n);  %TRY  WITH QR
         newn = An\bn;
         
+        
         %An*newn - bn
-
+       
         %spparms('spumoni',2)
 
         % if get negative p's or n's, make them equal 0
@@ -305,6 +306,8 @@ for Va_cnt = 0:num_V +1
         p = newp*w + oldp*(1.-w);
         n = newn*w + oldn*(1.-w);
         
+ 
+        
         %% Apply continuity eqn BCs
         
         %reshape the vectors into matrices
@@ -313,7 +316,7 @@ for Va_cnt = 0:num_V +1
         
         %Update side boundary conditions
         for j = 1:N
-            p_leftBC(j) = p((j-1)*N + 1); %just corresponds to values of V in the 1st subblock
+            p_leftBC(j) = p((j-1)*N + 1); 
             p_rightBC(j)= p(j*N);
         end
         
@@ -326,8 +329,8 @@ for Va_cnt = 0:num_V +1
         fullp(N+2, N+2) = p_topBC;  
         
         for j = 1:N
-            n_leftBC(j) = n_matrix(N,j);
-            n_rightBC(j)= n_matrix(1,j);
+            n_leftBC(j) = n((j-1)*N + 1);
+            n_rightBC(j)= n(j*N);
         end
         
         %add on the BC's to get full potential matrix
@@ -338,8 +341,12 @@ for Va_cnt = 0:num_V +1
         fulln(N+2,2:N+1) = n_rightBC;
         fulln(N+2, N+2) = n_topBC;  
         
+     
         iter = iter +1   
+
     end
+
+    stop
     
     % Calculate drift diffusion currents
     % Use the SG definition

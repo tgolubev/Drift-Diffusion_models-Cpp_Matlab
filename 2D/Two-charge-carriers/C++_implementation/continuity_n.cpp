@@ -210,8 +210,6 @@ void Continuity_n::set_far_upper_diag()
     }
 }
 
-
-
 //---------------------------------------------------------------------------
 
 void Continuity_n::set_rhs(const Eigen::MatrixXd &Un_matrix)
@@ -259,8 +257,6 @@ void Continuity_n::set_rhs(const Eigen::MatrixXd &Un_matrix)
         VecXd_rhs(i-1) = rhs[i];   //fill VectorXd  rhs of the equation
     }
 }
-
-
 
 
 //------------------------

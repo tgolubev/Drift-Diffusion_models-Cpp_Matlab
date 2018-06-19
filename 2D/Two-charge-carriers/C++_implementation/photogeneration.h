@@ -14,6 +14,7 @@
 class Photogeneration
 {
 public:
+
     //!Constructor will get the generation rate from file.
     //!Generation rate file should contain num_cell -2 number of entries in a single column, corresponding to
     //!the the generation rate at each mesh point (except the endpoints).
@@ -21,6 +22,7 @@ public:
     Photogeneration(const Parameters &params, double photogen_scaling, const std::string gen_rate_file_name);
 
     Eigen::MatrixXd getPhotogenRate() {return PhotogenRate;}
+
 private:
     Eigen::MatrixXd PhotogenRate;
     double PhotogenRate_max;

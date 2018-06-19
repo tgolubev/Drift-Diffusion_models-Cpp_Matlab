@@ -32,24 +32,22 @@ public:
     void set_V_rightBC(const std::vector<double> &V);
 
     //getters
-    std::vector<double> get_main_diag() const {return main_diag;}
-    //std::vector<double> get_upper_diag() const {return upper_diag;}
-    //std::vector<double> get_lower_diag() const {return lower_diag;}
-    //std::vector<double> get_far_lower_diag() const {return far_lower_diag;}
-    //std::vector<double> get_far_upper_diag() const {return far_upper_diag;}
     Eigen::VectorXd get_rhs() const {return VecXd_rhs;}  //returns the Eigen object
     Eigen::SparseMatrix<double> get_sp_matrix() const {return sp_matrix;}
-
-
     std::vector<double> get_V_topBC() const {return V_topBC;}
     std::vector<double> get_V_bottomBC() const {return V_bottomBC;}
     std::vector<double> get_V_leftBC() const {return V_leftBC;}
     std::vector<double> get_V_rightBC() const {return V_rightBC;}
 
+    //The below getters can be useful for testing and debugging
+    //std::vector<double> get_main_diag() const {return main_diag;}
+    //std::vector<double> get_upper_diag() const {return upper_diag;}
+    //std::vector<double> get_lower_diag() const {return lower_diag;}
+    //std::vector<double> get_far_lower_diag() const {return far_lower_diag;}
+    //std::vector<double> get_far_upper_diag() const {return far_upper_diag;}
 
 private:
     double CV;    //Note: relative permitivity was moved into the matrix
-
     int N;  //for convenience define this --> is the number of points in 1D inside the device
     int num_elements;  //for convience so don't have to keep writing params.
     int num_cell;
@@ -74,9 +72,6 @@ private:
 
     //!This matrix stores the possibly position-dependent relative dielectric constant.
     Eigen::MatrixXd epsilon;
-    //std::vector<std::vector<double> > epsilon;
-
-
 
 };
 

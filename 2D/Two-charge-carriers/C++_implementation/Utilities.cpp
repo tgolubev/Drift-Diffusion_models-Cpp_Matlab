@@ -28,6 +28,7 @@ void Utilities::write_details(const Parameters &params, double Va, const Eigen::
         for (int j = 1; j < params.num_cell; j++) {
             int i =  static_cast<int>(floor(params.num_cell/2));
             VaData << std::setw(15) << std::setprecision(8) << params.dx*i;
+            VaData << std::setw(15) << std::setprecision(8) << params.dx*j;
             VaData << std::setw(15) << std::setprecision(8) << Vt*V_matrix(i,j);
             VaData << std::setw(15) << std::setprecision(8) << params.N_dos*p_matrix(i,j);
             VaData << std::setw(15) << std::setprecision(8) << params.N_dos*n_matrix(i,j);

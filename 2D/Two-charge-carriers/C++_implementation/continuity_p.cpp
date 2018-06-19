@@ -58,9 +58,6 @@ void Continuity_p::set_p_rightBC(const std::vector<double> &p)
     }
 }
 
-
-
-
 //Calculates Bernoulli fnc values, then sets the diagonals and rhs
 void Continuity_p::setup_eqn(const Eigen::MatrixXd &V_matrix, const Eigen::MatrixXd &Up_matrix, const std::vector<double> &p)
 {
@@ -163,7 +160,7 @@ void Continuity_p::set_upper_diag()
         int i = index % N;
         int j = 1 + static_cast<int>(floor((index-1)/N));
 
-        if ((index-1 % N) == 0)
+        if ((index % N) == 0)
             upper_diag[index] = 0;
         else
             upper_diag[index] = -((p_mob(i+1,j) + p_mob(i+1,j+1))/2.)*Bp_negX(i+1,j);

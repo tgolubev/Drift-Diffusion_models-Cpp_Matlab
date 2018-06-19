@@ -30,11 +30,6 @@ public:
     void set_p_rightBC(const std::vector<double> &p);
 
     //getters
-    //std::vector<double> get_main_diag() const {return main_diag;}
-    //std::vector<double> get_upper_diag() const {return upper_diag;}
-    //std::vector<double> get_lower_diag() const {return lower_diag;}
-    //std::vector<double> get_rhs() const {return rhs;}
-    //std::vector<std::vector<double> > get_p_mob() const {return p_mob;}
     Eigen::MatrixXd get_p_mob() const {return p_mob;}
     Eigen::VectorXd get_rhs() const {return VecXd_rhs;}  //returns the Eigen object
     Eigen::SparseMatrix<double> get_sp_matrix() const {return sp_matrix;}
@@ -49,6 +44,13 @@ public:
     std::vector<double> get_p_bottomBC() const {return p_bottomBC;}
     std::vector<double> get_p_leftBC() const {return p_leftBC;}
     std::vector<double> get_p_rightBC() const {return p_rightBC;}
+
+    //The below getters can be useful for testing and debugging
+    //std::vector<double> get_main_diag() const {return main_diag;}
+    //std::vector<double> get_upper_diag() const {return upper_diag;}
+    //std::vector<double> get_lower_diag() const {return lower_diag;}
+    //std::vector<double> get_far_upper_diag() const {return far_upper_diag;}
+    //std::vector<double> get_far_lower_diag() const {return far_lower_diag;}
 
 private:
     std::vector<double> far_lower_diag;

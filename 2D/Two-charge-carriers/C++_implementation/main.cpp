@@ -27,7 +27,6 @@
 %   bp is the rhs of hole continuity eqn which contains net generation rate
 %   and BCs
 %
-%
 %     The code as is will calculate data for a JV curve
 %     as well as carrier densities, current densities, and electric field
 %     distributions of a generic solar cell made of an active layer and electrodes.
@@ -69,7 +68,6 @@
 #include "continuity_n.h"
 #include "recombination.h"
 #include "photogeneration.h"
-#include "thomas_tridiag_solve.h"
 #include "Utilities.h"
 
 int main()
@@ -81,7 +79,7 @@ int main()
     const int num_cell = params.num_cell;   //create a local num_cell so don't have to type params.num_cell everywhere
 
     const int num_V = static_cast<int>(floor((params.Va_max-params.Va_min)/params.increment))+1;  //floor returns double, explicitely cast to int
-    params.tolerance_eq = 100.*params.tolerance_i;
+    params.tolerance_eq = 10.*params.tolerance_i;
     const int N = params.num_cell -1;
     const int num_rows = N*N;  //number of rows in the solution vectors (V, n, p)
     //NOTE: num_rows is the same as num_elements
@@ -104,7 +102,6 @@ int main()
     //create matrices to hold the V, n, and p values (including those at the boundaries) according to the (x,z) coordinates.
     //Allows to write formulas in terms of coordinates.
     //Note: these matrices are indexed from 0 (corresponds to the BC).
-
     Eigen::MatrixXd V_matrix = Eigen::MatrixXd::Zero(num_cell+1, num_cell+1);    //this includes the boundaries too, so needs num-cell+1 size (BC's at 0 and num_cell)
     Eigen::MatrixXd n_matrix = Eigen::MatrixXd::Zero(num_cell+1, num_cell+1);    //useful for calculating currents at end of each Va
     Eigen::MatrixXd p_matrix = Eigen::MatrixXd::Zero(num_cell+1, num_cell+1);
@@ -121,8 +118,6 @@ int main()
 
     //initially we make the n and p densities inside the device be the same, so netcharge = 0
     Eigen::MatrixXd netcharge = Eigen::MatrixXd::Zero(num_cell+1,num_cell+1);
-    //std::cout << netcharge << std::endl;
-
 
 //------------------------------------------------------------------------------------
     //Construct objects
@@ -223,7 +218,6 @@ int main()
 
             poisson.set_rhs(netcharge);
             //std::cout << poisson.get_sp_matrix() << std::endl;
-            //std::cout << "poisson  main  diag " << poisson.get_main_diag()[1] << std::endl;
             oldV = V;
             if (iter == 0) {
                 SCholesky.analyzePattern(poisson.get_sp_matrix());
@@ -231,12 +225,9 @@ int main()
             }
             soln_Xd = SCholesky.solve(poisson.get_rhs());
             //std::cout << soln_Xd << std::endl;
-
              //std::cout << "Poisson solver error " << poisson.get_sp_matrix() * soln_Xd - poisson.get_rhs() << std::endl;
 
-            //For now do a little inefficiently, but more convinient. Store soln in the VectorXd object, and convert back to normal std::vector
-            //for rest of processing.
-            //save results back into V std::vector. RECALL, I am starting my V vector from index of 1, corresponds to interior pts...
+            //RECALL, I am starting my V vector from index of 1, corresponds to interior pts...
             for (int i = 1; i<=num_rows; i++) {
                 newV[i] = soln_Xd(i-1);   //fill VectorXd  rhs of the equation
             }
@@ -264,16 +255,9 @@ int main()
                 V_matrix(num_cell, j) = poisson.get_V_rightBC()[j];
             }
 
-            //std::cout << V_matrix << std::endl;
-
             //------------------------------Calculate Net Generation Rate----------------------------------------------------------
 
             //R_Langevin = recombo.ComputeR_Langevin(params,n,p);
-
-            //------------//////////////////////////////////////////////////////////////
-            //NEED AN R_Langevin in Matrix form--> do the conversion within the function....
-            //////////////////////////////////////////////////////////////////
-
             //FOR NOW CAN USE 0 FOR R_Langevin
 
             if (Va_cnt > 0) {
@@ -294,20 +278,6 @@ int main()
             sLU.factorize(continuity_n.get_sp_matrix());
             soln_Xd = sLU.solve(continuity_n.get_rhs());
 
-            //NOTE: BiCGSTAB, and congugate gradient cause program crash
-            //Cholesky Simplicial LLDT gives non-sense results
-            //Cholesky Simplical LLT, fails officially (if check .info(), returns a 1 (false)).
-            //MUST ALWAYS CHECK IF IT SOLVED SUCCESFULLY, WITH AN IF STATEMENT..., OTHERWISE IT WILL NOT WARN YOU, BUT JUST GIVE BACK THE PREVIOUS SOLUTION!
-            //Matlab says Cholesky is not suitable for continuity eqn, I think b/c matrix is not symmetric...
-            //QR give too high of error, not reliable.
-            //Best solver seems to be SparseLU--> gives low error...
-
-            //SQR.analyzePattern(continuity_n.get_sp_matrix());
-            //SQR.factorize(continuity_n.get_sp_matrix());
-            //soln_Xd = SQR.solve(continuity_n.get_rhs());
-
-            //std::cout <<  soln_Xd << std::endl;
-
             //std::cout << "solver error " << continuity_n.get_sp_matrix() * soln_Xd - continuity_n.get_rhs() << std::endl;
 
             //save results back into n std::vector. RECALL, I am starting my V vector from index of 1, corresponds to interior pts...
@@ -317,17 +287,12 @@ int main()
 
             //-------------------------------------------------------
             continuity_p.setup_eqn(V_matrix, Up_matrix, p);
-            //std::cout << continuity_p.get_rhs() << std::endl;   //Note: get rhs, returns an Eigen VectorXd
+            //std::cout << continuity_p.get_sp_matrix() << std::endl;   //Note: get rhs, returns an Eigen VectorXd
             oldp = p;
 
             if (iter == 0 ) sLU.analyzePattern(continuity_p.get_sp_matrix());
             sLU.factorize(continuity_p.get_sp_matrix()); //matrix needs to be refactorized at every iter b/c bernoulli fnc values and thus matrix values change...
             soln_Xd = sLU.solve(continuity_p.get_rhs());
-
-            //SQR.analyzePattern(continuity_p.get_sp_matrix());
-            //SQR.factorize(continuity_p.get_sp_matrix());
-            //soln_Xd = SQR.solve(continuity_p.get_rhs());
-            //std::cout << soln_Xd << std::endl;
 
             //save results back into n std::vector. RECALL, I am starting my V vector from index of 1, corresponds to interior pts...
             for (int i = 1; i<=num_rows; i++) {
@@ -337,19 +302,19 @@ int main()
             //------------------------------------------------
 
             //if get negative p's or n's set them = 0
-            for (int i = 1; i < num_rows; i++) {
+            for (int i = 1; i <= num_rows; i++) {
                 if (newp[i] < 0.0) newp[i] = 0;
                 if (newn[i] < 0.0) newn[i] = 0;
             }
 
             //calculate the error
             old_error = error_np;
-            for (int i = 1; i < num_rows; i++) {
+            for (int i = 1; i <= num_rows; i++) {
                 if (newp[i]!=0 && newn[i] !=0) {
                     error_np_vector[i] = (abs(newp[i]-oldp[i]) + abs(newn[i]-oldn[i]))/abs(oldp[i]+oldn[i]);
                 }
             }
-            error_np = *std::max_element(error_np_vector.begin(),error_np_vector.end());
+            error_np = *std::max_element(error_np_vector.begin()+1,error_np_vector.end());  //+1 b/c we are not using the 0th element
             std::fill(error_np_vector.begin(), error_np_vector.end(),0.0);  //refill with 0's so have fresh one for next iter
 
             //auto decrease w if not converging
@@ -365,15 +330,16 @@ int main()
             n = utils.linear_mix(params, newn, oldn);
 
             //Apply continuity equation  BC's
-            //set the  side BC's
             continuity_n.set_n_leftBC(n);
             continuity_n.set_n_rightBC(n);
             continuity_p.set_p_leftBC(p);
             continuity_p.set_p_rightBC(p);
             //note: top and bottom BC's don't need to be changed for now, since assumed to be constant... (they are set when initialize continuity objects)
 
+            std::cout << error_np << std::endl;
+            std::cout << "weighting factor = " << params.w << std::endl << std::endl;
+
             iter = iter+1;
-            //std::cout << "test" << iter << std::endl;
         }
 
         //-------------------Calculate Currents using Scharfetter-Gummel definition--------------------------
@@ -412,10 +378,6 @@ int main()
         }
             J_total_Z = Jp_Z + Jn_Z;
             J_total_X = Jp_X + Jn_X;
-
-            //std::cout << J_total_Z << std::endl;
-
-
 
         //---------------------Write to file----------------------------------------------------------------
         utils.write_details(params, Va, V_matrix, p_matrix, n_matrix, J_total_Z, Un_matrix);

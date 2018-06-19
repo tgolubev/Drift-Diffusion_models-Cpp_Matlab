@@ -90,21 +90,13 @@ int main()
     //-------------------------------------------------------------------------------------------------------
     //Initialize other vectors
     //Will use indicies for n and p... starting from 1 --> since is more natural--> corresponds to 1st node inside the device...
-    //USE SIZE num_rows + 1 b/c don't want to use the 0th index. Mathematically convenient to index the soln vectors from 1 to num_rows
     //NOTE: ALL THESE INCLUDE THE INTERIOR ELEMENTS ONLY
     std::vector<double> n(num_rows+ 1), p(num_rows+ 1), oldp(num_rows+ 1), newp(num_rows+ 1), oldn(num_rows+ 1), newn(num_rows+ 1);
     std::vector<double> oldV(num_rows+ 1), newV(num_rows+ 1), V(num_rows+ 1);
 
-    Eigen::VectorXd soln_Xd(num_rows);  //vector for storing solutions to the  sparse solver (indexed from 0, so only num_rows size)
-
-    //std::vector<double> Jp(num_rows),Jn(num_cell), J_total(num_cell);
-
     //create matrices to hold the V, n, and p values (including those at the boundaries) according to the (x,z) coordinates.
-    //Allows to write formulas in terms of coordinates.
-    //Note: these matrices are indexed from 0 (corresponds to the BC).
-    Eigen::MatrixXd V_matrix = Eigen::MatrixXd::Zero(num_cell+1, num_cell+1);    //this includes the boundaries too, so needs num-cell+1 size (BC's at 0 and num_cell)
-    Eigen::MatrixXd n_matrix = Eigen::MatrixXd::Zero(num_cell+1, num_cell+1);    //useful for calculating currents at end of each Va
-    Eigen::MatrixXd p_matrix = Eigen::MatrixXd::Zero(num_cell+1, num_cell+1);
+    //allows to write formulas in terms of coordinates
+    Eigen::VectorXd soln_Xd(num_rows);  //vector for storing solutions to the  sparse solver (indexed from 0, so only num_rows size)
 
     //For the following, only need gen rate on insides, so N+1 size is enough
     Eigen::MatrixXd Un_matrix = Eigen::MatrixXd::Zero(N+1,N+1);
@@ -112,9 +104,6 @@ int main()
     Eigen::MatrixXd R_Langevin(N+1,N+1), PhotogenRate(N+1,N+1);
     Eigen::MatrixXd Jp_Z(num_cell+1, num_cell+1), Jn_Z(num_cell+1, num_cell+1), Jp_X(num_cell+1, num_cell+1), Jn_X(num_cell+1, num_cell+1);
     Eigen::MatrixXd J_total_Z(num_cell+1, num_cell+1), J_total_X(num_cell+1, num_cell+1);                  //matrices for spacially dependent current
-
-    //define initial conditions as min value of BCs
-    //double min_dense = std::min(continuity_n.get_n_bottomBC()[1], continuity_p.get_p_topBC()[1]);  //just use 1st index, the BC's are uniform for IC
 
     //initially we make the n and p densities inside the device be the same, so netcharge = 0
     Eigen::MatrixXd netcharge = Eigen::MatrixXd::Zero(num_cell+1,num_cell+1);
@@ -197,14 +186,10 @@ int main()
         }
         std::cout << "Va = " << Va <<std::endl;
 
-        //Apply the voltage boundary conditions
+        //Reset top and bottom BCs (outside of loop b/c don't change iter to iter)
         poisson.set_V_bottomBC(params, Va);
         poisson.set_V_topBC(params, Va);
-        //Add on top and bottom BC's to V_matrix
-        for (int i = 0; i <=num_cell; i++) {
-            V_matrix(i, 0) = poisson.get_V_bottomBC()[i];
-            V_matrix(i,num_cell) = poisson.get_V_topBC()[i];
-        }
+
 
         //-----------------------------------------------------------
         error_np = 1.0;
@@ -215,7 +200,6 @@ int main()
             std::cout << "Va " << Va <<std::endl;
 
             //-----------------Solve Poisson Equation------------------------------------------------------------------
-
             poisson.set_rhs(netcharge);
             //std::cout << poisson.get_sp_matrix() << std::endl;
             oldV = V;
@@ -238,22 +222,10 @@ int main()
             else
                 V = newV;
 
-            //conversion from V vector to V_matrix (holds inside values Plus the BC's). Note: top and bottom BC's are applied outside of while loop, since don't change.
-            for (int index = 1; index <= num_rows; index++) {
-                int i = index % N;    //this gives the i value for matrix
-                if (i == 0) i = N;
-
-                int j = 1 + static_cast<int>(floor((index-1)/N));  // j value for matrix
-
-                V_matrix(i,j) = V[index];
-            }
-            //set and add on the left and right BC's to V_matrix
+            //update side BC's and V_matrix
             poisson.set_V_leftBC(V);
             poisson.set_V_rightBC(V);
-            for (int j = 1; j < num_cell; j++) {   //don't need to set j = 0 and j = num_cell elements, b/c already set when apply top and bottom BC's (are corners)
-                V_matrix(0, j) = poisson.get_V_leftBC()[j];
-                V_matrix(num_cell, j) = poisson.get_V_rightBC()[j];
-            }
+            poisson.to_matrix(V);
 
             //------------------------------Calculate Net Generation Rate----------------------------------------------------------
 
@@ -271,13 +243,11 @@ int main()
 
             //--------------------------------Solve equations for n and p------------------------------------------------------------ 
 
-            continuity_n.setup_eqn(V_matrix, Un_matrix, n);
-            oldn = n;  //oldn VALUES ARE CORRECT
-
+            continuity_n.setup_eqn(poisson.get_V_matrix(), Un_matrix, n);
+            oldn = n;
             if (iter == 0 ) sLU.analyzePattern(continuity_n.get_sp_matrix());  //by doing only on first iter, since pattern never changes, save a bit cpu
             sLU.factorize(continuity_n.get_sp_matrix());
             soln_Xd = sLU.solve(continuity_n.get_rhs());
-
             //std::cout << "solver error " << continuity_n.get_sp_matrix() * soln_Xd - continuity_n.get_rhs() << std::endl;
 
             //save results back into n std::vector. RECALL, I am starting my V vector from index of 1, corresponds to interior pts...
@@ -286,7 +256,7 @@ int main()
             }
 
             //-------------------------------------------------------
-            continuity_p.setup_eqn(V_matrix, Up_matrix, p);
+            continuity_p.setup_eqn(poisson.get_V_matrix(), Up_matrix, p);
             //std::cout << continuity_p.get_sp_matrix() << std::endl;   //Note: get rhs, returns an Eigen VectorXd
             oldp = p;
 
@@ -344,43 +314,24 @@ int main()
 
         //-------------------Calculate Currents using Scharfetter-Gummel definition--------------------------
         //Convert the n and p to n_matrix and p_matrix
-        for (int index = 1; index <= num_rows; index++) {
-            int i = index % N;    //this gives the i value for matrix
-            if (i == 0) i = N;
-
-            int j = 1 + static_cast<int>(floor((index-1)/N));  // j value for matrix
-
-            n_matrix(i,j) = n[index];
-            p_matrix(i,j) = p[index];
-        }
-        for (int j = 1; j <= N; j++) {
-            n_matrix(0, j) = continuity_n.get_n_leftBC()[j];
-            p_matrix(0, j) = continuity_p.get_p_leftBC()[j];
-            n_matrix(num_cell, j) = continuity_n.get_n_rightBC()[j];
-            p_matrix(num_cell, j) = continuity_p.get_p_rightBC()[j];
-        }
-        for (int i = 0; i <= num_cell; i++) {  //bottom BC's go all the way accross, including corners
-            n_matrix(i, 0) = continuity_n.get_n_bottomBC()[i];
-            n_matrix(i, num_cell) = continuity_n.get_n_topBC()[i];
-            p_matrix(i, 0) = continuity_p.get_p_bottomBC()[i];
-            p_matrix(i, num_cell) = continuity_p.get_p_topBC()[i];
-        }
+        continuity_n.to_matrix(n);
+        continuity_p.to_matrix(p);
 
         //CAN MOVE THESE TO FUNCTIONS INSIDE CONTINUITY EQUATIONS classes
         for (int i = 1; i < num_cell; i++) {
             for (int j = 1; j < num_cell; j++) {
-                Jp_Z(i,j) = -(q*Vt*params.N_dos*params.mobil/params.dx) * continuity_p.get_p_mob()(i,j) * (p_matrix(i,j)*continuity_p.get_Bp_negZ()(i,j) - p_matrix(i,j-1)*continuity_p.get_Bp_posZ()(i,j));
-                Jn_Z(i,j) =  (q*Vt*params.N_dos*params.mobil/params.dx) * continuity_n.get_n_mob()(i,j) * (n_matrix(i,j)*continuity_n.get_Bn_posZ()(i,j) - n_matrix(i,j-1)*continuity_n.get_Bn_negZ()(i,j));
+                Jp_Z(i,j) = -(q*Vt*params.N_dos*params.mobil/params.dx) * continuity_p.get_p_mob()(i,j) * (continuity_p.get_p_matrix()(i,j)*continuity_p.get_Bp_negZ()(i,j) - continuity_p.get_p_matrix()(i,j-1)*continuity_p.get_Bp_posZ()(i,j));
+                Jn_Z(i,j) =  (q*Vt*params.N_dos*params.mobil/params.dx) * continuity_n.get_n_mob()(i,j) * (continuity_n.get_n_matrix()(i,j)*continuity_n.get_Bn_posZ()(i,j) - continuity_n.get_n_matrix()(i,j-1)*continuity_n.get_Bn_negZ()(i,j));
 
-                Jp_X(i,j) = -(q*Vt*params.N_dos*params.mobil/params.dx) * continuity_p.get_p_mob()(i,j) * (p_matrix(i,j)*continuity_p.get_Bp_negX()(i,j) - p_matrix(i,j-1)*continuity_p.get_Bp_posX()(i,j));
-                Jn_X(i,j) =  (q*Vt*params.N_dos*params.mobil/params.dx) * continuity_n.get_n_mob()(i,j) * (n_matrix(i,j)*continuity_n.get_Bn_posX()(i,j) - n_matrix(i,j-1)*continuity_n.get_Bn_negX()(i,j));
+                Jp_X(i,j) = -(q*Vt*params.N_dos*params.mobil/params.dx) * continuity_p.get_p_mob()(i,j) * (continuity_p.get_p_matrix()(i,j)*continuity_p.get_Bp_negX()(i,j) - continuity_p.get_p_matrix()(i,j-1)*continuity_p.get_Bp_posX()(i,j));
+                Jn_X(i,j) =  (q*Vt*params.N_dos*params.mobil/params.dx) * continuity_n.get_n_mob()(i,j) * (continuity_n.get_n_matrix()(i,j)*continuity_n.get_Bn_posX()(i,j) - continuity_n.get_n_matrix()(i,j-1)*continuity_n.get_Bn_negX()(i,j));
             }
         }
             J_total_Z = Jp_Z + Jn_Z;
             J_total_X = Jp_X + Jn_X;
 
         //---------------------Write to file----------------------------------------------------------------
-        utils.write_details(params, Va, V_matrix, p_matrix, n_matrix, J_total_Z, Un_matrix);
+        utils.write_details(params, Va, poisson.get_V_matrix(), continuity_p.get_p_matrix(), continuity_n.get_n_matrix(), J_total_Z, Un_matrix);
         if(Va_cnt >0) utils.write_JV(params, JV, iter, Va, J_total_Z);
 
     }//end of main loop

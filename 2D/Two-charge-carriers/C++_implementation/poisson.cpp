@@ -7,6 +7,7 @@ Poisson::Poisson(const Parameters &params, const Eigen::MatrixXd &netcharge)
     N = params.num_cell -1;  //for convenience define this --> is the number of points in 1D inside the device
     num_elements = params.num_elements;
     num_cell = params.num_cell;
+    V_matrix = Eigen::MatrixXd::Zero(num_cell+1, num_cell+1);    //useful for calculating currents at end of each Va
 
     main_diag.resize(num_elements+1);
     upper_diag.resize(num_elements);
@@ -220,6 +221,30 @@ void Poisson::set_rhs(const Eigen::MatrixXd &netcharge)
     //set up VectorXd Eigen vector object for sparse solver
     for (int i = 1; i<=num_elements; i++) {
         VecXd_rhs(i-1) = rhs[i];   //fill VectorXd  rhs of the equation
+    }
+
+}
+
+//-----------------------------------------
+void Poisson::to_matrix(const std::vector<double> &V)
+{
+    for (int index = 1; index <= num_elements; index++) {
+        int i = index % N;    //this gives the i value for matrix
+        if (i == 0) i = N;
+
+        int j = 1 + static_cast<int>(floor((index-1)/N));  // j value for matrix
+
+        V_matrix(i,j) = V[index];
+    }
+
+    for (int i = 0; i <=num_cell; i++) {
+        V_matrix(i, 0) = V_bottomBC[i];
+        V_matrix(i,num_cell) = V_topBC[i];
+    }
+
+    for (int j = 1; j < num_cell; j++) {   //don't need to set j = 0 and j = num_cell elements, b/c already set when apply top and bottom BC's (are corners)
+        V_matrix(0, j) = V_leftBC[j];
+        V_matrix(num_cell, j) = V_rightBC[j];
     }
 
 }

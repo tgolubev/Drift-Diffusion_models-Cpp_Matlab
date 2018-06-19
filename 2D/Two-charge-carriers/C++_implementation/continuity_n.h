@@ -14,7 +14,7 @@
 class Continuity_n
 {
 
-//typedef Eigen::Triplet<double> Trp;
+typedef Eigen::Triplet<double> Trp;
 
 public:
     Continuity_n(const Parameters &params);
@@ -36,6 +36,7 @@ public:
     Eigen::MatrixXd get_n_mob() const {return n_mob;}
     Eigen::VectorXd get_rhs() const {return VecXd_rhs;}  //returns the Eigen object
     Eigen::SparseMatrix<double> get_sp_matrix() const {return sp_matrix;}
+    Eigen::MatrixXd get_n_matrix() const {return n_matrix;}
 
     //needed for current calculations
     Eigen::MatrixXd  get_Bn_posX() const {return Bn_posX;}
@@ -47,6 +48,8 @@ public:
     std::vector<double> get_n_bottomBC() const {return n_bottomBC;}
     std::vector<double> get_n_leftBC() const {return n_leftBC;}
     std::vector<double> get_n_rightBC() const {return n_rightBC;}
+
+    void Continuity_n::to_matrix(const std::vector<double> &n);
 
     //The below getters can be useful for testing and debugging
     //std::vector<double> get_main_diag() const {return main_diag;}
@@ -65,9 +68,10 @@ private:
     Eigen::MatrixXd n_mob;  //!Matrix storing the position dependent electron mobility
     Eigen::VectorXd VecXd_rhs;  //rhs in Eigen object vector form, for sparse matrix solver
     Eigen::SparseMatrix<double> sp_matrix;
+    Eigen::MatrixXd n_matrix;
 
-    //std::vector<Trp> triplet_list;
-    //int trp_cnt;  //for counting the triplets
+    std::vector<Trp> triplet_list;
+    int trp_cnt;  //for counting the triplets
 
     //Boundary conditions
     std::vector<double> n_leftBC, n_rightBC, n_bottomBC, n_topBC;

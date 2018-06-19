@@ -31,6 +31,8 @@ public:
     void set_V_leftBC(const std::vector<double> &V);
     void set_V_rightBC(const std::vector<double> &V);
 
+    void Poisson::to_matrix(const std::vector<double> &V);
+
     //getters
     Eigen::VectorXd get_rhs() const {return VecXd_rhs;}  //returns the Eigen object
     Eigen::SparseMatrix<double> get_sp_matrix() const {return sp_matrix;}
@@ -38,6 +40,7 @@ public:
     std::vector<double> get_V_bottomBC() const {return V_bottomBC;}
     std::vector<double> get_V_leftBC() const {return V_leftBC;}
     std::vector<double> get_V_rightBC() const {return V_rightBC;}
+    Eigen::MatrixXd get_V_matrix() const {return V_matrix;}
 
     //The below getters can be useful for testing and debugging
     //std::vector<double> get_main_diag() const {return main_diag;}
@@ -66,6 +69,7 @@ private:
     std::vector<double> rhs;
     Eigen::VectorXd VecXd_rhs;  //rhs in Eigen object vector form, for sparse matrix solver
     Eigen::SparseMatrix<double> sp_matrix;
+    Eigen::MatrixXd V_matrix;
 
     //Boundary conditions
     std::vector<double> V_leftBC, V_rightBC, V_bottomBC, V_topBC;

@@ -13,6 +13,9 @@
 
 class Continuity_p
 {
+
+typedef Eigen::Triplet<double> Trp;  //allows to use Trp to refer to the Eigen::Triplet<double> type
+
 public:   
     Continuity_p(const Parameters &params);
 
@@ -29,6 +32,8 @@ public:
     void set_p_leftBC(const std::vector<double> &p);
     void set_p_rightBC(const std::vector<double> &p);
 
+    void Continuity_p::to_matrix(const std::vector<double> &p);
+
     //getters
     Eigen::MatrixXd get_p_mob() const {return p_mob;}
     Eigen::VectorXd get_rhs() const {return VecXd_rhs;}  //returns the Eigen object
@@ -39,6 +44,7 @@ public:
     Eigen::MatrixXd  get_Bp_negX() const {return Bp_negX;}
     Eigen::MatrixXd  get_Bp_posZ() const {return Bp_posZ;}
     Eigen::MatrixXd  get_Bp_negZ() const {return Bp_negZ;}
+    Eigen::MatrixXd get_p_matrix() const {return p_matrix;}
 
     std::vector<double> get_p_topBC() const {return p_topBC;}
     std::vector<double> get_p_bottomBC() const {return p_bottomBC;}
@@ -62,6 +68,10 @@ private:
     Eigen::MatrixXd p_mob;  //!Matrix storing the position dependent holeelectron mobility
     Eigen::VectorXd VecXd_rhs;  //rhs in Eigen object vector form, for sparse matrix solver
     Eigen::SparseMatrix<double> sp_matrix;
+    Eigen::MatrixXd p_matrix;
+
+    std::vector<Trp> triplet_list;
+    int trp_cnt;  //for counting the triplets
 
     //Boundary conditions
     std::vector<double> p_leftBC, p_rightBC, p_bottomBC, p_topBC;

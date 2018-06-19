@@ -5,6 +5,7 @@ Continuity_p::Continuity_p(const Parameters &params)
     num_elements = params.num_elements;
     N = params.num_cell - 1;
     num_cell = params.num_cell;
+    p_matrix = Eigen::MatrixXd::Zero(num_cell+1, num_cell+1);
 
     main_diag.resize(num_elements+1);
     upper_diag.resize(num_elements);
@@ -30,7 +31,6 @@ Continuity_p::Continuity_p(const Parameters &params)
     Cp = params.dx*params.dx/(Vt*params.N_dos*params.mobil);  //can't use static, b/c dx wasn't defined as const, so at each initialization of Continuity_p object, new const will be made.
 
     //these BC's for now stay constant throughout simulation, so fill them once, upon Continuity_n object construction
-
     for (int j =  0; j <= num_cell; j++) {
         p_bottomBC[j] = params.N_HOMO*exp(-params.phi_a/Vt)/params.N_dos;
         p_topBC[j] = params.N_HOMO*exp(-(params.E_gap-params.phi_c)/Vt)/params.N_dos;
@@ -40,6 +40,8 @@ Continuity_p::Continuity_p(const Parameters &params)
     sp_matrix.resize(num_elements, num_elements);
     VecXd_rhs.resize(num_elements);   //only num_elements, b/c filling from index 0 (necessary for the sparse solver)
 
+    //setup the triplet list for sparse matrix
+     triplet_list.resize(5*num_elements);   //approximate the size that need
 }
 
 //------------------------------------------------------------------
@@ -61,6 +63,7 @@ void Continuity_p::set_p_rightBC(const std::vector<double> &p)
 //Calculates Bernoulli fnc values, then sets the diagonals and rhs
 void Continuity_p::setup_eqn(const Eigen::MatrixXd &V_matrix, const Eigen::MatrixXd &Up_matrix, const std::vector<double> &p)
 {
+    trp_cnt = 0;  //reset triplet count
     Bernoulli_p_X(V_matrix);
     Bernoulli_p_Z(V_matrix);
     set_far_lower_diag();
@@ -72,39 +75,7 @@ void Continuity_p::setup_eqn(const Eigen::MatrixXd &V_matrix, const Eigen::Matri
     set_p_rightBC(p);
     set_rhs(Up_matrix);
 
-    typedef Eigen::Triplet<double> Trp;
-
-    //THIS COULD BE MOVED TO UTILITIES..., B/C IS BASICALLY THE SAME for the 2 continuity and poisson equations.
-
-    //generate triplets for Eigen sparse matrix
-    //setup the triplet list for sparse matrix
-     std::vector<Trp> triplet_list(5*num_elements);   //approximate the size that need         // list of non-zeros coefficients in triplet form(row index, column index, value)
-     int trp_cnt = 0;
-     for(int i = 1; i<= num_elements; i++){
-           triplet_list[trp_cnt] = {i-1, i-1, main_diag[i]};
-           trp_cnt++;
-         //triplet_list.push_back(Trp(i-1,i-1,main_diag[i]));;   //triplets for main diag
-     }
-     for(int i = 1;i< upper_diag.size();i++){
-         triplet_list[trp_cnt] = {i-1, i, upper_diag[i]};
-         trp_cnt++;
-         //triplet_list.push_back(Trp(i-1, i, upper_diag[i]));  //triplets for upper diagonal
-      }
-      for(int i = 1;i< lower_diag.size();i++){
-          triplet_list[trp_cnt] = {i, i-1, lower_diag[i]};
-          trp_cnt++;
-         // triplet_list.push_back(Trp(i, i-1, lower_diag[i]));
-      }
-      for(int i = 1;i< far_upper_diag.size();i++){
-          triplet_list[trp_cnt] = {i-1, i-1+N, far_upper_diag[i]};
-          trp_cnt++;
-          //triplet_list.push_back(Trp(i-1, i-1+N, far_upper_diag[i]));
-          triplet_list[trp_cnt] = {i-1+N, i-1, far_lower_diag[i]};
-          trp_cnt++;
-          //triplet_list.push_back(Trp(i-1+N, i-1, far_lower_diag[i]));
-       }
-
-     sp_matrix.setFromTriplets(triplet_list.begin(), triplet_list.end());    //sp_matrix is our sparse matrix
+    sp_matrix.setFromTriplets(triplet_list.begin(), triplet_list.end());    //sp_matrix is our sparse matrix
 }
 
 //------------------------------Setup Ap diagonals----------------------------------------------------------------
@@ -113,18 +84,17 @@ void Continuity_p::set_far_lower_diag()
     //Lowest diagonal: corresponds to V(i, j-1)
     for (int index = 1; index <=N*(N-1); index++) {      //(1st element corresponds to Nth row  (number of elements = N*(N-1)
         int i = index % N;
-
-        if (i ==0)                //the multiples of N correspond to last index
-            i = N;
-
+        if (i ==0) i = N;             //the multiples of N correspond to last index
         int j = 1 + static_cast<int>(floor((index-1)/N));    //this is the y index of V which element corresponds to. 1+ floor(index/4)determines which subblock this corresponds to and thus determines j, since the j's for each subblock are all the same.
 
         far_lower_diag[index] = -((p_mob(i,j) + p_mob(i+1, j))/2.)*Bp_posZ(i,j);
+
+        triplet_list[trp_cnt] = {index-1+N, index-1, far_lower_diag[index]};
+        trp_cnt++;
     }
 }
 
 
-//main lower diag
 void Continuity_p::set_lower_diag()
 {
     for (int index = 1; index <= num_elements-1; index++) {
@@ -135,6 +105,9 @@ void Continuity_p::set_lower_diag()
             lower_diag[index] = 0;      //probably don't need explicitely fill here, since auto intialized to 0
         else
             lower_diag[index] = -((p_mob(i,j) + p_mob(i,j+1))/2.)*Bp_posX(i,j);
+
+        triplet_list[trp_cnt] = {index, index-1, lower_diag[index]};
+        trp_cnt++;
     }
 }
 
@@ -143,13 +116,16 @@ void Continuity_p::set_main_diag()
 {
     for (int index = 1; index <= num_elements; index++) {
         int i = index % N;
-
-        if (i == 0)
-            i = N;
-
+        if (i == 0) i = N;
         int j = 1 + static_cast<int>(floor((index-1)/N));
 
-        main_diag[index] = ((p_mob(i,j) + p_mob(i,j+1))/2.)*Bp_negX(i,j) + ((p_mob(i+1,j) + p_mob(i+1,j+1))/2.)*Bp_posX(i+1,j) + ((p_mob(i,j) + p_mob(i+1,j))/2.)*Bp_negZ(i,j) + ((p_mob(i,j+1) + p_mob(i+1,j+1))/2.)*Bp_posZ(i,j+1);
+        main_diag[index] = ((p_mob(i,j) + p_mob(i,j+1))/2.)*Bp_negX(i,j)
+                         + ((p_mob(i+1,j) + p_mob(i+1,j+1))/2.)*Bp_posX(i+1,j)
+                         + ((p_mob(i,j) + p_mob(i+1,j))/2.)*Bp_negZ(i,j)
+                         + ((p_mob(i,j+1) + p_mob(i+1,j+1))/2.)*Bp_posZ(i,j+1);
+
+        triplet_list[trp_cnt] = {index-1, index-1, main_diag[index]};
+        trp_cnt++;
     }
 }
 
@@ -164,6 +140,9 @@ void Continuity_p::set_upper_diag()
             upper_diag[index] = 0;
         else
             upper_diag[index] = -((p_mob(i+1,j) + p_mob(i+1,j+1))/2.)*Bp_negX(i+1,j);
+
+        triplet_list[trp_cnt] = {index-1, index, upper_diag[index]};
+        trp_cnt++;
     }
 }
 
@@ -172,16 +151,15 @@ void Continuity_p::set_far_upper_diag()
 {
     for (int index = 1; index <= num_elements-N; index++) {
         int i = index % N;
-
-        if(i == 0)
-            i = N;
-
+        if(i == 0) i = N;
         int j = 1 + static_cast<int>(floor((index-N)/N));
 
         far_upper_diag[index] = -((p_mob(i,j+1) + p_mob(i+1,j+1))/2.)*Bp_negZ(i,j+1);
+
+        triplet_list[trp_cnt] = {index-1, index-1+N, far_upper_diag[index]};
+        trp_cnt++;
     }
 }
-
 
 //---------------------------
 
@@ -269,5 +247,26 @@ void Continuity_p::set_rhs(const Eigen::MatrixXd &Up_matrix)
     //set up VectorXd Eigen vector object for sparse solver
     for (int i = 1; i<=num_elements; i++) {
         VecXd_rhs(i-1) = rhs[i];   //fill VectorXd  rhs of the equation
+    }
+}
+
+//----------------------------------------------
+void Continuity_p::to_matrix(const std::vector<double> &p)
+{
+    for (int index = 1; index <= num_elements; index++) {
+        int i = index % N;    //this gives the i value for matrix
+        if (i == 0) i = N;
+
+        int j = 1 + static_cast<int>(floor((index-1)/N));  // j value for matrix
+
+        p_matrix(i,j) = p[index];
+    }
+    for (int j = 1; j <= N; j++) {
+        p_matrix(0, j) = p_leftBC[j];
+        p_matrix(num_cell, j) = p_rightBC[j];
+    }
+    for (int i = 0; i <= num_cell; i++) {  //bottom BC's go all the way accross, including corners
+        p_matrix(i, 0) = p_bottomBC[i];
+        p_matrix(i, num_cell) = p_topBC[i];
     }
 }

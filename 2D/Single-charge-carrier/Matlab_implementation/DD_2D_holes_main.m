@@ -43,35 +43,32 @@ epsilon_0 =  8.85418782*10^-12; %F/m
 Vt = (kb*T)/q;
 
 %% Simulation Setup
-Va_min = -0.1;               %volts
-Va_max = 0.5;
+Va_min = -0.5;               %volts
+Va_max = 1.0;
 increment = 0.01;         %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;   %number of V points
 
 %Simulation parameters
 w_eq = 0.01;               %For the 1st iteration (equilibrium run) to converge need a small weighting factor
 w_i = 0.2;
-tolerance = 10^-12;        %error tolerance
+tolerance = 5*10^-12;        %error tolerance
 tolerance_i =  5*10^-12;
 
 %% System Setup
-L = 10e-9;      %device thickness in meters
+L = 10.0000001e-9;     %there's some integer rounding issue, so use this .0000001
 dx = 1e-9;                        %mesh size
 num_cell = floor(L/dx);
 N = num_cell -1;   %number of INTERIOR mesh points
 num_elements = N^2;  %NOTE: this will specify number of elements in the solution vector V which = (num_cell +1 -2)^2 b/c we are in 2D
-%(num_cell +1) = # of mesh pts, b/c matlab starts indexing from 1, then -2
-%the endpts
 
 %Electronic density of states of holes and electrons
 N_VB = 10^24;         %density of states in valence band (holes)
-% N_CB = 10^24;         %density of states in conduction bands (electrons)
 E_gap = 1.5;          %bandgap (in eV)
 N_dos = 10^24.;            %scaling factor helps CV be on order of 1
 
 %injection barriers
-inj_a = 0.0;	%at anode
-inj_c = 0.0;	%at cathode
+inj_a = 0.2;	%at anode
+inj_c = 0.1;	%at cathode
 
 %work functions of anode and cathode
 WF_anode = 4.8;
@@ -116,10 +113,11 @@ CV = N*dx^2*q/(epsilon_0*Vt);    %relative permitivity was moved into the matrix
 V_bottomBC = -((Vbi)/(2*Vt)-inj_a/Vt);
 V_topBC = (Vbi)/(2*Vt)-inj_c/Vt;
 diff = (V_topBC - V_bottomBC)/num_cell;
-index = 0;
-for j = 1:N  %corresponds to z coord
+V(1:N) = V_bottomBC + diff;  %define V's corresponding to 1st subblock here (1st interior row of system)
+index = N;
+for j = 2:N  %corresponds to z coord
     index = index +1;
-    V(index) = diff*j;
+    V(index) = V(index-1) + diff;
     for i = 2:N  %elements along the x direction assumed to have same V
         index = index +1;
         V(index) = V(index-1);
@@ -216,11 +214,11 @@ for Va_cnt = 0:num_V +1
         V_matrix = reshape(V,N,N);
         %add on the BC's to get full potential matrix
         fullV(2:N+1,2:N+1) = V_matrix;
-        fullV(:,1) = V_bottomBC;
-        fullV(:,N+2) = V_topBC;
+        fullV(1:N+2,1) = V_bottomBC;
+        fullV(1:N+2,N+2) = V_topBC;
         fullV(1,2:N+1) = V_leftBC;
         fullV(N+2,2:N+1) = V_rightBC;
-        fullV(N+2, N+2) = V_topBC;  %assume that this far exterior corner has same V as rest of the top
+        fullV(N+2, N+2) = V_topBC;    %assume that this far exterior corner has same V as rest of the top
         
         %% Update net generation rate
         %for now, have no generation rate
@@ -272,11 +270,11 @@ for Va_cnt = 0:num_V +1
         p_matrix = reshape(p,N,N);
         %add on the BC's to get full potential matrix
         fullp(2:N+1,2:N+1) = p_matrix;
-        fullp(:,1) = p_bottomBC;
-        fullp(:,N+2) = p_topBC;
+        fullp(1:N+2,1) = p_bottomBC;
+        fullp(1:N+2,N+2) = p_topBC;
         fullp(1,2:N+1) = p_leftBC;
         fullp(N+2,2:N+1) = p_rightBC;
-        fullp(N+2, N+2) = p_topBC;  %assume that this far exterior corner has same V as rest of the top
+        fullp(N+2, N+2) = p_topBC;   %assume that this far exterior corner has same V as rest of the top
         
         iter = iter +1
         
@@ -294,8 +292,8 @@ for Va_cnt = 0:num_V +1
      %the J(i+1,j+1) is to define J's (whiche are defined at mid cells, as the rounded up integer
     for i = 1:num_cell-1
         for j = 1:num_cell-1
-            Jp_Z(i+1,j+1) = -(q*Vt*N*mobil/dx)*(p_mob(i+1,j+1)*fullp(i+1,j+1)*Bp_negZ(i+1,j+1)-p_mob(i+1,j+1)*fullp(i+1,j)*Bp_posZ(i+1,j+1));         
-            Jp_X(i+1,j+1) = -(q*Vt*N*mobil/dx)*(p_mob(i+1,j+1)*fullp(i+1,j+1)*Bp_negX(i+1,j+1)-p_mob(i+1,j+1)*fullp(i,j+1)*Bp_posX(i+1,j+1));         
+            Jp_Z(i+1,j+1) = -(q*Vt*N_dos*mobil/dx)*(p_mob(i+1,j+1)*fullp(i+1,j+1)*Bp_negZ(i+1,j+1)-p_mob(i+1,j+1)*fullp(i+1,j)*Bp_posZ(i+1,j+1));
+            Jp_X(i+1,j+1) = -(q*Vt*N_dos*mobil/dx)*(p_mob(i+1,j+1)*fullp(i+1,j+1)*Bp_negX(i+1,j+1)-p_mob(i+1,j+1)*fullp(i,j+1)*Bp_posX(i+1,j+1));
         end
     end
     J_total_Z = Jp_Z;
@@ -316,16 +314,16 @@ for Va_cnt = 0:num_V +1
     if(Va_cnt ==0)
         equil = fopen(fullfile('Equil.txt'),'w');
         for i = 2:num_cell
-            fprintf(equil,'%.2f %.8e %.8e %.8e  \r\n ',i*dx, j*dx, Vt*fullV(i,j), N*fullp(i,j));
+            fprintf(equil,'%.2f %.8e %.8e %.8e  \r\n ',(i-1)*dx, (j-1)*dx, Vt*fullV(i,j), N_dos*fullp(i,j));
         end
         fclose(equil);
     end
     
     if(Va_cnt > 0)
         for i = 2:num_cell
-            for j = 2:num_cell
-                fprintf(fid,'%.2e %.2e %.8e %.8e %.8e %.8e %.8e %.8e %.8e\r\n', i*dx, j*dx, Vt*fullV(i,j), N*fullp(i,j), J_total_X(i,j), J_total_Z(i,j), Up(i-1,j-1), w, tolerance);
-            end
+%             for j = 2:num_cell
+                fprintf(fid,'%.2e %.2e %.8e %.8e %.8e %.8e %.8e %.8e %.8e\r\n', (i-1)*dx, (j-1)*dx, Vt*fullV(i,j), N_dos*fullp(i,j), J_total_X(i,j), J_total_Z(i,j), Up(i-1,j-1), w, tolerance);
+%             end
         end
     end
     fclose(fid);

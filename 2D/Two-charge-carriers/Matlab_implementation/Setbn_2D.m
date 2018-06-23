@@ -19,7 +19,7 @@ index = 0;
                 elseif (i==N)
                     bn(index,1) = Cn*Un(i,j) + n_mob(i+1,j+1)*(Bn_negZ(i+1,j+1)*n_bottomBC + Bn_posX(i+1+1,j+1)*n_rightBC(1));
                 else
-                    bn(index,1) = Cn*Un(i,j) + n_mob(i,j)*Bn_negZ(i+1,j+1)*n_bottomBC;
+                    bn(index,1) = Cn*Un(i,j) + n_mob(i+1,j+1)*Bn_negZ(i+1,j+1)*n_bottomBC;
                 end
             end
         elseif(j == N)  %different for last subblock

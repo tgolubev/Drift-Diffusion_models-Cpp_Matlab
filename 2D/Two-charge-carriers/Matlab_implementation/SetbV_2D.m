@@ -5,39 +5,38 @@ global V_leftBC V_bottomBC V_topBC V_rightBC N CV;
     %epsilons at the boundaries are the same as espilon cell into interior of
     %device
     
-    %NOTE: WHEN USE REAL EPSILON CHANGING VALUES, WILL NEED TO FIX EPSILON
-    %INDICES
+   
     index = 0;
     for j = 1:N
         if(j ==1)  %different for 1st subblock
             for i = 1:N
                 index = index +1;
-                if (i==1)  %1st element has 2 BC's
-                    bV(index,1) = CV*(p_matrix(i,j)-n_matrix(i,j)) + epsilon(i,j)*(V_leftBC(1) + V_bottomBC);   %RECALL matrix has +2 down diagonals, sign flipped from 1D version
+                if (i==1)  %1st element has 2 BC's.  Note: pmatrix and nmatrix use only  inner indices, but epsilon uses entire device, so need to +1
+                    bV(index,1) = CV*(p_matrix(i,j)-n_matrix(i,j)) + epsilon(i+1,j+1)*(V_leftBC(1) + V_bottomBC);   %RECALL matrix has +2 down diagonals, sign flipped from 1D version
                 elseif (i==N)
-                    bV(index,1) = CV*(p_matrix(i,j)-n_matrix(i,j)) + epsilon(i,j)*(V_rightBC(1) + V_bottomBC);
+                    bV(index,1) = CV*(p_matrix(i,j)-n_matrix(i,j)) + epsilon(i+1,j+1)*(V_rightBC(1) + V_bottomBC);
                 else
-                    bV(index,1) = CV*(p_matrix(i,j)-n_matrix(i,j)) + epsilon(i,j)*V_bottomBC;
+                    bV(index,1) = CV*(p_matrix(i,j)-n_matrix(i,j)) + epsilon(i+1,j+1)*V_bottomBC;
                 end
             end
         elseif(j == N)  %different for last subblock
             for i = 1:N
                 index = index +1;
                 if (i==1)  %1st element has 2 BC's
-                    bV(index,1) = CV*(p_matrix(i,j)-n_matrix(i,j)) + epsilon(i,j)*(V_leftBC(N) + V_topBC);
+                    bV(index,1) = CV*(p_matrix(i,j)-n_matrix(i,j)) + epsilon(i+1,j+1)*(V_leftBC(N) + V_topBC);
                 elseif (i==N)
-                    bV(index,1) = CV*(p_matrix(i,j)-n_matrix(i,j)) + epsilon(i,j)*(V_rightBC(N) + V_topBC);
+                    bV(index,1) = CV*(p_matrix(i,j)-n_matrix(i,j)) + epsilon(i+1,j+1)*(V_rightBC(N) + V_topBC);
                 else
-                    bV(index,1) = CV*(p_matrix(i,j)-n_matrix(i,j)) + epsilon(i,j)*V_topBC;
+                    bV(index,1) = CV*(p_matrix(i,j)-n_matrix(i,j)) + epsilon(i+1,j+1)*V_topBC;
                 end
             end
         else %interior subblocks
             for i = 1:N
                 index = index +1;
                 if(i==1)
-                    bV(index,1) = CV*(p_matrix(i,j)-n_matrix(i,j)) + epsilon(i,j)*V_leftBC(j);
+                    bV(index,1) = CV*(p_matrix(i,j)-n_matrix(i,j)) + epsilon(i+1,j+1)*V_leftBC(j);
                 elseif(i==N)
-                    bV(index,1) = CV*(p_matrix(i,j)-n_matrix(i,j)) + epsilon(i,j)*V_rightBC(j);
+                    bV(index,1) = CV*(p_matrix(i,j)-n_matrix(i,j)) + epsilon(i+1,j+1)*V_rightBC(j);
                 else
                     bV(index,1) = CV*(p_matrix(i,j)-n_matrix(i,j));
                 end

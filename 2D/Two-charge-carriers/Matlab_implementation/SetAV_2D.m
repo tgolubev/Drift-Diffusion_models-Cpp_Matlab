@@ -17,7 +17,7 @@ for index = 1:N*(N-1)      % (1st element corresponds to Nth row  (number of ele
     end
     j = 2 + floor((index-1)/N);    %this is the y index of V which element corresponds to. 1+ floor((index-1)/N)determines which subblock this corresponds to and thus determines j, since the j's for each subblock are all the same.
     
-    AV_val(index,1) = -(epsilon(i,j) + epsilon(i+1, j))/2.;
+    AV_val(index,1) = -(epsilon(i+1,j+1) + epsilon(i+1+1, j+1))/2.;  %spsilons correspond  to full device, so need to +1 from i,j values
 end
 
 %NOTE: this is tricky!-->some elements are 0 (at the corners of the
@@ -29,7 +29,7 @@ for index = 1:num_elements-1      %this is the lower diagonal (below main diagon
     if(mod(index, N) == 0)
         AV_val(index,2) = 0;   %these are the elements at subblock corners
     else
-        AV_val(index,2) = -(epsilon(i,j) + epsilon(i,j+1))/2.;
+        AV_val(index,2) = -(epsilon(i+1,j+1) + epsilon(i+1,j+1+1))/2.;
     end
 end
 
@@ -41,7 +41,7 @@ for index =  1:num_elements
     end
     j = 1 + floor((index-1)/N);
     
-    AV_val(index,3) = (epsilon(i+1,j) + epsilon(i+1,j+1))/2. + (epsilon(i,j) + epsilon(i,j+1))/2. + (epsilon(i,j+1) + epsilon(i+1,j+1))/2. + (epsilon(i,j) + epsilon(i+1,j))/2.;
+    AV_val(index,3) = (epsilon(i+1+1,j+1) + epsilon(i+1+1,j+1+1))/2. + (epsilon(i+1,j+1) + epsilon(i+1,j+1+1))/2. + (epsilon(i+1,j+1+1) + epsilon(i+1+1,j+1+1))/2. + (epsilon(i+1,j+1) + epsilon(i+1+1,j+1))/2.;
 end
 
 %main uppper diagonal,
@@ -52,7 +52,7 @@ for index = 2:num_elements      % matlab fills this from the bottom (so i = 2 co
     if(mod(index-1,N) ==0)       %i-1 b/c indexed from 2
         AV_val(index,4) = 0;
     else
-        AV_val(index,4) = -(epsilon(i+1,j) + epsilon(i+1,j+1))/2.;
+        AV_val(index,4) = -(epsilon(i+1+1,j+1) + epsilon(i+1+1,j+1+1))/2.;
     end
 end
 
@@ -64,7 +64,7 @@ for index = 1+N:num_elements      %matlab fills from bottom, so this starts at 1
     end
     j = 1 + floor((index-1-N)/N);
     
-    AV_val(index,5) = -(epsilon(i,j+1) + epsilon(i+1,j+1))/2.;            %1st element corresponds to 1st row.   this has N^2 -N elements
+    AV_val(index,5) = -(epsilon(i+1,j+1+1) + epsilon(i++1,j+1+1))/2.;            %1st element corresponds to 1st row.   this has N^2 -N elements
 end
 
 %all not specified elements will remain zero, as they were initialized

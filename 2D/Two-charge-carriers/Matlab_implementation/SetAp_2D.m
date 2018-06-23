@@ -23,7 +23,7 @@ for index = 1:N*(N-1)      %(1st element corresponds to Nth row  (number of elem
     end
     j = 2 + floor((index-1)/N);    %this is the y index of V which element corresponds to. 1+ floor(index/4)determines which subblock this corresponds to and thus determines j, since the j's for each subblock are all the same.
     
-    Ap_val(index,1) = -((p_mob(i,j) + p_mob(i+1, j))/2.)*Bp_posZ(i+1,j+1);
+    Ap_val(index,1) = -((p_mob(i+1,j+1) + p_mob(i+1+1,j+1))/2.)*Bp_posZ(i+1,j+1);
 end
 
 %main lower diagonal (below main diagonal): corresponds to V(i-1,j)
@@ -35,7 +35,7 @@ for index = 1:num_elements-1      %(1st element corresponds to 2nd row)%NOTE: th
     if(mod(index, N) == 0)
         Ap_val(index,2) = 0;   %these are the elements at subblock corners
     else
-        Ap_val(index,2) = -((p_mob(i,j) + p_mob(i,j+1))/2.)*Bp_posX(i+1,j+1);
+        Ap_val(index,2) = -((p_mob(i+1,j+1) + p_mob(i+1,j+1+1))/2.)*Bp_posX(i+1,j+1);
     end
 end
 
@@ -47,7 +47,7 @@ for index =  1:num_elements
     end
     j = 1 + floor((index-1)/N);
     
-    Ap_val(index,3) = ((p_mob(i,j) + p_mob(i,j+1))/2.)*Bp_negX(i+1,j+1) + ((p_mob(i+1,j) + p_mob(i+1,j+1))/2.)*Bp_posX(i+1+1,j+1) + ((p_mob(i,j) + p_mob(i+1,j))/2.)*Bp_negZ(i+1,j+1) + ((p_mob(i,j+1) + p_mob(i+1,j+1))/2.)*Bp_posZ(i+1,j+1+1);
+    Ap_val(index,3) = ((p_mob(i+1,j+1) + p_mob(i+1,j+1+1))/2.)*Bp_negX(i+1,j+1) + ((p_mob(i+1+1,j+1) + p_mob(i+1+1,j+1+1))/2.)*Bp_posX(i+1+1,j+1) + ((p_mob(i+1,j+1) + p_mob(i+1+1,j+1))/2.)*Bp_negZ(i+1,j+1) + ((p_mob(i+1,j+1+1) + p_mob(i+1+1,j+1+1))/2.)*Bp_posZ(i+1,j+1+1);
 end
 
 %main uppper diagonal: corresponds to V(i+1,j)
@@ -58,7 +58,7 @@ for index = 2:num_elements     %matlab fills this from the bottom (so i = 2 corr
     if(i == 0)     
         Ap_val(index,4) = 0;
     else
-        Ap_val(index,4) = -((p_mob(i+1,j) + p_mob(i+1,j+1))/2.)*Bp_negX(i+1+1,j+1);
+        Ap_val(index,4) = -((p_mob(i+1+1,j+1) + p_mob(i+1+1,j+1+1))/2.)*Bp_negX(i+1+1,j+1);
     end
     
 end
@@ -71,7 +71,7 @@ for index = 1+N:num_elements      %matlab fills from bottom, so this starts at 1
     end
     j = 1 + floor((index-1-N)/N);
     
-    Ap_val(index,5) = -((p_mob(i,j+1) + p_mob(i+1,j+1))/2.)*Bp_negZ(i+1,j+1+1);            %1st element corresponds to 1st row.   this has N^2 -N elements
+    Ap_val(index,5) = -((p_mob(i+1,j+1+1) + p_mob(i+1+1,j+1+1))/2.)*Bp_negZ(i+1,j+1+1);            %1st element corresponds to 1st row.   this has N^2 -N elements
 end
 
 %all not specified elements will remain zero, as they were initialized

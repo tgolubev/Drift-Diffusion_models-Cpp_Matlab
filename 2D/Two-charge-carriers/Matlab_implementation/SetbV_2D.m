@@ -4,6 +4,9 @@ global V_leftBC V_bottomBC V_topBC V_rightBC N CV;
  %set up rhs of Poisson equation. Note for epsilons, are assuming that
     %epsilons at the boundaries are the same as espilon cell into interior of
     %device
+    
+    %NOTE: WHEN USE REAL EPSILON CHANGING VALUES, WILL NEED TO FIX EPSILON
+    %INDICES
     index = 0;
     for j = 1:N
         if(j ==1)  %different for 1st subblock

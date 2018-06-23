@@ -15,7 +15,7 @@ for index = 1:N*(N-1)      % (1st element corresponds to Nth row  (number of ele
     if(i ==0)                %the multiples of N correspond to last index
         i = N;
     end
-    j = 1 + floor((index-1)/N);    %this is the y index of V which element corresponds to. 1+ floor((index-1)/N)determines which subblock this corresponds to and thus determines j, since the j's for each subblock are all the same.
+    j = 2 + floor((index-1)/N);    %this is the y index of V which element corresponds to. 1+ floor((index-1)/N)determines which subblock this corresponds to and thus determines j, since the j's for each subblock are all the same.
     
     AV_val(index,1) = -(epsilon(i,j) + epsilon(i+1, j))/2.;
 end
@@ -33,7 +33,8 @@ for index = 1:num_elements-1      %this is the lower diagonal (below main diagon
     end
 end
 
-for index =  1:num_elements      %main diagonal
+%main diagonal
+for index =  1:num_elements      
     i = mod(index,N);
     if(i ==0)                %the multiples of N correspond to last index
         i = N;
@@ -43,9 +44,10 @@ for index =  1:num_elements      %main diagonal
     AV_val(index,3) = (epsilon(i+1,j) + epsilon(i+1,j+1))/2. + (epsilon(i,j) + epsilon(i,j+1))/2. + (epsilon(i,j+1) + epsilon(i+1,j+1))/2. + (epsilon(i,j) + epsilon(i+1,j))/2.;
 end
 
-for index = 2:num_elements      %main uppper diagonal, matlab fills this from the bottom (so i = 2 corresponds to 1st row in matrix)
-    i = mod(index,N);
-    j = 1 + floor((index-1)/N);
+%main uppper diagonal,
+for index = 2:num_elements      % matlab fills this from the bottom (so i = 2 corresponds to 1st row in matrix)
+    i = mod(index-1,N);
+    j = 1 + floor((index-2)/N);
     
     if(mod(index-1,N) ==0)       %i-1 b/c indexed from 2
         AV_val(index,4) = 0;
@@ -54,20 +56,19 @@ for index = 2:num_elements      %main uppper diagonal, matlab fills this from th
     end
 end
 
-for index = 1+N:num_elements      %far upper diagonal, matlab fills from bottom, so this starts at 1+N (since 1st element is in the 2nd subblock of matrix)
-    i = mod(index,N);
+%far upper diagonal
+for index = 1+N:num_elements      %matlab fills from bottom, so this starts at 1+N (since 1st element is in the 2nd subblock of matrix)
+    i = mod(index-N,N);
     if(i ==0)                %the multiples of N correspond to last index
         i = N;
     end
-    j = 1 + floor((index-N)/N);
+    j = 1 + floor((index-1-N)/N);
     
     AV_val(index,5) = -(epsilon(i,j+1) + epsilon(i+1,j+1))/2.;            %1st element corresponds to 1st row.   this has N^2 -N elements
 end
 
 %all not specified elements will remain zero, as they were initialized
 %above.
-
-AV_val
 
 AV = spdiags(AV_val, [-N -1 0 1 N], num_elements, num_elements); %A = spdiags(B,d,m,n) creates an m-by-n sparse matrix by taking the columns of B and placing them along the diagonals specified by d.
 %diagonals  [-N -1 0 1 N].  -N and N b/c the far diagonals are in next

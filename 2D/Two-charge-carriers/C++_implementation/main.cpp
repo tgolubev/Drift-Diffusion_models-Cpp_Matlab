@@ -202,11 +202,19 @@ int main()
             poisson.set_rhs(continuity_n.get_n_matrix(), continuity_p.get_p_matrix());  //this finds netcharge and sets rhs
             //std::cout << poisson.get_sp_matrix() << std::endl;
             oldV = V;
+
+            sLU.analyzePattern(poisson.get_sp_matrix());  //by doing only on first iter, since pattern never changes, save a bit cpu
+            sLU.factorize(poisson.get_sp_matrix());
+
+            soln_Xd = sLU.solve(poisson.get_rhs());
+/*
             if (iter == 0) {
                 SCholesky.analyzePattern(poisson.get_sp_matrix());
                 SCholesky.factorize(poisson.get_sp_matrix());         //since numerical values of Poisson matrix don't change for 1 set of BC's, can factorize, just on 1st iter
             }
             soln_Xd = SCholesky.solve(poisson.get_rhs());
+            */
+
             //std::cout << soln_Xd << std::endl;
              //std::cout << "Poisson solver error " << poisson.get_sp_matrix() * soln_Xd - poisson.get_rhs() << std::endl;
 
@@ -244,7 +252,8 @@ int main()
 
             continuity_n.setup_eqn(poisson.get_V_matrix(), Un_matrix, n);
             oldn = n;
-            if (iter == 0 ) sLU.analyzePattern(continuity_n.get_sp_matrix());  //by doing only on first iter, since pattern never changes, save a bit cpu
+            //if (iter == 0 ) //NOTE: TO BE ABLE TO USE THIS, CHNAGE THE NAME OF SOLVER OBJECT FOR POISSON, since that has different patttern but using same solver method
+                sLU.analyzePattern(continuity_n.get_sp_matrix());  //by doing only on first iter, since pattern never changes, save a bit cpu
             sLU.factorize(continuity_n.get_sp_matrix());
             soln_Xd = sLU.solve(continuity_n.get_rhs());
             //std::cout << "solver error " << continuity_n.get_sp_matrix() * soln_Xd - continuity_n.get_rhs() << std::endl;
@@ -259,7 +268,8 @@ int main()
             //std::cout << continuity_p.get_sp_matrix() << std::endl;   //Note: get rhs, returns an Eigen VectorXd
             oldp = p;
 
-            if (iter == 0 ) sLU.analyzePattern(continuity_p.get_sp_matrix());
+            //if (iter == 0 )
+                sLU.analyzePattern(continuity_p.get_sp_matrix());
             sLU.factorize(continuity_p.get_sp_matrix()); //matrix needs to be refactorized at every iter b/c bernoulli fnc values and thus matrix values change...
             soln_Xd = sLU.solve(continuity_p.get_rhs());
 
@@ -278,6 +288,8 @@ int main()
 
             //calculate the error
             old_error = error_np;
+
+            //THIS CAN BE MOVED TO A FUNCTION IN UTILS
             for (int i = 1; i <= num_rows; i++) {
                 if (newp[i]!=0 && newn[i] !=0) {
                     error_np_vector[i] = (abs(newp[i]-oldp[i]) + abs(newn[i]-oldn[i]))/abs(oldp[i]+oldn[i]);
@@ -299,6 +311,8 @@ int main()
             n = utils.linear_mix(params, newn, oldn);
 
             //Apply side continuity equation  BC's
+            //WE ARE UPDATING BC'S here b/c we need them for setting up the n and p matrices below
+            //Bc's are also updated when setup continuity eqn.
             continuity_n.set_n_leftBC(n);
             continuity_n.set_n_rightBC(n);
             continuity_p.set_p_leftBC(p);
@@ -313,6 +327,7 @@ int main()
             std::cout << "weighting factor = " << params.w << std::endl << std::endl;
 
             iter = iter+1;
+
         }
 
         //-------------------Calculate Currents using Scharfetter-Gummel definition--------------------------
@@ -326,6 +341,7 @@ int main()
         //---------------------Write to file----------------------------------------------------------------
         utils.write_details(params, Va, poisson.get_V_matrix(), continuity_p.get_p_matrix(), continuity_n.get_n_matrix(), J_total_Z, Un_matrix);
         if(Va_cnt >0) utils.write_JV(params, JV, iter, Va, J_total_Z);
+
 
     }//end of main loop
 

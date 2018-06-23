@@ -180,7 +180,7 @@ void Continuity_p::Bernoulli_p_X(const Eigen::MatrixXd &V_matrix)
         for (int j = 1; j < num_cell+1; j++) {
             if (abs(dV(i,j)) < 1e-13) {        //to prevent blowup due  to 0 denominator
                 Bp_posX(i,j) = 1 - dV(i,j)/2. + (dV(i,j)*dV(i,j))/12. - pow(dV(i,j), 4)/720.;
-                Bp_negX(i,j) =  Bp_posX(i,j)*exp(dV(i));
+                Bp_negX(i,j) =  Bp_posX(i,j)*exp(dV(i,j));
             } else {
                Bp_posX(i,j) = dV(i,j)/(exp(dV(i,j)) - 1.0);
                Bp_negX(i,j) = Bp_posX(i,j)*exp(dV(i,j));
@@ -201,13 +201,14 @@ void Continuity_p::Bernoulli_p_Z(const Eigen::MatrixXd &V_matrix)
         for (int j = 1; j < num_cell+1; j++) {
             if (abs(dV(i,j)) < 1e-13) {        //to prevent blowup due  to 0 denominator
                 Bp_posZ(i,j) = 1 - dV(i,j)/2. + (dV(i,j)*dV(i,j))/12. - pow(dV(i,j), 4)/720.;
-                Bp_negZ(i,j) =  Bp_posZ(i,j)*exp(dV(i));
+                Bp_negZ(i,j) =  Bp_posZ(i,j)*exp(dV(i,j));
             } else {
                Bp_posZ(i,j) = dV(i,j)/(exp(dV(i,j)) - 1.0);
                Bp_negZ(i,j) = Bp_posZ(i,j)*exp(dV(i,j));
             }
         }
     }
+
 }
 
 //--------------------------------------------------------------------------------
@@ -274,15 +275,17 @@ void Continuity_p::to_matrix(const std::vector<double> &p)
         p_matrix(i, 0) = p_bottomBC[i];
         p_matrix(i, num_cell) = p_topBC[i];
     }
+
 }
 
 
 void Continuity_p::calculate_currents()
 {
-    for (int i = 1; i < num_cell; i++) {
+    for (int i = 1; i <= num_cell; i++) {
         for (int j = 1; j < num_cell; j++) {
             Jp_Z(i,j) = -J_coeff * p_mob(i,j) * (p_matrix(i,j)*Bp_negZ(i,j) - p_matrix(i,j-1)*Bp_posZ(i,j));
-            Jp_X(i,j) = -J_coeff * p_mob(i,j) * (p_matrix(i,j)*Bp_negX(i,j) - p_matrix(i,j-1)*Bp_posX(i,j));
+            Jp_X(i,j) = -J_coeff * p_mob(i,j) * (p_matrix(i,j)*Bp_negX(i,j) - p_matrix(i-1,j)*Bp_posX(i,j));
         }
     }
+
 }

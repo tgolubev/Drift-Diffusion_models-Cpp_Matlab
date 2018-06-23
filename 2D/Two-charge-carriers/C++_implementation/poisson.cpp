@@ -49,14 +49,14 @@ void Poisson::set_V_bottomBC(const Parameters &params, double Va)
 
 void Poisson::set_V_leftBC(const std::vector<double> &V)
 {
-    for(int i = 1;i<=N;i++)
+    for (int i = 1; i <= N; i++)
         V_leftBC[i] = V[(i-1)*N + 1];
 
 }
 
 void Poisson::set_V_rightBC(const std::vector<double> &V)
 {
-    for(int i = 1;i<=N;i++)
+    for (int i = 1; i <= N; i++)
         V_rightBC[i] = V[i*N];
 }
 
@@ -105,7 +105,6 @@ void Poisson::setup_matrix()  //Note: this is on purpose different than the setu
 
 //---------------Setup AV diagonals (Poisson solve)---------------------------------------------------------------
 
-//far lower diagonal
 void Poisson::set_far_lower_diag(){
     for(int index = 1; index<= N*(N-1); index++){
         int i = index % N;
@@ -117,9 +116,7 @@ void Poisson::set_far_lower_diag(){
 }
 
 
-//lower diag
 void Poisson::set_lower_diag(){
-    //int num_elements = lower_diag.size() -1;
 
     for (int index = 1; index<=num_elements-1;index++){  //      %this is the lower diagonal (below main diagonal) (1st element corresponds to 2nd row)
         int i = index % N;        // %this is x index of V which element corresponds to (note if this = 0, means these are the elements which are 0);
@@ -134,26 +131,25 @@ void Poisson::set_lower_diag(){
 }
 
 
-//main diagonal
 void Poisson::set_main_diag(){
-    //int num_elements = main_diag.size() - 1;
 
-    for (int index =  1; index<=num_elements;index++){//      %main diagonal
+    for (int index =  1; index <= num_elements; index++) {
         int i = index % N;
         if(i ==0)        //        %the multiples of N correspond to last index
             i = N;
         int j = 1 + static_cast<int>(floor((index-1)/N));
 
-        main_diag[index] = (epsilon(i+1,j) + epsilon(i+1,j+1))/2. + (epsilon(i,j) + epsilon(i,j+1))/2. + (epsilon(i,j+1) + epsilon(i+1,j+1))/2. + (epsilon(i,j) + epsilon(i+1,j))/2.;
+        main_diag[index] = (epsilon(i+1,j) + epsilon(i+1,j+1))/2.
+                         + (epsilon(i,j) + epsilon(i,j+1))/2.
+                         + (epsilon(i,j+1) + epsilon(i+1,j+1))/2.
+                         + (epsilon(i,j) + epsilon(i+1,j))/2.;
     }
 }
 
-//upper diagonal
-void Poisson::set_upper_diag(){
-    //int num_elements = upper_diag.size() -1;  //-1 since vectors fill from 0, but I'm indexing from 1
-    //NOTE: num_elements here, is actually # of elements in the off-diagonal
 
-    for (int index = 1; index <=num_elements-1;index++) {  //      %main uppper diagonal, matlab fills this from the bottom (so i = 2 corresponds to 1st row in matrix)
+void Poisson::set_upper_diag(){
+
+    for (int index = 1; index <= num_elements-1; index++) {  //      %main uppper diagonal, matlab fills this from the bottom (so i = 2 corresponds to 1st row in matrix)
         int i = index % N;
         int j = 1 + static_cast<int>(floor((index-1)/N));
 
@@ -165,10 +161,9 @@ void Poisson::set_upper_diag(){
 }
 
 
-//far upper diagonal
 void Poisson::set_far_upper_diag(){
 
-    for (int index = 1; index <= num_elements-N; index++) { //      %far upper diagonal, matlab fills from bottom, so this starts at 1+N (since 1st element is in the 2nd subblock of matrix)
+    for (int index = 1; index <= num_elements-N; index++) { //
         int i = index % N;
         if(i ==0)      //          %the multiples of N correspond to last index
             i = N;
@@ -188,7 +183,7 @@ void Poisson::set_rhs(const Eigen::MatrixXd n_matrix, const Eigen::MatrixXd p_ma
     for(int j = 1;j<=N;j++){
         if(j==1){
             for(int i = 1;i<=N;i++){
-                index2++;                //THIS COULD BE MODIFIES TO a switch ,case statement--> might be cleaner
+                index2++;
                 if(i==1){
                     rhs[index2] = netcharge(i,j) + epsilon(i,j)*(V_leftBC[1] + V_bottomBC[i]);
                 }else if(i == N)

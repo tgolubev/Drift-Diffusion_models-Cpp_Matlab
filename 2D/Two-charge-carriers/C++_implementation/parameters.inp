@@ -19,7 +19,7 @@
 1.0e-9  //dx
 
 -0.5     //Va_min
-1.0      //Va_max
+1.0     //Va_max
 0.01    //increment
 0.05    //w_eq
 0.2    //w_i

@@ -16,32 +16,33 @@ index = 0;
         if(j ==1)  %different for 1st sub-block
             for i = 1:N   
                 index = index +1;
-                if (i==1)  %1st element has 2 BC's
-                    bp(index,1) = Cp*Up(i,j) + p_mob(i,j)*(Bp_posX(i,j)*p_leftBC(1) + Bp_posZ(i,j)*p_bottomBC);  %NOTE: rhs is +Cp*Up, b/c diagonal elements are + here, flipped sign from 1D version              
+                if (i==1)  %1st element has 2 BC's  %NOTE: p_mob are +1, b/c corresopnd to FULL device while Up and bp's correspond to interior elements only
+                    %Bp are +1, because defined from 2....
+                    bp(index,1) = Cp*Up(i,j) + p_mob(i+1,j+1)*(Bp_posX(i+1,j+1)*p_leftBC(1) + Bp_posZ(i+1,j+1)*p_bottomBC);  %NOTE: rhs is +Cp*Up, b/c diagonal elements are + here, flipped sign from 1D version              
                 elseif (i==N)
-                    bp(index,1) = Cp*Up(i,j) + p_mob(i,j)*(Bp_posZ(i,j)*p_bottomBC + Bp_negX(i+1,j)*p_rightBC(1));
+                    bp(index,1) = Cp*Up(i,j) + p_mob(i+1,j+1)*(Bp_posZ(i+1,j+1)*p_bottomBC + Bp_negX(i+1+1,j+1)*p_rightBC(1));
                 else
-                    bp(index,1) = Cp*Up(i,j) + p_mob(i,j)*Bp_posZ(i,j)*p_bottomBC;
+                    bp(index,1) = Cp*Up(i,j) + p_mob(i+1,j+1)*Bp_posZ(i+1,j+1)*p_bottomBC;
                 end              
             end
         elseif(j == N)  %different for last subblock
             for i = 1:N   
                 index = index +1;
                 if (i==1)  %1st element has 2 BC's
-                    bp(index,1) = Cp*Up(i,j) + p_mob(i,j)*(Bp_posX(i,j)*p_leftBC(N) + Bp_negZ(i,j+1)*p_topBC);
+                    bp(index,1) = Cp*Up(i,j) + p_mob(i+1,j+1)*(Bp_posX(i+1,j+1)*p_leftBC(N) + Bp_negZ(i+1,j+1+1)*p_topBC);
                 elseif (i==N)
-                    bp(index,1) = Cp*Up(i,j) + p_mob(i,j)*(Bp_negX(i+1,j)*p_rightBC(N) + Bp_negZ(i,j+1)*p_topBC);
+                    bp(index,1) = Cp*Up(i,j) + p_mob(i+1,j+1)*(Bp_negX(i+1+1,j+1)*p_rightBC(N) + Bp_negZ(i+1,j+1+1)*p_topBC);
                 else
-                    bp(index,1) = Cp*Up(i,j) + p_mob(i,j)*Bp_negZ(i,j+1)*p_topBC;
+                    bp(index,1) = Cp*Up(i,j) + p_mob(i+1,j+1)*Bp_negZ(i+1,j+1+1)*p_topBC;
                 end
             end
         else %interior subblocks
             for i = 1:N  
                 index = index +1;
                 if(i==1)
-                    bp(index,1) = Cp*Up(i,j) + p_mob(i,j)*Bp_posX(i,j)*p_leftBC(j);
+                    bp(index,1) = Cp*Up(i,j) + p_mob(i+1,j+1)*Bp_posX(i+1,j+1)*p_leftBC(j);
                 elseif(i==N)
-                    bp(index,1) = Cp*Up(i,j) + p_mob(i,j)*Bp_negX(i+1,j)*p_rightBC(j);
+                    bp(index,1) = Cp*Up(i,j) + p_mob(i+1,j+1)*Bp_negX(i+1+1,j+1)*p_rightBC(j);
                 else
                     bp(index,1) = Cp*Up(i,j);
                 end

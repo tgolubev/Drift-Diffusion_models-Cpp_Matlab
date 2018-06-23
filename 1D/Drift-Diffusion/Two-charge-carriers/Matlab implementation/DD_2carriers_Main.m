@@ -22,7 +22,7 @@ clear; close all; clc;     %clear improves performance over clear all, and still
 global G_max num_cell num_elements n_mob p_mob Cp Cn Vt
 
 %% Parameters
-L = 300e-9;      %device length in meters
+L = 10e-9;      %device length in meters
 dx = 1e-9;                        %mesh size
 num_cell = floor(L/dx);
 
@@ -37,7 +37,7 @@ N = 10^24.;            %scaling factor helps CV be on order of 1
 q =  1.60217646*10^-19;         %elementary charge, C
 kb = 1.3806503*10^-23;          %Boltzmann const., J/k
 T = 296.;                       %temperature
-epsilon_0 = 9.85419*10^-12;     %F/m
+epsilon_0 = 8.85418782*10^-12;     %F/m
 Vt = (kb*T)/q;
 
 %injection barriers
@@ -65,7 +65,7 @@ mobil = 5.*10^-6;                    %scaling for mobility (for numerical stabil
 
 %% JV sweep parameters
 Va_min = -0.5;               %volts
-Va_max = 1.2;
+Va_max = 1.0;
 increment = 0.01;         %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;   %number of V points
 
@@ -267,13 +267,18 @@ for Va_cnt = 0:num_V +1
         
         p_full = [p_full(1), p, p_full(num_cell+1)]; %bndrys already defined above
         n_full = [n_full(1), n, n_full(num_cell+1)];
+        
+         stop
     end
     
+   
     % Calculate drift diffusion currents
     % Use the SG definition
     for i = 1:num_cell-1
-        Jp_temp(1,i) = -(q*Vt*N/dx)*(p_mob(i+1)*p_full(i+1)*Bp(2,i+1)-p_mob(i+1)*p_full(i)*Bp(1,i+1));
-        Jn_temp(1,i) =  (q*Vt*N/dx)*(n_mob(i+1)*n_full(i+1)*Bn(1,i+1)-n_mob(i+1)*n_full(i)*Bn(2,i+1));
+         Jp_temp(1,i) = -(q*Vt*N/dx)*(p_mob(i+1)*p_full(i+1)*Bp(2,i+1)-p_mob(i+1)*p_full(i)*Bp(1,i+1));
+         Jn_temp(1,i) =  (q*Vt*N/dx)*(n_mob(i+1)*n_full(i+1)*Bn(1,i+1)-n_mob(i+1)*n_full(i)*Bn(2,i+1));
+% Jp_temp(1,i) = -(q*Vt*N/dx)*(p_mob(i+1)*p_full(i+1)-p_mob(i+1)*p_full(i));
+%        Jn_temp(1,i) =  (q*Vt*N/dx)*(n_mob(i+1)*n_full(i+1)-n_mob(i+1)*n_full(i));
     end
     
     for i =  2:num_cell

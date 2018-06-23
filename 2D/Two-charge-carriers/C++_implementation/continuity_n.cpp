@@ -56,8 +56,6 @@ void Continuity_n::set_n_leftBC(const std::vector<double> &n)
     for (int j = 1; j <= N; j++) {
         n_leftBC[j] = n[(j-1)*N + 1];
     }
-
-
 }
 
 void Continuity_n::set_n_rightBC(const std::vector<double> &n)
@@ -235,7 +233,7 @@ void Continuity_n::Bernoulli_n_X(const Eigen::MatrixXd &V_matrix)
         for (int j = 1; j < num_cell+1; j++) {
              if (abs(dV(i,j)) < 1e-13) {        //to prevent blowup due  to 0 denominator
                  Bn_posX(i,j) = 1 - dV(i,j)/2. + (dV(i,j)*dV(i,j))/12. - pow(dV(i,j), 4)/720.;
-                 Bn_negX(i,j) =  Bn_posX(i,j)*exp(dV(i));
+                 Bn_negX(i,j) =  Bn_posX(i,j)*exp(dV(i,j));
              } else {
                 Bn_posX(i,j) = dV(i,j)/(exp(dV(i,j)) - 1.0);
                 Bn_negX(i,j) = Bn_posX(i,j)*exp(dV(i,j));
@@ -256,7 +254,7 @@ void Continuity_n::Bernoulli_n_Z(const Eigen::MatrixXd &V_matrix)
         for (int j = 1; j < num_cell+1; j++) {
             if (abs(dV(i,j)) < 1e-13) {        //to prevent blowup due  to 0 denominator
                 Bn_posZ(i,j) = 1 - dV(i,j)/2. + (dV(i,j)*dV(i,j))/12. - pow(dV(i,j), 4)/720.;
-                Bn_negZ(i,j) =  Bn_posZ(i,j)*exp(dV(i));
+                Bn_negZ(i,j) =  Bn_posZ(i,j)*exp(dV(i,j));
             } else {
                Bn_posZ(i,j) = dV(i,j)/(exp(dV(i,j)) - 1.0);
                Bn_negZ(i,j) = Bn_posZ(i,j)*exp(dV(i,j));
@@ -285,6 +283,7 @@ void Continuity_n::to_matrix(const std::vector<double> &n)
         n_matrix(i, 0) = n_bottomBC[i];
         n_matrix(i, num_cell) = n_topBC[i];
     }
+
 }
 
 void Continuity_n::calculate_currents()
@@ -292,7 +291,7 @@ void Continuity_n::calculate_currents()
     for (int i = 1; i < num_cell; i++) {
         for (int j = 1; j < num_cell; j++) {
             Jn_Z(i,j) =  J_coeff * n_mob(i,j) * (n_matrix(i,j)*Bn_posZ(i,j) - n_matrix(i,j-1)*Bn_negZ(i,j));
-            Jn_X(i,j) =  J_coeff * n_mob(i,j) * (n_matrix(i,j)*Bn_posX(i,j) - n_matrix(i,j-1)*Bn_negX(i,j));
+            Jn_X(i,j) =  J_coeff * n_mob(i,j) * (n_matrix(i,j)*Bn_posX(i,j) - n_matrix(i-1,j)*Bn_negX(i,j));
         }
     }
 }

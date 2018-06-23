@@ -4,7 +4,8 @@
 %             -Scharfetter-Gummel discretization
 %             -decoupled Gummel iterations method
 %
-%              Created by: Timofey Golubev (2018.05.29)
+%               Revised: 2018.06.23 to fix indices mistakes
+%               Created by: Timofey Golubev (2018.05.29)
 %
 %     This includes the 2D poisson equation and 2D continuity/drift-diffusion
 %     equations using Scharfetter-Gummel discretization. The Poisson equation
@@ -33,8 +34,6 @@ clear; close all; clc;
 global num_cell N num_elements Vt N_dos p_topBC p_leftBC p_rightBC p_bottomBC Cn CV Cp n_leftBC  n_rightBC
 global n_bottomBC n_topBC V_leftBC V_bottomBC V_topBC V_rightBC G_max
 
-tic
-
 %% Physical Constants
 
 q =  1.60217646*10^-19;         %elementary charge (C)
@@ -52,10 +51,10 @@ increment = 0.01;         %by which to increase V
 num_V = floor((Va_max-Va_min)/increment)+1;   %number of V points
 
 %Simulation parameters
-w_eq = 0.05;               %linear mixing factor for 1st convergence (0 applied voltage, no generation equilibrium case)
+w_eq = 0.01;               %linear mixing factor for 1st convergence (0 applied voltage, no generation equilibrium case)
 w_i = 0.2;                 %starting linear mixing factor for Va_min (will be auto decreased if convergence not reached)
-tolerance = 10^-15;        %error tolerance
-tolerance_i =  10^-15;     %initial error tolerance, will be increased if can't converge to this level
+tolerance = 5*10^-12;        %error tolerance
+tolerance_i =  5*10^-12;     %initial error tolerance, will be increased if can't converge to this level
 
 %% System Setup
 
@@ -133,6 +132,7 @@ end
 %reshape the V vector into the V matrix
 V_matrix = reshape(V,N,N);
 
+
 %Side BCs (insulating)
 for j = 1:N
     V_leftBC(j) = V((j-1)*N + 1);  %just corresponds to values of V in the 1st subblock
@@ -182,10 +182,10 @@ for Va_cnt = 0:num_V +1
     
     %1st iteration is to find the equilibrium values (no generation rate)
     if(Va_cnt ==0)
-        tolerance = tolerance*10;       %relax tolerance for equil convergence
+        tolerance = tolerance*10^2;       %relax tolerance for equil convergence
         w = w_eq;                         %use smaller mixing factor for equil convergence
         Va = 0;
-        Up = zeros(num_cell+1,num_cell+1);
+        Up = zeros(num_cell,num_cell);
         Un= Up;
     end
     if(Va_cnt ==1)
@@ -210,9 +210,11 @@ for Va_cnt = 0:num_V +1
         
         %solve for V
         oldV = V;
-        newV = AV\bV;   
-        %AV*newV - bV
-       
+         newV = AV\bV;
+        
+%        newV = gmres(AV,bV, 10, 10^-20, 10^5);
+%          newV = bicgstab(AV,bV, 10^-20, 10^5);  %last specification is max iters. Can converge to about 10^-16, which is bit better than 10-14 that \ does
+        
         if(iter >1)
             V = newV*w + oldV*(1.-w);
         else
@@ -231,18 +233,20 @@ for Va_cnt = 0:num_V +1
         %add on the BC's to get full potential matrix
         fullV(2:N+1,2:N+1) = V_matrix;
         fullV(1:N+2,1) = V_bottomBC;
-        fullV(:,N+2) = V_topBC;
+        fullV(1:N+2,N+2) = V_topBC;
         fullV(1,2:N+1) = V_leftBC;
         fullV(N+2,2:N+1) = V_rightBC;
         fullV(N+2, N+2) = V_topBC;    %far exterior corner has same V as rest of the top
         
+        
         %% Update net generation rate
         if(Va_cnt > 0)
             G = GenerationRate();
-            Up(1:N,1:N) = G(1:N,1:N);  %only defined on interior of the device
+            Up(1:N,1:N) = G(1:N,1:N);  %these only  include insides since want ctoo be consistent with i,j matrix indices
             %Up= zeros(num_elements,num_elements);
             Un= Up;
         end
+
         
         %% Continuity equations solve
         Bernoulli_p_values = Calculate_Bernoullis_p(fullV);  %the values are returned as a struct
@@ -256,18 +260,16 @@ for Va_cnt = 0:num_V +1
         % full([name of sparse matrix])
         
         oldp = p;
-        newp = Ap\bp;
-        %newp = lsqr(Ap, bp, 10^-16, 1000,[] ,[] , p);
+         newp = Ap\bp;
+         %newp = bicgstab(Ap,bp, 10^-14);
         
         oldn = n;
-        %newn = lsqr(An, bn, 10^-16, 1000,[] ,[] ,n);  %TRY  WITH QR
-        newn = An\bn;
+         newn = An\bn;
+         %newn = bicgstab(An,bn, 10^-14);
         
+        %An*newn-bn   %see error
+         %Ap*newp-bp   %see error
         
-        %An*newn - bn
-       
-        %spparms('spumoni',2)
-
         % if get negative p's or n's, make them equal 0
         for i = 1:num_elements
             if(newp(i) <0.0)
@@ -306,24 +308,22 @@ for Va_cnt = 0:num_V +1
         p = newp*w + oldp*(1.-w);
         n = newn*w + oldn*(1.-w);
         
- 
-        
         %% Apply continuity eqn BCs
         
         %reshape the vectors into matrices
         p_matrix = reshape(p,N,N);
         n_matrix = reshape(n,N,N);
-        
+
         %Update side boundary conditions
         for j = 1:N
-            p_leftBC(j) = p((j-1)*N + 1); 
+            p_leftBC(j) = p((j-1)*N + 1); %just corresponds to values of V in the 1st subblock
             p_rightBC(j)= p(j*N);
         end
         
         %add on the BC's to get full potential matrix
         fullp(2:N+1,2:N+1) = p_matrix;
         fullp(1:N+2,1) = p_bottomBC;
-        fullp(:,N+2) = p_topBC;
+        fullp(1:N+2,N+2) = p_topBC;
         fullp(1,2:N+1) = p_leftBC;
         fullp(N+2,2:N+1) = p_rightBC;
         fullp(N+2, N+2) = p_topBC;  
@@ -336,17 +336,14 @@ for Va_cnt = 0:num_V +1
         %add on the BC's to get full potential matrix
         fulln(2:N+1,2:N+1) = n_matrix;
         fulln(1:N+2,1) = n_bottomBC;
-        fulln(:,N+2) = n_topBC;
+        fulln(1:N+2,N+2) = n_topBC;
         fulln(1,2:N+1) =n_leftBC;
         fulln(N+2,2:N+1) = n_rightBC;
         fulln(N+2, N+2) = n_topBC;  
         
-     
         iter = iter +1   
 
-    end
-
-    stop
+    end 
     
     % Calculate drift diffusion currents
     % Use the SG definition
@@ -363,14 +360,16 @@ for Va_cnt = 0:num_V +1
     for i = 1:num_cell-1
         for j = 1:num_cell-1
             Jp_Z(i+1,j+1) = -(q*Vt*N_dos*mobil/dx)*(p_mob(i+1,j+1)*fullp(i+1,j+1)*Bp_negZ(i+1,j+1)-p_mob(i+1,j+1)*fullp(i+1,j)*Bp_posZ(i+1,j+1));
-            Jn_Z(i+1,j+1) =  (q*Vt*N_dos*mobil/dx)*(n_mob(i+1,j+1)*fulln(i+1,j+1)*Bn_posZ(i+1,j+1)-n_mob(i+1,j+1)*fulln(i+1,j)*Bn_negZ(i+1,j+1));
+            Jn_Z(i+1,j+1) =  (q*Vt*N_dos*mobil/dx)*(n_mob(i+1,j+1)*fulln(i+1,j+1)*Bn_posZ(i+1,j+1)-n_mob(i+1,j+1)*fulln(i+1,j)*Bn_negZ(i+1,j+1));  
             
             Jp_X(i+1,j+1) = -(q*Vt*N_dos*mobil/dx)*(p_mob(i+1,j+1)*fullp(i+1,j+1)*Bp_negX(i+1,j+1)-p_mob(i+1,j+1)*fullp(i,j+1)*Bp_posX(i+1,j+1));
             Jn_X(i+1,j+1) =  (q*Vt*N_dos*mobil/dx)*(n_mob(i+1,j+1)*fulln(i+1,j+1)*Bn_posX(i+1,j+1)-n_mob(i+1,j+1)*fulln(i,j+1)*Bn_negX(i+1,j+1));
+            
         end
     end
     J_total_Z = Jp_Z + Jn_Z;
     J_total_X = Jp_X + Jn_X;
+    
     
     %Setup for JV curve
     if(Va_cnt>0)
@@ -386,7 +385,7 @@ for Va_cnt = 0:num_V +1
     if(Va_cnt ==0)
         equil = fopen(fullfile('Equil.txt'),'w');
         for j = 2:num_cell
-            i = floor(num_cell/2) +1;  %need +1 to match with C++ version--> b/c here indexed from 1, so middle is actually located at num_cell/2 + 1
+            i = floor(num_cell/2);
             fprintf(equil,'%.2e %.2e %.8e %.8e %.8e \r\n ',(i-1)*dx, (j-1)*dx, Vt*fullV(i,j), N_dos*fullp(i,j), N_dos*fulln(i,j));
         end
         fclose(equil);
@@ -394,7 +393,7 @@ for Va_cnt = 0:num_V +1
     
     if(Va_cnt > 0)
         for j = 2:num_cell
-            i = floor(num_cell/2) + 1;    %need +1 to match with C++ version--> b/c here indexed from 1, so middle is actually located at num_cell/2 + 1  %JUST OUTPUT LINE PROFILE ALONG Z --> otherwise hard to compare results to 1D model
+            i = floor(num_cell/2);     %JUST OUTPUT LINE PROFILE ALONG Z --> otherwise hard to compare results to 1D model
             %for j = 2:num_cell    %use if want to output values along the entire grid
             fprintf(fid,'%.2e %.2e %.8e %.8e %.8e %.8e %.8e %.8e %.8e %.8e\r\n', (i-1)*dx, (j-1)*dx, Vt*fullV(i,j), N_dos*fullp(i,j), N_dos*fulln(i,j), J_total_X(i,j), J_total_Z(i,j), Up(i-1,j-1), w, tolerance);
             %end
@@ -413,8 +412,6 @@ for Va_cnt = 0:num_V +1
     str = sprintf('%.2g', Va);
     
 end
-
-toc
 
 %plot V
 surf(1:N+2,1:N+2, Vt*fullV)

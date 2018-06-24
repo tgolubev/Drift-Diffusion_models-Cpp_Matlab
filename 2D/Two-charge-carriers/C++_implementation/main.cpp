@@ -115,7 +115,9 @@ int main()
     Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>, Eigen::UpLoType::Lower, Eigen::AMDOrdering<int>> SCholesky; //Note using NaturalOrdering is much much slower
 
     Eigen::SparseQR<Eigen::SparseMatrix<double>, Eigen::COLAMDOrdering<int>> SQR;
-    Eigen::SparseLU<Eigen::SparseMatrix<double>>  sLU;
+    Eigen::SparseLU<Eigen::SparseMatrix<double>>  poisson_LU, cont_n_LU, cont_p_LU;
+    Eigen::BiCGSTAB<Eigen::SparseMatrix<double>, Eigen::IncompleteLUT<double>> BiCGStab_solver;  //BiCGStab solver object
+      Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::UpLoType::Lower|Eigen::UpLoType::Upper > cg;
 //--------------------------------------------------------------------------------------------
     //Define boundary conditions and initial conditions. Note: electrodes are at the top and bottom.
     double Va = 0;
@@ -195,25 +197,37 @@ int main()
         iter = 0;
 
         while (error_np > params.tolerance) {
-            std::cout << "error np " << error_np <<std::endl;
-            std::cout << "Va " << Va <<std::endl;
+            //std::cout << "Va " << Va <<std::endl;
 
             //-----------------Solve Poisson Equation------------------------------------------------------------------     
             poisson.set_rhs(continuity_n.get_n_matrix(), continuity_p.get_p_matrix());  //this finds netcharge and sets rhs
             //std::cout << poisson.get_sp_matrix() << std::endl;
             oldV = V;
 
-            sLU.analyzePattern(poisson.get_sp_matrix());  //by doing only on first iter, since pattern never changes, save a bit cpu
-            sLU.factorize(poisson.get_sp_matrix());
-
-            soln_Xd = sLU.solve(poisson.get_rhs());
-/*
             if (iter == 0) {
+                poisson_LU.analyzePattern(poisson.get_sp_matrix());  //by doing only on first iter, since pattern never changes, save a bit cpu
+                poisson_LU.factorize(poisson.get_sp_matrix());
+            }
+            soln_Xd = poisson_LU.solve(poisson.get_rhs());
+
+
+
+           //try bicgstab
+           //BiCGStab_solver.compute(poisson.get_sp_matrix());  //this computes the preconditioner. Note: the compute step seems to suceed but crashes at solve step.
+
+          // soln_Xd = BiCGStab_solver.solve(poisson.get_rhs());  //THIS CRASHES
+           //std::cout << "solve step " << std::endl;
+           //std::cout << "#iterations:     " << solver.iterations() << std::endl;
+           //std::cout << "estimated error: " << solver.error()      << std::endl;
+
+/*
+            if (iter == 0) {  //This is slower than  LU
                 SCholesky.analyzePattern(poisson.get_sp_matrix());
                 SCholesky.factorize(poisson.get_sp_matrix());         //since numerical values of Poisson matrix don't change for 1 set of BC's, can factorize, just on 1st iter
             }
             soln_Xd = SCholesky.solve(poisson.get_rhs());
             */
+
 
             //std::cout << soln_Xd << std::endl;
              //std::cout << "Poisson solver error " << poisson.get_sp_matrix() * soln_Xd - poisson.get_rhs() << std::endl;
@@ -252,10 +266,10 @@ int main()
 
             continuity_n.setup_eqn(poisson.get_V_matrix(), Un_matrix, n);
             oldn = n;
-            //if (iter == 0 ) //NOTE: TO BE ABLE TO USE THIS, CHNAGE THE NAME OF SOLVER OBJECT FOR POISSON, since that has different patttern but using same solver method
-                sLU.analyzePattern(continuity_n.get_sp_matrix());  //by doing only on first iter, since pattern never changes, save a bit cpu
-            sLU.factorize(continuity_n.get_sp_matrix());
-            soln_Xd = sLU.solve(continuity_n.get_rhs());
+            if (iter == 0 )
+                cont_n_LU.analyzePattern(continuity_n.get_sp_matrix());  //by doing only on first iter, since pattern never changes, save a bit cpu
+            cont_n_LU.factorize(continuity_n.get_sp_matrix());  //need to do on each iter, b/c matrix elements change
+            soln_Xd = cont_n_LU.solve(continuity_n.get_rhs());
             //std::cout << "solver error " << continuity_n.get_sp_matrix() * soln_Xd - continuity_n.get_rhs() << std::endl;
 
             //save results back into n std::vector. RECALL, I am starting my V vector from index of 1, corresponds to interior pts...
@@ -268,10 +282,10 @@ int main()
             //std::cout << continuity_p.get_sp_matrix() << std::endl;   //Note: get rhs, returns an Eigen VectorXd
             oldp = p;
 
-            //if (iter == 0 )
-                sLU.analyzePattern(continuity_p.get_sp_matrix());
-            sLU.factorize(continuity_p.get_sp_matrix()); //matrix needs to be refactorized at every iter b/c bernoulli fnc values and thus matrix values change...
-            soln_Xd = sLU.solve(continuity_p.get_rhs());
+            if (iter == 0 )
+                cont_p_LU.analyzePattern(continuity_p.get_sp_matrix());
+            cont_p_LU.factorize(continuity_p.get_sp_matrix());
+            soln_Xd = cont_p_LU.solve(continuity_p.get_rhs());
 
             //save results back into n std::vector. RECALL, I am starting my V vector from index of 1, corresponds to interior pts...
             for (int i = 1; i<=num_rows; i++) {
@@ -323,8 +337,8 @@ int main()
             continuity_n.to_matrix(n);
             continuity_p.to_matrix(p);
 
-            std::cout << error_np << std::endl;
-            std::cout << "weighting factor = " << params.w << std::endl << std::endl;
+            //std::cout << error_np << std::endl;
+            //std::cout << "weighting factor = " << params.w << std::endl << std::endl;
 
             iter = iter+1;
         }

@@ -1,6 +1,6 @@
 //NOTE:IF-HAVE-ANY-SPACES-IN-COMMENTS-IT-WILL-FAIL
-10.0e-9 //device-thickness(m)
-10      //num_cell
+30.0e-9 //device-thickness(m)
+30      //num_cell
 1e24  //N-LUMO
 1e24  //N-HOMO
 4e27   //Photogeneration-scaling
@@ -21,7 +21,7 @@
 -0.5     //Va_min
 1.0     //Va_max
 0.01    //increment
-0.01    //w_eq
+0.2    //w_eq
 0.2    //w_i
 5e-12   //tolerance_i
 2.0     //w_reduce_factor

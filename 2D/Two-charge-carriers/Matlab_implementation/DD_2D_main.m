@@ -46,18 +46,18 @@ Vt = (kb*T)/q;
 
 %Voltage sweep loop
 Va_min = -0.5;            %volts
-Va_max = 1.0;
+Va_max = -0.4;
 increment = 0.01;         %by which to increase V
 num_V = floor((Va_max-Va_min)/increment)+1;   %number of V points
 
 %Simulation parameters
-w_eq = 0.01;               %linear mixing factor for 1st convergence (0 applied voltage, no generation equilibrium case)
+w_eq = 0.2;               %linear mixing factor for 1st convergence (0 applied voltage, no generation equilibrium case)
 w_i = 0.2;                 %starting linear mixing factor for Va_min (will be auto decreased if convergence not reached)
 tolerance = 5*10^-12;        %error tolerance
 tolerance_i =  5*10^-12;     %initial error tolerance, will be increased if can't converge to this level
 
 %% System Setup
-L = 10.0000001e-9;     %there's some integer rounding issue, so use this .0000001
+L = 30.0000001e-9;     %there's some integer rounding issue, so use this .0000001
 dx = 1e-9;                        %mesh size
 num_cell = floor(L/dx);
 N = num_cell -1;       %number of INTERIOR mesh points (total mesh pts = num_cell +1 b/c matlab indixes from 1)
@@ -83,6 +83,19 @@ G_max = 4*10^27;
 
 %% Define matrices of system parameters
 
+tic
+
+%Preallocate vectors and matrices
+fullV = zeros(N+2, N+2);
+fullp = zeros(N+2, N+2);
+fulln = zeros(N+2, N+2);
+Jp_Z = zeros(num_cell, num_cell);
+Jn_Z = zeros(num_cell, num_cell);
+Jp_X = zeros(num_cell, num_cell);
+Jn_X = zeros(num_cell, num_cell);
+V_values = zeros(num_V+1,1);
+J_total_Z_middle = zeros(num_V+1,1);
+
 % Relative dielectric constant matrix (can be position dependent)
 %Epsilons are defined at 1/2 integer points, so epsilons inside
 %the cells, not at cell boundaries
@@ -94,6 +107,8 @@ end
 
 % Define mobilities matrix (can be position dependent)
 %using indexing: i+1/2 is defined as i+1 for index, just like the epsilons
+p_mob = zeros(num_cell+1,num_cell+1);
+n_mob = zeros(num_cell+1,num_cell+1);
 for i = 1:num_cell+1
     for j = 1:num_cell+1
         p_mob(i,j) = 4.5*10^-6;
@@ -147,6 +162,8 @@ p_topBC = N_VB*exp(-(E_gap-inj_c)/Vt)/N_dos;
 
 %define initial conditions as min value of BCs
 min_dense = min(n_bottomBC, p_topBC);
+n = zeros(num_elements, 1);
+p = zeros(num_elements, 1);
 for i = 1:num_elements
     p(i,1) = min_dense;
     n(i,1) = min_dense;
@@ -209,10 +226,9 @@ for Va_cnt = 0:num_V +1
         
         %solve for V
         oldV = V;
-         newV = AV\bV;
+%         newV = AV\bV;
         
-%        newV = gmres(AV,bV, 10, 10^-20, 10^5);
-%          newV = bicgstab(AV,bV, 10^-20, 10^5);  %last specification is max iters. Can converge to about 10^-16, which is bit better than 10-14 that \ does
+         [newV, flag] = bicgstab(AV,bV);  %last specification is max iters. Can converge to about 10^-16, which is bit better than 10-14 that \ does
         
         if(iter >1)
             V = newV*w + oldV*(1.-w);
@@ -259,12 +275,12 @@ for Va_cnt = 0:num_V +1
         % full([name of sparse matrix])
         
         oldp = p;
-         newp = Ap\bp;
-         %newp = bicgstab(Ap,bp, 10^-14);
+%            newp = Ap\bp;
+        [newp,flag] = bicgstab(Ap,bp); %need this [  , flag] notation to suppress output to terminal from the bicgstab solver 
         
         oldn = n;
-         newn = An\bn;
-         %newn = bicgstab(An,bn, 10^-14);
+%           newn = An\bn;
+         [newn, flag] = bicgstab(An,bn);
         
         %An*newn-bn   %see error
          %Ap*newp-bp   %see error
@@ -288,7 +304,7 @@ for Va_cnt = 0:num_V +1
                 error_np_matrix(count) = (abs(newp(i)-oldp(i)) + abs(newn(i) - oldn(i)))./abs(oldp(i) + oldn(i));  %need the dot slash, otherwise it tries to do matrix operation! %ERROR SHOULD BE CALCULATED BEFORE WEIGHTING
             end
         end
-        error_np = max(error_np_matrix)
+        error_np = max(error_np_matrix);
         
         %auto decrease w if not converging
         if(error_np>= old_error)
@@ -300,8 +316,8 @@ for Va_cnt = 0:num_V +1
             not_cnv_cnt = 0;  %reset the count
         end
         
-        w
-        tolerance
+        %w
+        %tolerance
         
         %weighting
         p = newp*w + oldp*(1.-w);
@@ -340,12 +356,10 @@ for Va_cnt = 0:num_V +1
         fulln(N+2,2:N+1) = n_rightBC;
         fulln(N+2, N+2) = n_topBC;  
         
-        iter = iter +1   
+        iter = iter +1;   
         
 
     end 
-    
-  
     
     % Calculate drift diffusion currents
     % Use the SG definition
@@ -414,6 +428,8 @@ for Va_cnt = 0:num_V +1
     str = sprintf('%.2g', Va);
     
 end
+
+toc
 
 %plot V
 surf(1:N+2,1:N+2, Vt*fullV)

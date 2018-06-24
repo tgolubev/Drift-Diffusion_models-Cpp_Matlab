@@ -72,7 +72,7 @@ num_V = floor((Va_max-Va_min)/increment)+1;   %number of V points
 %Simulation parameters
 w_eq = 0.01;               %For the 1st iteration (equilibrium run) to converge need a small weighting factor
 w_i = 0.2;                 %set up of weighting factor
-tolerance = 10^-12;        %error tolerance
+tolerance = 5*10^-12;        %error tolerance
 tolerance_i =  5*10^-12;
 
 %% Domain Discretization
@@ -259,7 +259,13 @@ for Va_cnt = 0:num_V +1
         p = newp*w + old_p*(1.-w);
         n = newn*w + old_n*(1.-w);
         
-        iter =  iter+1
+        V
+        
+        bV
+%         newp
+        
+%         Bp
+       
         
         %unscale mobilities
         p_mob = p_mob*mobil;
@@ -268,9 +274,14 @@ for Va_cnt = 0:num_V +1
         p_full = [p_full(1), p, p_full(num_cell+1)]; %bndrys already defined above
         n_full = [n_full(1), n, n_full(num_cell+1)];
         
+     if (iter >1)
          stop
+     end
+     
+      iter =  iter+1
+       
     end
-    
+   
    
     % Calculate drift diffusion currents
     % Use the SG definition

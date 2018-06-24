@@ -23,9 +23,9 @@ end
 %NOTE: this is tricky!-->some elements are 0 (at the corners of the
 %subblocks)
 for index = 1:num_elements-1      %this is the lower diagonal (below main diagonal) (1st element corresponds to 2nd row)
-    i = mod(index,N);         %this is x index of V which element corresponds to (note if this = 0, means these are the elements which are 0);
+    i = 1 + mod(index,N);         %note: lower diag starts from i = 2  %this is x index of V which element corresponds to (note if this = 0, means these are the elements which are 0);
     j = 1 + floor((index-1)/N);
-    
+     
     if(mod(index, N) == 0)
         AV_val(index,2) = 0;   %these are the elements at subblock corners
     else

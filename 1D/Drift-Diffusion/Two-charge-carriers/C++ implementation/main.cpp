@@ -187,7 +187,7 @@ int main()
             if (error_np >= old_error)
                 not_cnv_cnt = not_cnv_cnt+1;
             if (not_cnv_cnt > 2000) {
-                //params.reduce_w();
+                params.reduce_w();
                 params.relax_tolerance();
                 not_cnv_cnt = 0;
             }

@@ -109,7 +109,7 @@ n_mob = n_mob./mobil;
 %Scaling coefficients
 Cp = dx^2/(Vt*N_dos*mobil);          %note: scaled p_mob and n_mob are inside matrices
 Cn = dx^2/(Vt*N_dos*mobil);
-CV = N_dos*dx^2*q/(epsilon_0*Vt);    %relative permitivity was moved into the matrix
+CV = (N_dos*dx^2*q)/(epsilon_0*Vt);    %relative permitivity was moved into the matrix
 
 %% Define Poisson equation boundary conditions and initial conditions
 
@@ -285,7 +285,7 @@ for Va_cnt = 0:num_V +1
         for i = 1:num_elements  %recall that newp, oldp are stored as vectors
             if(newp(i) ~=0 && newn(i) ~=0)
                 count = count+1;  %counts number of non zero error calculations
-                error_np_matrix(count) = (abs(newp(i)-oldp(i)) + abs(newn(i) - oldn(i)))/abs(oldp(i) + oldn(i));  %need the dot slash, otherwise it tries to do matrix operation! %ERROR SHOULD BE CALCULATED BEFORE WEIGHTING
+                error_np_matrix(count) = (abs(newp(i)-oldp(i)) + abs(newn(i) - oldn(i)))./abs(oldp(i) + oldn(i));  %need the dot slash, otherwise it tries to do matrix operation! %ERROR SHOULD BE CALCULATED BEFORE WEIGHTING
             end
         end
         error_np = max(error_np_matrix)
@@ -341,8 +341,11 @@ for Va_cnt = 0:num_V +1
         fulln(N+2, N+2) = n_topBC;  
         
         iter = iter +1   
+        
 
     end 
+    
+  
     
     % Calculate drift diffusion currents
     % Use the SG definition

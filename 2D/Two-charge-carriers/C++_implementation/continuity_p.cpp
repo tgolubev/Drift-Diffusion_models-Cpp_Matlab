@@ -27,13 +27,13 @@ Continuity_p::Continuity_p(const Parameters &params)
     p_leftBC.resize(num_cell+1);
     p_rightBC.resize(num_cell+1);
 
-    J_coeff = q*Vt*params.N_dos*params.mobil/params.dx;
+    J_coeff = (q*Vt*params.N_dos*params.mobil)/params.dx;
 
     // //MUST FILL WITH THE VALUES OF p_mob!!  WILL NEED TO MODIFY THIS WHEN HAVE SPACE VARYING
     p_mob = (params.p_mob_active/params.mobil)*Eigen::MatrixXd::Ones(num_cell+1, num_cell+1);
     //p_mob.resize(num_cell+1, num_cell+1);  //note: p_mob is an Eigen Matrix object...
 
-    Cp = params.dx*params.dx/(Vt*params.N_dos*params.mobil);  //can't use static, b/c dx wasn't defined as const, so at each initialization of Continuity_p object, new const will be made.
+    Cp = (params.dx*params.dx)/(Vt*params.N_dos*params.mobil);  //can't use static, b/c dx wasn't defined as const, so at each initialization of Continuity_p object, new const will be made.
 
     //these BC's for now stay constant throughout simulation, so fill them once, upon Continuity_n object construction
     for (int j =  0; j <= num_cell; j++) {
@@ -90,7 +90,7 @@ void Continuity_p::set_far_lower_diag()
     for (int index = 1; index <=N*(N-1); index++) {      //(1st element corresponds to Nth row  (number of elements = N*(N-1)
         int i = index % N;
         if (i ==0) i = N;             //the multiples of N correspond to last index
-        int j = 1 + static_cast<int>(floor((index-1)/N));    //this is the y index of V which element corresponds to. 1+ floor(index/4)determines which subblock this corresponds to and thus determines j, since the j's for each subblock are all the same.
+        int j = 2 + static_cast<int>(floor((index-1)/N));    //this is the y index of V which element corresponds to. 1+ floor(index/4)determines which subblock this corresponds to and thus determines j, since the j's for each subblock are all the same.
 
         far_lower_diag[index] = -((p_mob(i,j) + p_mob(i+1, j))/2.)*Bp_posZ(i,j);
 
@@ -103,7 +103,7 @@ void Continuity_p::set_far_lower_diag()
 void Continuity_p::set_lower_diag()
 {
     for (int index = 1; index <= num_elements-1; index++) {
-        int i = index % N;
+        int i = 1 + index % N;
         int j = 1 + static_cast<int>(floor((index-1)/N));
 
         if (index % N == 0)
@@ -157,7 +157,7 @@ void Continuity_p::set_far_upper_diag()
     for (int index = 1; index <= num_elements-N; index++) {
         int i = index % N;
         if(i == 0) i = N;
-        int j = 1 + static_cast<int>(floor((index-N)/N));
+        int j = 1 + static_cast<int>(floor((index-1)/N));
 
         far_upper_diag[index] = -((p_mob(i,j+1) + p_mob(i+1,j+1))/2.)*Bp_negZ(i,j+1);
 
@@ -179,8 +179,8 @@ void Continuity_p::Bernoulli_p_X(const Eigen::MatrixXd &V_matrix)
     for (int i = 1; i < num_cell+1; i++) {
         for (int j = 1; j < num_cell+1; j++) {
             if (abs(dV(i,j)) < 1e-13) {        //to prevent blowup due  to 0 denominator
-                Bp_posX(i,j) = 1 - dV(i,j)/2. + (dV(i,j)*dV(i,j))/12. - pow(dV(i,j), 4)/720.;
-                Bp_negX(i,j) =  Bp_posX(i,j)*exp(dV(i,j));
+                Bp_posX(i,j) = 1;//1 - dV(i,j)/2. + (dV(i,j)*dV(i,j))/12. - pow(dV(i,j), 4)/720.;
+                Bp_negX(i,j) =  1;//Bp_posX(i,j)*exp(dV(i,j));
             } else {
                Bp_posX(i,j) = dV(i,j)/(exp(dV(i,j)) - 1.0);
                Bp_negX(i,j) = Bp_posX(i,j)*exp(dV(i,j));
@@ -200,8 +200,8 @@ void Continuity_p::Bernoulli_p_Z(const Eigen::MatrixXd &V_matrix)
     for (int i = 1; i < num_cell+1; i++) {
         for (int j = 1; j < num_cell+1; j++) {
             if (abs(dV(i,j)) < 1e-13) {        //to prevent blowup due  to 0 denominator
-                Bp_posZ(i,j) = 1 - dV(i,j)/2. + (dV(i,j)*dV(i,j))/12. - pow(dV(i,j), 4)/720.;
-                Bp_negZ(i,j) =  Bp_posZ(i,j)*exp(dV(i,j));
+                Bp_posZ(i,j) = 1;//1 - dV(i,j)/2. + (dV(i,j)*dV(i,j))/12. - pow(dV(i,j), 4)/720.;
+                Bp_negZ(i,j) =  1;//Bp_posZ(i,j)*exp(dV(i,j));
             } else {
                Bp_posZ(i,j) = dV(i,j)/(exp(dV(i,j)) - 1.0);
                Bp_negZ(i,j) = Bp_posZ(i,j)*exp(dV(i,j));

@@ -79,7 +79,7 @@ int main()
     const int num_cell = params.num_cell;   //create a local num_cell so don't have to type params.num_cell everywhere
 
     const int num_V = static_cast<int>(floor((params.Va_max-params.Va_min)/params.increment))+1;  //floor returns double, explicitely cast to int
-    params.tolerance_eq = 10.*params.tolerance_i;
+    params.tolerance_eq = 100.*params.tolerance_i;
     const int N = params.num_cell -1;
     const int num_rows = N*N;  //number of rows in the solution vectors (V, n, p)
     //NOTE: num_rows is the same as num_elements
@@ -327,7 +327,6 @@ int main()
             std::cout << "weighting factor = " << params.w << std::endl << std::endl;
 
             iter = iter+1;
-
         }
 
         //-------------------Calculate Currents using Scharfetter-Gummel definition--------------------------

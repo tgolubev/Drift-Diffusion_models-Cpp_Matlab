@@ -46,7 +46,7 @@ Vt = (kb*T)/q;
 
 %Voltage sweep loop
 Va_min = -0.5;            %volts
-Va_max = 0.0;
+Va_max = -0.49;
 increment = 0.01;         %by which to increase V
 num_V = floor((Va_max-Va_min)/increment)+1;   %number of V points
 
@@ -57,7 +57,7 @@ tolerance = 5*10^-12;        %error tolerance
 tolerance_i =  5*10^-12;     %initial error tolerance, will be increased if can't converge to this level
 
 %% System Setup
-L = 30.0000001e-9;     %there's some integer rounding issue, so use this .0000001
+L = 75.0000001e-9;     %there's some integer rounding issue, so use this .0000001
 dx = 1e-9;                        %mesh size
 num_cell = floor(L/dx);
 N = num_cell -1;       %number of INTERIOR mesh points (total mesh pts = num_cell +1 b/c matlab indixes from 1)
@@ -284,12 +284,12 @@ for Va_cnt = 0:num_V +1
         % full([name of sparse matrix])
         
         oldp = p;
-%         newp = Ap\bp;
+         newp = Ap\bp;
          
 %        newp = lsqr(Ap, bp, 10^-12, 1000);  %LSQR IS SUPER SLOW-->BAD
 %         [newp, ~] = qmr(Ap, bp, 10^-12, 1000);  %about 50% slower than
 %         backslash. i.e. 25sec vs. 15sec.
-          [newp, ~] = bicgstab(Ap, bp, 10^-12, 1000); %This is fast!, fastest iterative solver for continuity eqn.
+ %         [newp, ~] = bicgstab(Ap, bp, 10^-14, 1000); %This is fast!, fastest iterative solver for continuity eqn.
           %bicgstab beats backslash, for large matrices. (i.e. 50nm, spends
           %75sec, vs. 102sec with  \).
           
@@ -303,9 +303,9 @@ for Va_cnt = 0:num_V +1
 %         newp = U\(L\bp);
 
         oldn = n;
-%            newn = An\bn;
-          [newn, ~] = bicgstab(An,bn, 10^-12, 1000);
-        
+            newn = An\bn;
+  %        [newn, ~] = bicgstab(An,bn, 10^-14, 1000);  %NOTE: using a lower tolerance, i..e 10^-14, makes this faster--> since more accuracy makes overall convergence of DD model faster
+        %Note: seems 10^-14, is about the best level it can converge to
         %An*newn-bn   %see error
          %Ap*newp-bp   %see error
         

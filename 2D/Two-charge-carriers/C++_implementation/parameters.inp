@@ -1,6 +1,6 @@
 //NOTE:IF-HAVE-ANY-SPACES-IN-COMMENTS-IT-WILL-FAIL
-50.0e-9 //device-thickness(m)
-50      //num_cell
+75.0e-9 //device-thickness(m)
+75      //num_cell
 1e24  //N-LUMO
 1e24  //N-HOMO
 4e27   //Photogeneration-scaling

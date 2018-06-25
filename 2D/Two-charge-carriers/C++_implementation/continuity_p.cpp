@@ -86,43 +86,54 @@ void Continuity_p::setup_eqn(const Eigen::MatrixXd &V_matrix, const Eigen::Matri
 //------------------------------Setup Ap diagonals----------------------------------------------------------------
 void Continuity_p::set_far_lower_diag()
 {
+    int i = 1;
+    int j = 2;
     //Lowest diagonal: corresponds to V(i, j-1)
     for (int index = 1; index <=N*(N-1); index++) {      //(1st element corresponds to Nth row  (number of elements = N*(N-1)
-        int i = index % N;
-        if (i ==0) i = N;             //the multiples of N correspond to last index
-        int j = 2 + static_cast<int>(floor((index-1)/N));    //this is the y index of V which element corresponds to. 1+ floor(index/4)determines which subblock this corresponds to and thus determines j, since the j's for each subblock are all the same.
 
         far_lower_diag[index] = -((p_mob(i,j) + p_mob(i+1, j))/2.)*Bp_posZ(i,j);
 
         triplet_list[trp_cnt] = {index-1+N, index-1, far_lower_diag[index]};
         trp_cnt++;
+
+        i++;
+        if (i > N) {
+            i = 1;
+            j++;
+        }
     }
+
+
 }
+
 
 
 void Continuity_p::set_lower_diag()
 {
+    int i = 2;
+    int j = 1;
     for (int index = 1; index <= num_elements-1; index++) {
-        int i = 1 + index % N;
-        int j = 1 + static_cast<int>(floor((index-1)/N));
 
-        if (index % N == 0)
-            lower_diag[index] = 0;      //probably don't need explicitely fill here, since auto intialized to 0
-        else
+        if (i > 1)
             lower_diag[index] = -((p_mob(i,j) + p_mob(i,j+1))/2.)*Bp_posX(i,j);
 
         triplet_list[trp_cnt] = {index, index-1, lower_diag[index]};
         trp_cnt++;
+
+        i++;
+        if (i > N) {
+            i = 1;
+            j++;
+        }
     }
 }
 
 
 void Continuity_p::set_main_diag()
 {
+    int i = 1;
+    int j = 1;
     for (int index = 1; index <= num_elements; index++) {
-        int i = index % N;
-        if (i == 0) i = N;
-        int j = 1 + static_cast<int>(floor((index-1)/N));
 
         main_diag[index] = ((p_mob(i,j) + p_mob(i,j+1))/2.)*Bp_negX(i,j)
                          + ((p_mob(i+1,j) + p_mob(i+1,j+1))/2.)*Bp_posX(i+1,j)
@@ -131,38 +142,53 @@ void Continuity_p::set_main_diag()
 
         triplet_list[trp_cnt] = {index-1, index-1, main_diag[index]};
         trp_cnt++;
+
+        i++;
+        if (i > N) {
+            i = 1;
+            j++;
+        }
     }
 }
 
 
 void Continuity_p::set_upper_diag()
 {
+    int i = 1;
+    int j = 1;
     for (int index = 1; index <= num_elements-1; index++) {
-        int i = index % N;
-        int j = 1 + static_cast<int>(floor((index-1)/N));
 
-        if ((index % N) == 0)
-            upper_diag[index] = 0;
-        else
+        if (i > 0 )
             upper_diag[index] = -((p_mob(i+1,j) + p_mob(i+1,j+1))/2.)*Bp_negX(i+1,j);
 
         triplet_list[trp_cnt] = {index-1, index, upper_diag[index]};
         trp_cnt++;
+
+        i++;
+        if (i > N-1) {
+            i = 0;
+            j++;
+        }
     }
 }
 
 
 void Continuity_p::set_far_upper_diag()
 {
+    int i = 1;
+    int j = 1;
     for (int index = 1; index <= num_elements-N; index++) {
-        int i = index % N;
-        if(i == 0) i = N;
-        int j = 1 + static_cast<int>(floor((index-1)/N));
 
         far_upper_diag[index] = -((p_mob(i,j+1) + p_mob(i+1,j+1))/2.)*Bp_negZ(i,j+1);
 
         triplet_list[trp_cnt] = {index-1, index-1+N, far_upper_diag[index]};
         trp_cnt++;
+
+        i++;
+        if (i > N) {
+            i = 1;
+            j++;
+        }
     }
 }
 

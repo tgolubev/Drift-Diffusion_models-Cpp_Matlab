@@ -173,7 +173,7 @@ void Poisson::set_far_upper_diag(){
     }
 }
 
-void Poisson::set_rhs(const Eigen::MatrixXd n_matrix, const Eigen::MatrixXd p_matrix)
+void Poisson::set_rhs(const Eigen::MatrixXd &n_matrix, const Eigen::MatrixXd &p_matrix)
 {
 
     netcharge = CV*(p_matrix - n_matrix);  //Note: this uses full device

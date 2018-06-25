@@ -22,7 +22,7 @@ public:
 
     //!Setup the right hand side of Poisson equation. This depends on the electron density \param n_matrix,
     //! hole density \param p_matrix, and left and right boundary conditions \param V_leftBC and \param V_rightBC
-    void set_rhs(const Eigen::MatrixXd n_matrix, const Eigen::MatrixXd p_matrix);
+    void set_rhs(const Eigen::MatrixXd &n_matrix, const Eigen::MatrixXd &p_matrix);
 
     void Poisson::to_matrix(const std::vector<double> &V);
 

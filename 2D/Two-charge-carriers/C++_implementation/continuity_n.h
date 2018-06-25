@@ -38,7 +38,7 @@ public:
 
     //getters (const keyword ensures that fnc doesn't change anything)
     Eigen::VectorXd get_rhs() const {return VecXd_rhs;}  //returns the Eigen object
-    Eigen::SparseMatrix<double> get_sp_matrix() const {return sp_matrix;}
+    Eigen::SparseMatrix<double> get_sp_matrix() {return sp_matrix;}
     Eigen::MatrixXd get_n_matrix() const {return n_matrix;}
     std::vector<double> get_n_bottomBC() const {return n_bottomBC;}  //bottom and top are needed to set initial conditions
     std::vector<double> get_n_topBC() const {return n_topBC;}

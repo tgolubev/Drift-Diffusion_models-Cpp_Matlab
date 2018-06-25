@@ -54,6 +54,7 @@
 #include <fstream>
 #include <string>
 
+#include <Eigen/Sparse>
 #include <Eigen/Dense>
 #include<Eigen/IterativeLinearSolvers>
 #include <Eigen/SparseCholesky>
@@ -69,6 +70,7 @@
 #include "recombination.h"
 #include "photogeneration.h"
 #include "Utilities.h"
+
 
 int main()
 {
@@ -104,6 +106,10 @@ int main()
     Eigen::MatrixXd R_Langevin(N+1,N+1), PhotogenRate(N+1,N+1);
     Eigen::MatrixXd J_total_Z(num_cell+1, num_cell+1), J_total_X(num_cell+1, num_cell+1);                  //matrices for spacially dependent current
 
+    Eigen::SparseMatrix<double> input; //for feeding input matrix into BiCGSTAB, b/c it crashes if try to call get matrix from the solve call.
+
+    //std::cout << Eigen::nbThreads( ) << std::endl;  //displays the # of threads that will be used by Eigen--> mine displays 8, but doesn't seem like it's using 8.
+
 //------------------------------------------------------------------------------------
     //Construct objects
     Poisson poisson(params);
@@ -115,9 +121,10 @@ int main()
     Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>, Eigen::UpLoType::Lower, Eigen::AMDOrdering<int>> SCholesky; //Note using NaturalOrdering is much much slower
 
     Eigen::SparseQR<Eigen::SparseMatrix<double>, Eigen::COLAMDOrdering<int>> SQR;
-    Eigen::SparseLU<Eigen::SparseMatrix<double>>  poisson_LU, cont_n_LU, cont_p_LU;
+    Eigen::SparseLU<Eigen::SparseMatrix<double> >  poisson_LU, cont_n_LU, cont_p_LU;
     Eigen::BiCGSTAB<Eigen::SparseMatrix<double>, Eigen::IncompleteLUT<double>> BiCGStab_solver;  //BiCGStab solver object
-      Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::UpLoType::Lower|Eigen::UpLoType::Upper > cg;
+
+    Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::UpLoType::Lower|Eigen::UpLoType::Upper > cg;
 //--------------------------------------------------------------------------------------------
     //Define boundary conditions and initial conditions. Note: electrodes are at the top and bottom.
     double Va = 0;
@@ -204,21 +211,11 @@ int main()
             //std::cout << poisson.get_sp_matrix() << std::endl;
             oldV = V;
 
-            if (iter == 0) {
+            if (iter == 0) { //INSTEAD OF HAVING IF here, can move these 2 lines, outside of the loop
                 poisson_LU.analyzePattern(poisson.get_sp_matrix());  //by doing only on first iter, since pattern never changes, save a bit cpu
                 poisson_LU.factorize(poisson.get_sp_matrix());
             }
             soln_Xd = poisson_LU.solve(poisson.get_rhs());
-
-
-
-           //try bicgstab
-           //BiCGStab_solver.compute(poisson.get_sp_matrix());  //this computes the preconditioner. Note: the compute step seems to suceed but crashes at solve step.
-
-          // soln_Xd = BiCGStab_solver.solve(poisson.get_rhs());  //THIS CRASHES
-           //std::cout << "solve step " << std::endl;
-           //std::cout << "#iterations:     " << solver.iterations() << std::endl;
-           //std::cout << "estimated error: " << solver.error()      << std::endl;
 
 /*
             if (iter == 0) {  //This is slower than  LU
@@ -227,8 +224,6 @@ int main()
             }
             soln_Xd = SCholesky.solve(poisson.get_rhs());
             */
-
-
             //std::cout << soln_Xd << std::endl;
              //std::cout << "Poisson solver error " << poisson.get_sp_matrix() * soln_Xd - poisson.get_rhs() << std::endl;
 
@@ -266,11 +261,24 @@ int main()
 
             continuity_n.setup_eqn(poisson.get_V_matrix(), Un_matrix, n);
             oldn = n;
-            if (iter == 0 )
+            /*
+            if (iter == 0 ) //can move this outside of the loop, instead of using if here...
                 cont_n_LU.analyzePattern(continuity_n.get_sp_matrix());  //by doing only on first iter, since pattern never changes, save a bit cpu
             cont_n_LU.factorize(continuity_n.get_sp_matrix());  //need to do on each iter, b/c matrix elements change
             soln_Xd = cont_n_LU.solve(continuity_n.get_rhs());
+            */
             //std::cout << "solver error " << continuity_n.get_sp_matrix() * soln_Xd - continuity_n.get_rhs() << std::endl;
+
+            input = continuity_n.get_sp_matrix();
+            if (iter == 0)
+                BiCGStab_solver.analyzePattern(input);
+            BiCGStab_solver.factorize(input);  //this computes preconditioner, if use along with analyzePattern (for 1st iter)
+            //BiCGStab_solver.compute(input);  //this computes the preconditioner.
+            soln_Xd = BiCGStab_solver.solve(continuity_n.get_rhs());
+            //std::cout << soln_Xd << std::endl;
+
+            //std::cout << "#iterations:     " << solver.iterations() << std::endl;
+            //std::cout << "estimated error: " << BiCGStab_solver.error()      << std::endl;
 
             //save results back into n std::vector. RECALL, I am starting my V vector from index of 1, corresponds to interior pts...
             for (int i = 1; i<=num_rows; i++) {
@@ -282,10 +290,19 @@ int main()
             //std::cout << continuity_p.get_sp_matrix() << std::endl;   //Note: get rhs, returns an Eigen VectorXd
             oldp = p;
 
+            input = continuity_p.get_sp_matrix();
+            if (iter == 0)
+                BiCGStab_solver.analyzePattern(input);
+            BiCGStab_solver.factorize(input);  //this computes preconditioner, if use along with analyzePattern (for 1st iter)
+            //BiCGStab_solver.compute(input);  //this computes the preconditioner..compute(input);
+            soln_Xd = BiCGStab_solver.solve(continuity_p.get_rhs());
+
+            /*
             if (iter == 0 )
                 cont_p_LU.analyzePattern(continuity_p.get_sp_matrix());
             cont_p_LU.factorize(continuity_p.get_sp_matrix());
             soln_Xd = cont_p_LU.solve(continuity_p.get_rhs());
+            */
 
             //save results back into n std::vector. RECALL, I am starting my V vector from index of 1, corresponds to interior pts...
             for (int i = 1; i<=num_rows; i++) {

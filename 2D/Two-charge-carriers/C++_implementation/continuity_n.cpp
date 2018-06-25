@@ -215,6 +215,7 @@ void Continuity_n::set_rhs(const Eigen::MatrixXd &Un_matrix)
     for (int i = 1; i<=num_elements; i++) {
         VecXd_rhs(i-1) = rhs[i];   //fill VectorXd  rhs of the equation
     }
+
 }
 
 //------------------------

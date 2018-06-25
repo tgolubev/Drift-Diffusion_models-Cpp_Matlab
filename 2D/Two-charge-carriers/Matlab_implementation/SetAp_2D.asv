@@ -20,8 +20,7 @@ Ap_val = zeros(num_elements, 5);   %this is a matrix which will just store the n
 %instead of keeping to recalculate them
 %THEN IF i,j reach upper limit, reset them...
 i = 1;
-j = 2;
-for index = 1:N*(N-1)      %(1st element corresponds to Nth row  (number of elements = N*(N-1)
+j = 2;for index = 1:N*(N-1)      %(1st element corresponds to Nth row  (number of elements = N*(N-1)
     Ap_val(index,1) = -((p_mob(i+1,j+1) + p_mob(i+1+1,j+1))/2.)*Bp_posZ(i+1,j+1);
     
     i = i+1;

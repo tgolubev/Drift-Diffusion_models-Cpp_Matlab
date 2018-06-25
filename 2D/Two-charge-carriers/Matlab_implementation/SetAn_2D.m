@@ -20,61 +20,82 @@ An_val = zeros(num_elements, 5);   %this is a matrix which will just store the n
 %index of the diagonal arrays.
 
 %Lowest diagonal: corresponds to V(i, j-1)
+i = 1;
+j = 2;
 for index = 1:N*(N-1)      %(1st element corresponds to Nth row  (number of elements = N*(N-1)
-    i = mod(index,N);
-    if(i ==0)                %the multiples of N correspond to last index
-        i = N;
-    end
-    j = 2 + floor((index-1)/N);    %lowest diag, starts from 2nd subblock
-    
     An_val(index,1) = -((n_mob(i+1,j+1) + n_mob(i+1+1, j+1))/2.)*Bn_negZ(i+1,j+1);
+    
+     i = i+1;
+    if (i > N)
+        i = 1;  %reset i when reach end of subblock
+        j = j+1;   %increment j
+    end
 end
 
 %main lower diagonal (below main diagonal): corresponds to V(i-1,j)
+i = 2;
+j = 1;
 for index = 1:num_elements-1      %(1st element corresponds to 2nd row)%NOTE: this is tricky!-->some elements are 0 (at the corners of the
-%subblocks)
-    i = 1 + mod(index,N);         %this is x index of V which element corresponds to. i = 2 for 1st index.
-    j = 1 + floor((index-1)/N);
-  
-    if(mod(index,N) == 0)
-        An_val(index,2) = 0;   %these are the elements at subblock corners
-    else
+
+%     if(mod(index,N) == 0)
+%         An_val(index,2) = 0;   %these are the elements at subblock corners
+%     else
+    if (i > 1)
         An_val(index,2) = -((n_mob(i+1,j+1) + n_mob(i+1,j+1+1))/2.)*Bn_negX(i+1,j+1);
     end
+    
+    i = i+1;
+    if (i > N)
+        i = 1;
+        j = j+1;
+    end
+
 end
 
 %main diagonal: corresponds to V(i,j)
+i = 1;
+j = 1;
 for index =  1:num_elements      
-    i = mod(index,N);
-    if(i ==0)                %the multiples of N correspond to last index
-        i = N;
-    end
-    j = 1 + floor((index-1)/N);
- 
     An_val(index,3) = ((n_mob(i+1,j+1) + n_mob(i+1,j+1+1))/2.)*Bn_posX(i+1,j+1) + ((n_mob(i+1+1,j+1) + n_mob(i+1+1,j+1+1))/2.)*Bn_negX(i+1+1,j+1) + ((n_mob(i+1,j+1) + n_mob(i+1+1,j+1))/2.)*Bn_posZ(i+1,j+1) + ((n_mob(i+1,j+1+1) + n_mob(i+1+1,j+1+1))/2.)*Bn_negZ(i+1,j+1+1);
+    
+    i = i+1;
+    if (i > N)
+        i = 1;
+        j = j+1;
+    end
 end
 
 %main uppper diagonal: corresponds to V(i+1,j)
+i = 1;
+j = 1;
 for index = 2:num_elements     %matlab fills this from the bottom (so i = 2 corresponds to 1st row in matrix)
-    i = mod(index-1,N);
-    j = 1 + floor((index-2)/N);
-     
-    if(i == 0)     %i = 0, corresponds to this--> is actually  i = N
-        An_val(index,4) = 0;
-    else
+%      
+%     if(i == 0)     %i = 0, corresponds to this--> is actually  i = N
+%         An_val(index,4) = 0;
+%     else
+    if (i > 0)
         An_val(index,4) = -((n_mob(i+1+1,j+1) + n_mob(i+1+1,j+1+1))/2.)*Bn_posX(i+1+1,j+1);
+    end
+    
+     i=i+1;
+    if (i > N-1)  %here are only N-1 elements per block and i starts from 1
+        i = 0;
+        j  = j+1;
     end
 end
 
 %far upper diagonal: corresponds to V(i,j+1)
+i = 1;
+j = 1;
 for index = 1+N:num_elements      %matlab fills from bottom, so this starts at 1+N (since 1st element is in the 2nd subblock of matrix)
-    i = mod(index-N,N);
-    if(i ==0)                %the multiples of N correspond to last index
-        i = N;
-    end
-    j = 1 + floor((index-1-N)/N);
-
     An_val(index,5) = -((n_mob(i+1,j+1+1) + n_mob(i+1+1,j+1+1))/2.)*Bn_posZ(i+1,j+1+1);            %1st element corresponds to 1st row.   this has N^2 -N elements
+
+    i = i+1;
+    
+    if (i > N)
+        i = 1;
+        j = j+1;
+    end
 end
 
 %all not specified elements will remain zero, as they were initialized

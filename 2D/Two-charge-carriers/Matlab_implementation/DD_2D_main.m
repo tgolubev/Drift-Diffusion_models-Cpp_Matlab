@@ -46,7 +46,7 @@ Vt = (kb*T)/q;
 
 %Voltage sweep loop
 Va_min = -0.5;            %volts
-Va_max = -0.4;
+Va_max = 0.0;
 increment = 0.01;         %by which to increase V
 num_V = floor((Va_max-Va_min)/increment)+1;   %number of V points
 
@@ -183,6 +183,8 @@ end
 
 % Set up Poisson matrix equation
 AV = SetAV_2D(epsilon);
+[L,U] = lu(AV);  %do and LU factorization here--> since Poisson matrix doesn't change
+%this will significantly speed up backslash, on LU factorized matrix
 %spy(AV);  %allows to see matrix structure, very useful!
 
 %% Main voltage loop
@@ -201,12 +203,13 @@ for Va_cnt = 0:num_V +1
         tolerance = tolerance*10^2;       %relax tolerance for equil convergence
         w = w_eq;                         %use smaller mixing factor for equil convergence
         Va = 0;
-        Up = zeros(num_cell,num_cell);
+        Up = zeros(num_elements, 1);  %better to store as 1D vector
         Un= Up;
     end
     if(Va_cnt ==1)
         tolerance = tolerance_i;       %reset tolerance back
         w=w_i;
+        G = GenerationRate();  %only use it once, since stays constant
     end
     if(Va_cnt >0)
         Va = Va_min+increment*(Va_cnt-1);     %set Va value
@@ -226,9 +229,16 @@ for Va_cnt = 0:num_V +1
         
         %solve for V
         oldV = V;
-%         newV = AV\bV;
         
-         [newV, flag] = bicgstab(AV,bV);  %last specification is max iters. Can converge to about 10^-16, which is bit better than 10-14 that \ does
+        
+         newV = U\(L\bV);  %much faster to solve pre-factorized matrix. Not applicable to cont. eqn. b/c matrices keep changing.
+%          newV = AV\bV;
+        
+%           [newV, ~] = bicgstab(AV,bV, 10^-14);  %last specification is max iters. 
+%NOTE: USING bicgstab as default (w/o specifying a tolerance), results in BAD results!! 
+%NOTE: Poisson solve with bicgstab doesn't converge well at all! Residual
+%is 0.0037
+
         
         if(iter >1)
             V = newV*w + oldV*(1.-w);
@@ -256,8 +266,7 @@ for Va_cnt = 0:num_V +1
         
         %% Update net generation rate
         if(Va_cnt > 0)
-            G = GenerationRate();
-            Up(1:N,1:N) = G(1:N,1:N);  %these only  include insides since want ctoo be consistent with i,j matrix indices
+            Up = G;   %these only  include insides since want ctoo be consistent with i,j matrix indices
             %Up= zeros(num_elements,num_elements);
             Un= Up;
         end
@@ -275,12 +284,27 @@ for Va_cnt = 0:num_V +1
         % full([name of sparse matrix])
         
         oldp = p;
-%            newp = Ap\bp;
-        [newp,flag] = bicgstab(Ap,bp); %need this [  , flag] notation to suppress output to terminal from the bicgstab solver 
-        
+%         newp = Ap\bp;
+         
+%        newp = lsqr(Ap, bp, 10^-12, 1000);  %LSQR IS SUPER SLOW-->BAD
+%         [newp, ~] = qmr(Ap, bp, 10^-12, 1000);  %about 50% slower than
+%         backslash. i.e. 25sec vs. 15sec.
+          [newp, ~] = bicgstab(Ap, bp, 10^-12, 1000); %This is fast!, fastest iterative solver for continuity eqn.
+          %bicgstab beats backslash, for large matrices. (i.e. 50nm, spends
+          %75sec, vs. 102sec with  \).
+          
+%          [newp, ~] = gmres(Ap, bp, 10,  10^-12, 1000); %way too slow: i.e
+%          70sec vs. 15sec with backslah
+
+        %try LU factorization for matrix solving
+        %THIS IS a bit SLOWER THAN JUST USING DIRECT BACKSLASH. Since Ap changes,
+        %need to factorize at each iter..., and factorizatoin is slow.
+%         [L,U] = lu(Ap);
+%         newp = U\(L\bp);
+
         oldn = n;
-%           newn = An\bn;
-         [newn, flag] = bicgstab(An,bn);
+%            newn = An\bn;
+          [newn, ~] = bicgstab(An,bn, 10^-12, 1000);
         
         %An*newn-bn   %see error
          %Ap*newp-bp   %see error
@@ -407,11 +431,14 @@ for Va_cnt = 0:num_V +1
         fclose(equil);
     end
     
+    Up_matrix = reshape(Up,N,N);
+%     Un_matrix = reshape(Un,N,N);
+    
     if(Va_cnt > 0)
         for j = 2:num_cell
             i = floor(num_cell/2);     %JUST OUTPUT LINE PROFILE ALONG Z --> otherwise hard to compare results to 1D model
             %for j = 2:num_cell    %use if want to output values along the entire grid
-            fprintf(fid,'%.2e %.2e %.8e %.8e %.8e %.8e %.8e %.8e %.8e %.8e\r\n', (i-1)*dx, (j-1)*dx, Vt*fullV(i,j), N_dos*fullp(i,j), N_dos*fulln(i,j), J_total_X(i,j), J_total_Z(i,j), Up(i-1,j-1), w, tolerance);
+            fprintf(fid,'%.2e %.2e %.8e %.8e %.8e %.8e %.8e %.8e %.8e %.8e\r\n', (i-1)*dx, (j-1)*dx, Vt*fullV(i,j), N_dos*fullp(i,j), N_dos*fulln(i,j), J_total_X(i,j), J_total_Z(i,j), Up_matrix(i-1,j-1), w, tolerance);
             %end
         end
     end

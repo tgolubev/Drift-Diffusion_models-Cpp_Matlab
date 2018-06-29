@@ -46,8 +46,6 @@ index = 0;
                 if(i==1)
                     bp(index,1) = bp(index,1) + p_mob(i+1,j+1)*Bp_posX(i+1,j+1)*p_leftBC(j);
                 elseif(i==N)
-                    index
-                    size(
                     bp(index,1) = bp(index,1) + p_mob(i+1,j+1)*Bp_negX(i+1+1,j+1)*p_rightBC(j);
                 end
             end

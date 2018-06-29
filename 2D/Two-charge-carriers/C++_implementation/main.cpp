@@ -211,11 +211,14 @@ int main()
             //std::cout << poisson.get_sp_matrix() << std::endl;
             oldV = V;
 
+
+
             if (iter == 0) { //INSTEAD OF HAVING IF here, can move these 2 lines, outside of the loop
                 poisson_LU.analyzePattern(poisson.get_sp_matrix());  //by doing only on first iter, since pattern never changes, save a bit cpu
                 poisson_LU.factorize(poisson.get_sp_matrix());
             }
             soln_Xd = poisson_LU.solve(poisson.get_rhs());
+
 
 /*
             if (iter == 0) {  //This is slower than  LU
@@ -262,10 +265,16 @@ int main()
             continuity_n.setup_eqn(poisson.get_V_matrix(), Un_matrix, n);
             oldn = n;
 
+            //std::chrono::high_resolution_clock::time_point start2 = std::chrono::high_resolution_clock::now();  //start clock timer
+
             if (iter == 0 ) //can move this outside of the loop, instead of using if here...
                 cont_n_LU.analyzePattern(continuity_n.get_sp_matrix());  //by doing only on first iter, since pattern never changes, save a bit cpu
             cont_n_LU.factorize(continuity_n.get_sp_matrix());  //need to do on each iter, b/c matrix elements change
             soln_Xd = cont_n_LU.solve(continuity_n.get_rhs());
+
+            //std::chrono::high_resolution_clock::time_point finish2 = std::chrono::high_resolution_clock::now();
+            //std::chrono::duration<double> time2 = std::chrono::duration_cast<std::chrono::duration<double>>(finish2-start2);
+            //std::cout << "CPU time = " << time2.count() << std::endl;
 
             //std::cout << "solver error " << continuity_n.get_sp_matrix() * soln_Xd - continuity_n.get_rhs() << std::endl;
 /*

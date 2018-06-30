@@ -129,7 +129,7 @@ V(1:N) = V_bottomBC + diff;  %define V's corresponding to 1st subblock here (1st
 index = 0;
 for k = 1:N
     index = index +1;
-    V(index) = diff*k;
+    V(index) = V_bottomBC + diff*k;
     for cnt = 2:N^2  %elements along the x and y direction
         index = index +1;
         
@@ -160,6 +160,7 @@ for k = 1:N
     end
     index = index + N*N;
 end
+
 %-------------------------------------------------------------------------------------------------
 %% Define continuity equn boundary and initial conditions
 %these are scaled
@@ -269,8 +270,8 @@ for Va_cnt = 0:num_V +1
         end
         
         %reshape the V vector into the V matrix
-        V_matrix = reshape(V,N,N,N);
-         
+        V_matrix = reshape(V,N,N,N);  
+
         %---------------------------------------------------------------------------------
         %Update side boundary conditions
         index = 0;
@@ -308,6 +309,7 @@ for Va_cnt = 0:num_V +1
         fullV(N+2,1,2:N+1) = V_rightBC_x(1,:);
         fullV(N+2,N+2,2:N+1) = V_rightBC_x(N,:);
           
+        %WORKS UP TO HERE
         %% Update net generation rate
         if(Va_cnt > 0)
             Up = G;   %these only  include insides since want ctoo be consistent with i,j matrix indices
@@ -323,7 +325,7 @@ for Va_cnt = 0:num_V +1
         An = SetAn_3D(n_mob, Bernoulli_n_values);
         bp = Setbp_3D(Bernoulli_p_values, p_mob, Up);
         bn = Setbn_3D(Bernoulli_n_values, n_mob, Un);
-        
+
         %NOTE TO SEE THE WHOLE SPARSE MATRICES: use :
         % full([name of sparse matrix])
         
@@ -494,6 +496,7 @@ for Va_cnt = 0:num_V +1
     J_total_X = Jp_X + Jn_X;
     J_total_Y = Jp_Y + Jn_Y;
     
+    
     %Setup for JV curve
     if(Va_cnt>0)
         V_values(Va_cnt,:) = Va;
@@ -565,6 +568,6 @@ xlabel('Position ($m$)','interpreter','latex','FontSize',14);
 ylabel({'Log of carrier densities ($1/m^3$)'},'interpreter','latex','FontSize',14);
 
 figure
-plot(Vt*fullV(1,1,1:N+2))
+plot(Vt*fullV(1,1:N+2))
 xlabel('Position ($m$)','interpreter','latex','FontSize',14);
 ylabel({'Electric Potential (V)'},'interpreter','latex','FontSize',14);

@@ -39,17 +39,19 @@ Bn_negZ = Bn_posZ.*exp(dV_Z);
 
 for i = 2:num_cell+1
     for j = 2:num_cell+1
-        if(abs(dV_X(i,j,k)) < 10^-13)  %to prevent blowup due  to 0 denominator
-            Bn_posX(i,j,k) = 1;%1 -  dV_X(i+1,j+1)/2 + (dV_X(i+1,j+1))^2/12 - (dV_X(i+1,j+1))^4/720;
-            Bn_negX(i,j,k) =  1;%Bn_posX(i,j)*exp(dV_X(i+1));  %these will not blow up
-        end
-         if(abs(dV_Y(i,j,k)) < 10^-13)
-             Bn_posY(i,j,k) = 1;%1 -  dV_X(i+1,j+1)/2 + (dV_X(i+1,j+1))^2/12 - (dV_X(i+1,j+1))^4/720;
-             Bn_negY(i,j,k) =  1;%Bn_posZ(i,j)*exp(dV_Z(i+1,j+1));
-        end
-        if(abs(dV_Z(i,j,k)) < 10^-13)
-             Bn_posZ(i,j,k) = 1;%1 -  dV_X(i+1,j+1)/2 + (dV_X(i+1,j+1))^2/12 - (dV_X(i+1,j+1))^4/720;
-             Bn_negZ(i,j,k) =  1;%Bn_posZ(i,j)*exp(dV_Z(i+1,j+1));
+        for k = 2:num_cell+1
+            if(abs(dV_X(i,j,k)) < 10^-12)  %to prevent blowup due  to 0 denominator
+                Bn_posX(i,j,k) = 1;%1 -  dV_X(i+1,j+1)/2 + (dV_X(i+1,j+1))^2/12 - (dV_X(i+1,j+1))^4/720;
+                Bn_negX(i,j,k) =  1;%Bn_posX(i,j)*exp(dV_X(i+1));  %these will not blow up
+            end
+            if(abs(dV_Y(i,j,k)) < 10^-12)
+                Bn_posY(i,j,k) = 1;%1 -  dV_X(i+1,j+1)/2 + (dV_X(i+1,j+1))^2/12 - (dV_X(i+1,j+1))^4/720;
+                Bn_negY(i,j,k) =  1;%Bn_posZ(i,j)*exp(dV_Z(i+1,j+1));
+            end
+            if(abs(dV_Z(i,j,k)) < 10^-12)
+                Bn_posZ(i,j,k) = 1;%1 -  dV_X(i+1,j+1)/2 + (dV_X(i+1,j+1))^2/12 - (dV_X(i+1,j+1))^4/720;
+                Bn_negZ(i,j,k) =  1;%Bn_posZ(i,j)*exp(dV_Z(i+1,j+1));
+            end
         end
     end
 end

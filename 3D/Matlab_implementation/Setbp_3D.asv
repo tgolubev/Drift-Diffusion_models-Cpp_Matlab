@@ -1,5 +1,5 @@
 function bp = Setbp_3D(Bernoulli_p_values, p_mob, Up)
-global Cp num_elements p_topBC p_leftBC_x p_rightBC_x p_leftBC_y p_rightBC_y p_bottomBC N;
+global Cp num_elements p_topBC p_leftBC p_rightBC p_bottomBC N;
 
 % bp = zeros(num_elements,1);
 %Note: assuming for BC's that mobility  on bndry is same as mobility just
@@ -75,18 +75,18 @@ for k = 1:N
                     if (i==1)  %1st element has 2 BC's
                         bp(index,1) = bp(index,1) + p_mob(0+1,N+1, N+1)*p_leftBC_x(N,N)*Bp_posX(i+1,j+1,k+1) + p_mob(1+1, N+1+1, N+1)*p_rightBC_y(1,N)*Bp_negY(i+1,j+1+1,k+1) + p_mob(1+1, N+1, N+1+1)*p_topBC*Bp_negZ(i+1,j+1,k+1+1);
                     elseif (i==N)
-                        bp(index,1) = bp(index,1) + p_mob(N+1+1,N+1, N+1)*p_rightBC_x(N,N)*Bp_negX(i+1+1,j+1,k+1) + p_mob(N+1, N+1+1, N+1)*p_rightBC_y(N,N)*Bp_negY(i+1,j+1+1,k+1) + p_mob(N+1,N+1, N+1+1)*p_topBC*Bp_negZ(i+1,j+1,k+1+1);
+                        bp(index,1) = bp(index,1) + p_mob(N+1+1,N+1, N+1)*p_rightBC_x(N,N)*Bp_negX(i+1+1,j+1,k+1) + p_mob(N+1, N+1+1, N+1)*p_rightBC_y(N,N) + p_mob(N+1,N+1, N+1+1)*p_topBC*Bp_negZ(i+1,j+1,k+1+1);
                     else %inner rows of Nth subblock
-                        bp(index,1) = bp(index,1) + p_mob(i+1,N+1+1, N+1)*p_rightBC_y(i,N)*Bp_negY(i+1,j+1+1,k+1) + p_mob(i+1, N+1, N+1+1)*p_topBC*Bp_negZ(i+1,j+1,k+1+1);
+                        bp(index,1) = bp(index,1) + p_mob(i+1,N+1+1, N+1)*p_rightBC_y(i,N) + p_mob(i+1, N+1, N+1+1)*p_topBC*Bp_negZ(i+1,j+1,k+1+1);
                     end
                 end
             else  %interior subblocks of last (k = N) subblock group
                 for i = 1:N
                     index = index +1;
                     if (i==1)
-                        bp(index,1) = bp(index,1) + p_mob(0+1, j+1, N+1)*p_leftBC_x(j,N)*Bp_posX(i+1,j+1,k+1) + p_mob(1+1, j+1, N+1+1)*p_topBC*Bp_negZ(i+1,j+1,k+1+1);
+                        bp(index,1) = bp(index,1) + p_mob(0+1, j+1, N+1)*p_leftBC_x(j,N) + p_mob(1+1, j+1, N+1+1)*p_topBC*Bp_negZ(i+1,j+1,k+1+1);
                     elseif (i==N)
-                        bp(index,1) = bp(index,1) + p_mob(N+1+1, j+1, N+1)*p_rightBC_x(j,N)*Bp_negX(i+1+1,j+1,k+1) + p_mob(N+1, j+1, N+1+1)*p_topBC*Bp_negZ(i+1,j+1,k+1+1);
+                        bp(index,1) = bp(index,1) + p_mob(N+1+1, j+1, N+1)*p_rightBC_x(j,N) + p_mob(N+1, j+1, N+1+1)*p_topBC*Bp_negZ(i+1,j+1,k+1+1);
                     else
                         bp(index,1) = bp(index,1) + p_mob(i+1, j+1, N+1+1)*p_topBC*Bp_negZ(i+1,j+1,k+1+1);
                     end
@@ -99,31 +99,31 @@ for k = 1:N
                 for i = 1:N
                     index = index +1;
                     if (i == 1)  %1st element has 2 BC's
-                        bp(index,1) = bp(index,1) + p_mob(0+1, 1+1, k+1)*p_leftBC_x(1,k)*Bp_posX(i+1,j+1,k+1)  + p_mob(1+1, 0+1, k+1)*p_leftBC_y(1,k)*Bp_posY(i+1,j+1,k+1);  %+1 b/c netcharge and p_mob include endpoints but i,j index only the interior
+                        bp(index,1) = bp(index,1) + p_mob(0+1, 1+1, k+1)*p_leftBC_x(1,k) + p_mob(1+1, 0+1, k+1)*p_leftBC_y(1,k);  %+1 b/c netcharge and p_mob include endpoints but i,j index only the interior
                     elseif (i==N)
-                        bp(index,1) = bp(index,1) + p_mob(N+1+1, 1+1, k+1)*p_rightBC_x(1,k)*Bp_negX(i+1+1,j+1,k+1) + p_mob(N+1, 0+1, k+1)*p_leftBC_y(N,k)*Bp_posY(i+1,j+1,k+1);
+                        bp(index,1) = bp(index,1) + p_mob(N+1+1, 1+1, k+1)*p_rightBC_x(1,k) + p_mob(N+1, 0+1, k+1)*p_leftBC_y(N,k);
                     else  %middle elements in 1st subblock
-                        bp(index,1) = bp(index,1) + p_mob(i+1, 0+1, k+1)*p_leftBC_y(i, k)*Bp_posY(i+1,j+1,k+1);
+                        bp(index,1) = bp(index,1) + p_mob(i+1, 0+1, k+1)*p_leftBC_y(i, k);
                     end
                 end
             elseif(j == N)  %different for last subblock
                 for i = 1:N
                     index = index +1;
                     if (i==1)  %1st element has 2 BC's
-                        bp(index,1) = bp(index,1) + p_mob(0+1,N+1, k+1)*p_leftBC_x(N,k)*Bp_posX(i+1,j+1,k+1) + p_mob(1+1, N+1+1, k+1)*p_rightBC_y(1,k)*Bp_negY(i+1,j+1+1,k+1);
+                        bp(index,1) = bp(index,1) + p_mob(0+1,N+1, k+1)*p_leftBC_x(N,k) + p_mob(1+1, N+1+1, k+1)*p_rightBC_y(1,k);
                     elseif (i==N)
-                        bp(index,1) = bp(index,1) + p_mob(N+1+1,N+1, k+1)*p_rightBC_x(N,k)*Bp_negX(i+1+1,j+1,k+1) + p_mob(N+1, N+1+1, k+1)*p_rightBC_y(N,k)*Bp_negY(i+1,j+1+1,k+1);
+                        bp(index,1) = bp(index,1) + p_mob(N+1+1,N+1, k+1)*p_rightBC_x(N,k) + p_mob(N+1, N+1+1, k+1)*p_rightBC_y(N,k);
                     else %inner rows of Nth subblock
-                        bp(index,1) = bp(index,1) + p_mob(i+1,N+1+1, k+1)*p_rightBC_y(i,k)*Bp_negY(i+1,j+1+1,k+1);
+                        bp(index,1) = bp(index,1) + p_mob(i+1,N+1+1, k+1)*p_rightBC_y(i,k);
                     end
                 end
             else  %interior subblocks
                 for i = 1:N
                     index = index +1;
                     if (i==1)
-                        bp(index,1) = bp(index,1) + p_mob(0+1, j+1, k+1)*p_leftBC_x(j,k)*Bp_posX(i+1,j+1,k+1) ;
+                        bp(index,1) = bp(index,1) + p_mob(0+1, j+1, k+1)*p_leftBC_x(j,k);
                     elseif (i==N)
-                        bp(index,1) = bp(index,1) + p_mob(N+1+1, j+1, k+1)*p_rightBC_x(j,k)*Bp_negX(i+1+1,j+1,k+1);
+                        bp(index,1) = bp(index,1) + p_mob(N+1+1, j+1, k+1)*p_rightBC_x(j,k);
                     end
                 end
             end

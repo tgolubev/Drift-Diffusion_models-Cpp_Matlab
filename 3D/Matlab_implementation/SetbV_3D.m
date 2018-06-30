@@ -1,12 +1,13 @@
-function bV = SetbV_3D(p_matrix, n_matrix, epsilon)
+function bV = SetbV_3D(p, n, epsilon)
 global V_leftBC_x V_leftBC_y V_bottomBC V_topBC V_rightBC_x V_rightBC_y N CV;
 
  %set up rhs of Poisson equation. Note for epsilons, are assuming that
     %epsilons at the boundaries are the same as espilon cell into interior of
     %device
     
+    
    
-bV = CV*(p_matrix-n_matrix);
+bV = CV*(p-n);  %note: this are in vector form
 
 index = 0;
 for k = 1:N

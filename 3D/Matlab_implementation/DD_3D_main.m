@@ -31,7 +31,7 @@
 %   and BCs
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 clear; close all; clc;
-global num_cell N num_elements Vt N_dos p_topBC p_leftBC p_rightBC p_bottomBC Cn CV Cp n_leftBC  n_rightBC
+global num_cell N num_elements Vt N_dos p_topBC p_leftBC_x p_rightBC_x p_leftBC_y p_rightBC_y p_bottomBC Cn CV Cp n_leftBC_x  n_rightBC_x n_leftBC_y  n_rightBC_y
 global n_bottomBC n_topBC V_leftBC_x V_leftBC_y V_rightBC_x V_rightBC_y V_bottomBC V_topBC G_max
 
 %% Physical Constants
@@ -57,7 +57,7 @@ tolerance = 5*10^-12;        %error tolerance
 tolerance_i =  5*10^-12;     %initial error tolerance, will be increased if can't converge to this level
 
 %% System Setup
-L = 3.0000001e-9;     %there's some integer rounding issue, so use this .0000001
+L = 4.0000001e-9;     %there's some integer rounding issue, so use this .0000001
 dx = 1e-9;                        %mesh size
 num_cell = floor(L/dx);
 N = num_cell -1;       %number of INTERIOR mesh points (total mesh pts = num_cell +1 b/c matlab indixes from 1)
@@ -248,12 +248,11 @@ for Va_cnt = 0:num_V +1
     % Solver loop
     while(error_np > tolerance)
         %% Poisson Solve
-        bV = SetbV_3D(p_matrix, n_matrix, epsilon);
+        bV = SetbV_3D(p, n, epsilon);
         
         %solve for V
         oldV = V;
-        
-        
+            
          newV = U\(L\bV);  %much faster to solve pre-factorized matrix. Not applicable to cont. eqn. b/c matrices keep changing.
 %          newV = AV\bV;
         
@@ -294,16 +293,21 @@ for Va_cnt = 0:num_V +1
             index = index + N*N;
         end
 
-        %---------------------------------------------------------------------------------
+        %---------------------------------------------------------------------------------        
         %add on the BC's to get full potential matrix
         fullV(2:N+1,2:N+1, 2:N+1) = V_matrix;
         fullV(1:N+2,1:N+2,1) = V_bottomBC;
         fullV(1:N+2,1:N+2,N+2) = V_topBC;
-        fullV(1,2:N+1,2:N+1) = V_leftBC;
-        fullV(N+2,2:N+1,2:N+1) = V_rightBC;
-        fullV(N+2, N+2, N+2) = V_topBC;    %far exterior corner has same V as rest of the top
-        
-        
+        fullV(1,2:N+1,2:N+1) = V_leftBC_x;
+        fullV(N+2,2:N+1,2:N+1) = V_rightBC_x;
+        fullV(2:N+1,1,2:N+1) = V_leftBC_y;
+        fullV(2:N+1,N+2,2:N+1) = V_rightBC_y;
+        %fill edges
+        fullV(1,1,2:N+1) = V_leftBC_x(1,:);
+        fullV(1,N+2,2:N+1) = V_leftBC_x(N,:);
+        fullV(N+2,1,2:N+1) = V_rightBC_x(1,:);
+        fullV(N+2,N+2,2:N+1) = V_rightBC_x(N,:);
+          
         %% Update net generation rate
         if(Va_cnt > 0)
             Up = G;   %these only  include insides since want ctoo be consistent with i,j matrix indices
@@ -427,17 +431,29 @@ for Va_cnt = 0:num_V +1
         fullp(2:N+1,2:N+1, 2:N+1) = p_matrix;
         fullp(1:N+2,1:N+2,1) = p_bottomBC;
         fullp(1:N+2,1:N+2,N+2) = p_topBC;
-        fullp(1,2:N+1,2:N+1) = p_leftBC;
-        fullp(N+2,2:N+1,2:N+1) = p_rightBC;
-        fullp(N+2,N+2,N+2) = p_topBC;  
+        fullp(1,2:N+1,2:N+1) = p_leftBC_x;
+        fullp(N+2,2:N+1,2:N+1) = p_rightBC_x;
+        fullp(2:N+1,1,2:N+1) = p_leftBC_y;
+        fullp(2:N+1,N+2,2:N+1) = p_rightBC_y;
+        %fill edges
+        fullp(1,1,2:N+1) = p_leftBC_x(1,:);
+        fullp(1,N+2,2:N+1) = p_leftBC_x(N,:);
+        fullp(N+2,1,2:N+1) = p_rightBC_x(1,:);
+        fullp(N+2,N+2,2:N+1) = p_rightBC_x(N,:);
         
         %add on the BC's to get full potential matrix
         fulln(2:N+1,2:N+1, 2:N+1) = n_matrix;
         fulln(1:N+2,1:N+2,1) = n_bottomBC;
         fulln(1:N+2,1:N+2,N+2) = n_topBC;
-        fulln(1,2:N+1,2:N+1) = n_leftBC;
-        fulln(N+2,2:N+1,2:N+1) = n_rightBC;
-        fulln(N+2,N+2,N+2) = n_topBC;  
+        fulln(1,2:N+1,2:N+1) = n_leftBC_x;
+        fulln(N+2,2:N+1,2:N+1) = n_rightBC_x;
+        fulln(2:N+1,1,2:N+1) = n_leftBC_y;
+        fulln(2:N+1,N+2,2:N+1) = n_rightBC_y;
+        %fill edges
+        fulln(1,1,2:N+1) = n_leftBC_x(1,:);
+        fulln(1,N+2,2:N+1) = n_leftBC_x(N,:);
+        fulln(N+2,1,2:N+1) = n_rightBC_x(1,:);
+        fulln(N+2,N+2,2:N+1) = n_rightBC_x(N,:);
         
         iter = iter +1;   
         
@@ -541,9 +557,9 @@ figure
 
 %plot line profiles of charge densities in the thickness direction
 figure
-plot(log(N_dos*fullp(1,1,1:N+2)))
+plot(log(N_dos*fullp(1,1:N+2)))
 hold on
-plot(log(N_dos*fulln(1,1,1:N+2)))
+plot(log(N_dos*fulln(1,1:N+2)))
 hold off
 xlabel('Position ($m$)','interpreter','latex','FontSize',14);
 ylabel({'Log of carrier densities ($1/m^3$)'},'interpreter','latex','FontSize',14);

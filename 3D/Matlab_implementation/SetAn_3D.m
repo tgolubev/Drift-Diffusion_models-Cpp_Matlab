@@ -25,7 +25,7 @@ j = 1;
 k = 2;  %these are the 1st indices OF MAIN DIAG (or rhs), that 1st element of lowest diag corresponds to.
 for index = 1:N^3 - N^2      % (1st element corresponds to Nth row  (number of elements = N^3 - N^2) 
     An_val(index,1) = -((n_mob(i+1,j+1,k+1) + n_mob(i+1+1,j+1,k+1) + n_mob(i+1, j+1+1, k+1) + n_mob(i+1+1,j+1+1,k+1))/4.)*Bn_negZ(i+1,j+1,k+1);
-    
+
     i = i+1;
     if (i > N)
         i = 1;  %reset i when reach end of subblock
@@ -133,7 +133,7 @@ for index = 1+N:N^3 - N +N
     if (j > 0)
         An_val(index, 6) = -((n_mob(i+1, j+1+1, k+1) + n_mob(i+1+1, j+1+1, k+1) + n_mob(i+1, j+1+1, k+1+1) + n_mob(i+1+1, j+1+1, k+1+1))/4.)*Bn_posY(i+1,j+1+1,k+1);
     end
-    
+
      i = i+1;
      if (i > N)
         i = 1;
@@ -165,6 +165,7 @@ end
 
 %all not specified elements will remain zero, as they were initialized
 %above.
+
 
 An = spdiags(An_val, [-N^2 -N -1 0 1 N N^2], num_elements, num_elements); %A = spdiags(B,d,m,n) creates an m-by-n sparse matrix by taking the columns of B and placing them along the diagonals specified by d.
 

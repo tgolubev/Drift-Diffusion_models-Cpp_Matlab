@@ -27,21 +27,21 @@ end
 % matrix operations for Bernoulli's, SAVES SIGNIFICANT CPU then overwrite the elements 
 %which need overwriting...
 %BE CAREFUL!, NEED TO USE THE . to indicate element-by-element operations
-Bp_posX = dV_X./(exp(dV_X) - 1.0);
-Bp_negX = Bp_posX.*exp(dV_X);
+% Bp_posX = dV_X./(exp(dV_X) - 1.0);
+% Bp_negX = Bp_posX.*exp(dV_X);
+% 
+% Bp_posY = dV_Y./(exp(dV_Y) - 1.0);
+% Bp_negY = Bp_posY.*exp(dV_Y);
+% 
+% Bp_posZ = dV_Z./(exp(dV_Z) - 1.0);
+% Bp_negZ = Bp_posZ.*exp(dV_Z);
 
-Bp_posY = dV_Y./(exp(dV_Y) - 1.0);
-Bp_negY = Bp_posY.*exp(dV_Y);
-
-Bp_posZ = dV_Z./(exp(dV_Z) - 1.0);
-Bp_negZ = Bp_posZ.*exp(dV_Z);
-
-% Bp_posX = ones(num_cell+1,num_cell+1,num_cell+1);
-% Bp_negX = ones(num_cell+1,num_cell+1,num_cell+1);
-% Bp_posY = ones(num_cell+1,num_cell+1,num_cell+1);
-% Bp_negY = ones(num_cell+1,num_cell+1,num_cell+1);
-% Bp_posZ = ones(num_cell+1,num_cell+1,num_cell+1);
-% Bp_negZ = ones(num_cell+1,num_cell+1,num_cell+1);
+Bp_posX = ones(num_cell+1,num_cell+1);
+Bp_negX = ones(num_cell+1,num_cell+1);
+Bp_posY = ones(num_cell+1,num_cell+1);
+Bp_negY = ones(num_cell+1,num_cell+1);
+Bp_posZ = ones(num_cell+1,num_cell+1);
+Bp_negZ = ones(num_cell+1,num_cell+1);
 
 for i = 2:num_cell+1
     for j = 2:num_cell+1

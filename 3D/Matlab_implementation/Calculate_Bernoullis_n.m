@@ -36,6 +36,14 @@ Bn_negY = Bn_posY.*exp(dV_Y);
 Bn_posZ = dV_Z./(exp(dV_Z) - 1.0);
 Bn_negZ = Bn_posZ.*exp(dV_Z);
 
+% Bn_posX = ones(num_cell+1,num_cell+1,num_cell+1);
+% Bn_negX = ones(num_cell+1,num_cell+1,num_cell+1);
+% Bn_posY = ones(num_cell+1,num_cell+1,num_cell+1);
+% Bn_negY = ones(num_cell+1,num_cell+1,num_cell+1);
+% Bn_posZ = ones(num_cell+1,num_cell+1,num_cell+1);
+% Bn_negZ = ones(num_cell+1,num_cell+1,num_cell+1);
+
+
 
 for i = 2:num_cell+1
     for j = 2:num_cell+1

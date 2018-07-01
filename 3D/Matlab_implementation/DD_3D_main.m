@@ -46,7 +46,7 @@ Vt = (kb*T)/q;
 
 %Voltage sweep loop
 Va_min = -0.5;            %volts
-Va_max = -0.49;
+Va_max = 0.5;
 increment = 0.01;         %by which to increase V
 num_V = floor((Va_max-Va_min)/increment)+1;   %number of V points
 
@@ -57,7 +57,7 @@ tolerance = 5*10^-12;        %error tolerance
 tolerance_i =  5*10^-12;     %initial error tolerance, will be increased if can't converge to this level
 
 %% System Setup
-L = 4.0000001e-9;     %there's some integer rounding issue, so use this .0000001
+L = 5.0000001e-9;     %there's some integer rounding issue, so use this .0000001
 dx = 1e-9;                        %mesh size
 num_cell = floor(L/dx);
 N = num_cell -1;       %number of INTERIOR mesh points (total mesh pts = num_cell +1 b/c matlab indixes from 1)
@@ -250,7 +250,7 @@ for Va_cnt = 0:num_V +1
     while(error_np > tolerance)
         %% Poisson Solve
         bV = SetbV_3D(p, n, epsilon);
-        
+
         %solve for V
         oldV = V;
             
@@ -325,6 +325,7 @@ for Va_cnt = 0:num_V +1
         An = SetAn_3D(n_mob, Bernoulli_n_values);
         bp = Setbp_3D(Bernoulli_p_values, p_mob, Up);
         bn = Setbn_3D(Bernoulli_n_values, n_mob, Un);
+       
 
         %NOTE TO SEE THE WHOLE SPARSE MATRICES: use :
         % full([name of sparse matrix])
@@ -349,9 +350,9 @@ for Va_cnt = 0:num_V +1
 %         newp = U\(L\bp);
 
         oldn = n;
-        tic
+%         tic
             newn = An\bn;
-            toc
+%             toc
   %        [newn, ~] = bicgstab(An,bn, 10^-14, 1000);  %NOTE: using a lower tolerance, i..e 10^-14, makes this faster--> since more accuracy makes overall convergence of DD model faster
         %Note: seems 10^-14, is about the best level it can converge to
         %An*newn-bn   %see error
@@ -400,7 +401,7 @@ for Va_cnt = 0:num_V +1
         %reshape the vectors into matrices
         p_matrix = reshape(p,N,N,N);
         n_matrix = reshape(n,N,N,N);
-        
+      
         %-------------------------------------------------------------------------------------------------
         %side boundary conditions %insulating bc's,: charge at bndry = charge just inside
         index = 0;
@@ -481,14 +482,14 @@ for Va_cnt = 0:num_V +1
     for i = 1:num_cell-1
         for j = 1:num_cell-1
             for k = 1:num_cell-1
-                Jp_Z(i+1,j+1,k+1) = -(q*Vt*N_dos*mobil/dx)*(p_mob(i+1,j+1,k+1)*fullp(i+1,j+1,k+1)*Bp_negZ(i+1,j+1,k+1)-p_mob(i+1,j+1,k+1)*fullp(i+1,j,k+1)*Bp_posZ(i+1,j+1,k+1));
-                Jn_Z(i+1,j+1,k+1) =  (q*Vt*N_dos*mobil/dx)*(n_mob(i+1,j+1,k+1)*fulln(i+1,j+1,k+1)*Bn_posZ(i+1,j+1,k+1)-n_mob(i+1,j+1,k+1)*fulln(i+1,j,k+1)*Bn_negZ(i+1,j+1,k+1));
+                Jp_Z(i+1,j+1,k+1) = -(q*Vt*N_dos*mobil/dx)*(p_mob(i+1,j+1,k+1)*fullp(i+1,j+1,k+1)*Bp_negZ(i+1,j+1,k+1)-p_mob(i+1,j+1,k+1)*fullp(i+1,j+1,k)*Bp_posZ(i+1,j+1,k+1));
+                Jn_Z(i+1,j+1,k+1) =  (q*Vt*N_dos*mobil/dx)*(n_mob(i+1,j+1,k+1)*fulln(i+1,j+1,k+1)*Bn_posZ(i+1,j+1,k+1)-n_mob(i+1,j+1,k+1)*fulln(i+1,j+1,k)*Bn_negZ(i+1,j+1,k+1));
                 
                 Jp_X(i+1,j+1,k+1) = -(q*Vt*N_dos*mobil/dx)*(p_mob(i+1,j+1,k+1)*fullp(i+1,j+1,k+1)*Bp_negX(i+1,j+1,k+1)-p_mob(i+1,j+1,k+1)*fullp(i,j+1,k+1)*Bp_posX(i+1,j+1,k+1));
                 Jn_X(i+1,j+1,k+1) =  (q*Vt*N_dos*mobil/dx)*(n_mob(i+1,j+1,k+1)*fulln(i+1,j+1,k+1)*Bn_posX(i+1,j+1,k+1)-n_mob(i+1,j+1,k+1)*fulln(i,j+1,k+1)*Bn_negX(i+1,j+1,k+1));
                 
-                Jp_Y(i+1,j+1,k+1) = -(q*Vt*N_dos*mobil/dx)*(p_mob(i+1,j+1,k+1)*fullp(i+1,j+1,k+1)*Bp_negY(i+1,j+1,k+1)-p_mob(i+1,j+1,k+1)*fullp(i+1,j+1,k)*Bp_posY(i+1,j+1,k+1));
-                Jn_Y(i+1,j+1,k+1) =  (q*Vt*N_dos*mobil/dx)*(n_mob(i+1,j+1,k+1)*fulln(i+1,j+1,k+1)*Bn_posY(i+1,j+1,k+1)-n_mob(i+1,j+1,k+1)*fulln(i+1,j+1,k)*Bn_negY(i+1,j+1,k+1));
+                Jp_Y(i+1,j+1,k+1) = -(q*Vt*N_dos*mobil/dx)*(p_mob(i+1,j+1,k+1)*fullp(i+1,j+1,k+1)*Bp_negY(i+1,j+1,k+1)-p_mob(i+1,j+1,k+1)*fullp(i+1,j,k+1)*Bp_posY(i+1,j+1,k+1));
+                Jn_Y(i+1,j+1,k+1) =  (q*Vt*N_dos*mobil/dx)*(n_mob(i+1,j+1,k+1)*fulln(i+1,j+1,k+1)*Bn_posY(i+1,j+1,k+1)-n_mob(i+1,j+1,k+1)*fulln(i+1,j,k+1)*Bn_negY(i+1,j+1,k+1));
             end        
         end
     end

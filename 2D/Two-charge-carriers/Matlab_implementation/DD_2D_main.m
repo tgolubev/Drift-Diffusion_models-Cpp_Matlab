@@ -57,7 +57,7 @@ tolerance = 5*10^-12;        %error tolerance
 tolerance_i =  5*10^-12;     %initial error tolerance, will be increased if can't converge to this level
 
 %% System Setup
-L = 75.0000001e-9;     %there's some integer rounding issue, so use this .0000001
+L = 5.0000001e-9;     %there's some integer rounding issue, so use this .0000001
 dx = 1e-9;                        %mesh size
 num_cell = floor(L/dx);
 N = num_cell -1;       %number of INTERIOR mesh points (total mesh pts = num_cell +1 b/c matlab indixes from 1)
@@ -71,7 +71,7 @@ N_dos = 10^24.;       %scaling factor helps CV be on order of 1
 
 %injection barriers
 inj_a = 0.2;	%at anode
-inj_c = 0.1;	%at cathode
+inj_c = 0.2;	%at cathode
 
 %work functions of anode and cathode
 WF_anode = 4.8;
@@ -280,6 +280,7 @@ for Va_cnt = 0:num_V +1
         bp = Setbp_2D(Bernoulli_p_values, p_mob, Up);
         bn = Setbn_2D(Bernoulli_n_values, n_mob, Un);
         
+        
         %NOTE TO SEE THE WHOLE SPARSE MATRICES: use :
         % full([name of sparse matrix])
         
@@ -383,9 +384,9 @@ for Va_cnt = 0:num_V +1
         fulln(N+2, N+2) = n_topBC;  
         
         iter = iter +1;   
-        
 
     end 
+    
     
     % Calculate drift diffusion currents
     % Use the SG definition

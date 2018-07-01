@@ -24,154 +24,143 @@ An_val = zeros(num_elements, 7);   %this is a matrix which will just store the n
 %index of the diagonal arrays.
 %--------------------------------------------------------------------------
 %Lowest diagonal: 
-i = 1;
-j = 1;
-k = 2;  %these are the 1st indices OF MAIN DIAG (or rhs), that 1st element of lowest diag corresponds to.
 values = -n_mob_Z_avg.*Bn_negZ;
-for index = 1:N^3 - N^2      % (1st element corresponds to Nth row  (number of elements = N^3 - N^2) 
-    An_val(index,1) = values(i+1,j+1,k+1);
+values_cut = zeros(N, N, N);
+values_cut(1:N,1:N,1:N-1) = values(2:N+1,2:N+1,2+1:N+1);  %shift by +1,   %note: the k values  uses 2+1:N+1 -->  b/c k = 2:N is what is needed..., so need to skip k = 1, which corresponds to 2 in orig values matrix
+An_val(1:N^3, 1) = values_cut(:);
 
-    i = i+1;
-    if (i > N)
-        i = 1;  %reset i when reach end of subblock
-        j = j+1;   
-    end
-     if (j > N)  
-        j = 1;
-        k = k+1;
-    end
-    
-end  
+% index = 1;
+% for k = 2:N
+%     for j = 1:N
+%         for i = 1:N
+%              An_val(index,1) = values(i+1,j+1,k+1);
+%             index = index +1;
+%         end 
+%     end
+% end
+
 %--------------------------------------------------------------------------
 %lower diagonal
-i = 1;
-j = 2;  %NOTE: this are the rhs indices (= main diag indices) which these elements correspond to.
-k = 1;
 values = -n_mob_Y_avg.*Bn_negY;
-for index = 1:N^3 - N      
-    if (j > 1)
-        An_val(index,2) = values(i+1,j+1,k+1);
-    end
-    
-    i = i+1;
-    if (i > N)
-        i = 1;  %reset i when reach end of subblock
-        j = j+1;
-    end
-    if (j > N)  
-        j = 1;
-        k = k+1;
-    end
-end      
+values_cut = zeros(N, N, N);          %RESET THE SIZE OF VALUES_CUT: this is
+                                      %important!!
+                                      
+  %note: made the j of N size-->  so when leave the last Nth elements,
+  %unfilled--> this corresponds to the 0's subblocks
+
+values_cut(1:N,1:N-1,1:N) = values(2:N+1,2+1:N+1,2:N+1);  
+An_val(1:N^3, 2) = values_cut(:); 
+
+% index = 1;
+% for k = 1:N
+%     for j = 2:N
+%         for i = 1:N
+%             An_val(index,2) = values(i+1,j+1,k+1);
+%             index = index+1;
+%         end
+%     end
+%     index = index + N;  %add on the 0's subblock
+% end
 
 %--------------------------------------------------------------------------
 %main lower diagonal (below main diagonal)
-i = 2;
-j = 1;
-k = 1;
 values = -n_mob_X_avg.*Bn_negX;
-for index = 1:N^3 - 1    
-    if (i > 1)
-        An_val(index,3) = values(i+1,j+1,k+1);
-    end
-    
-    i = i+1;
-    if (i > N)
-        i = 1;
-        j = j+1;
-    end
-    if (j > N)
-        j = 1;
-        k = k+1;
-    end
-end
+values_cut = zeros(N, N, N); %again made i have N elements here, but fill to N-1--> to have the  0's in corners where need them
+values_cut(1:N-1,1:N,1:N) = values(2+1:N+1,2:N+1,2:N+1); 
+An_val(1:N^3, 3) = values_cut(:);
+
+
+% index = 1;
+% for k = 1:N
+%     for j = 1:N
+%         for i = 2:N
+%             An_val(index,3) = values(i+1,j+1,k+1);
+%             index = index+1;
+%         end
+%         index = index +1;  %add on the corner element which is 0
+%     end
+% end
+   
 %--------------------------------------------------------------------------
 %main diagonal
-i = 1;
-j = 1;
-k = 1;
 values1 = n_mob_Z_avg.*Bn_posZ + n_mob_Y_avg.*Bn_posY + n_mob_X_avg.*Bn_posX;
 values2 = n_mob_X_avg.*Bn_negX;
 values3 = n_mob_Y_avg.*Bn_negY;
 values4 = n_mob_Z_avg.*Bn_negZ;
 
-for index =  1:num_elements          
-    An_val(index,4) = values1(i+1,j+1,k+1) + values2(i+1+1,j+1,k+1) + values3(i+1,j+1+1,k+1) + values4(i+1,j+1,k+1+1);
+% values_cut = zeros(N,N,N);  %preallocation is not neccessary  here, since
+% all the values are filled
+values_cut(1:N,1:N,1:N) = values1(2:N+1, 2:N+1,2:N+1) + values2(2+1:N+1+1, 2:N+1,2:N+1) + values3(2:N+1,2+1:N+1+1,2:N+1) + values4(2:N+1,2:N+1,2+1:N+1+1);
+An_val(1:N^3,4) = values_cut(:);
 
-    i = i+1;
-    if (i > N)
-        i = 1;
-        j = j+1;
-    end
-    if (j > N)
-        j = 1;
-        k = k+1;
-    end
+% index = 1;
+% for k = 1:N
+%     for j = 1:N
+%         for i = 1:N     
+%             An_val(index,4) = values1(i+1,j+1,k+1) + values2(i+1+1,j+1,k+1) + values3(i+1,j+1+1,k+1) + values4(i+1,j+1,k+1+1);
+%             index = index+1;
+%         end
+%     end
+% end
 
-end
 %--------------------------------------------------------------------------
 %main uppper diagonal
-i = 1;
-j = 1;
-k = 1;
 values = -n_mob_X_avg.*Bn_posX;
-for index = 2:N^3 - 1 +1    %matlab fills this from the bottom (so i = 2 corresponds to 1st row in matrix)
-    
-    if (i > 0)
-        An_val(index,5) = values(i+1+1,j+1,k+1);
-    end
-    
-    i=i+1;
-    if (i > N-1)  %here are only N-1 elements per block and i starts from 1
-        i = 0;
-        j  = j+1;
-    end
-    if (j > N)
-        j = 1;
-        k = k+1;
-    end
-    
-end      
+values_cut = zeros(N,N,N);
+values_cut(1:N-1, 1:N,1:N) = values(2:N, 2:N+1, 2:N+1);
+
+An_val(2:N^3+1,5) = values_cut(:);
+
+
+
+% index = 2;
+% for k = 1:N
+%     for j = 1:N
+%         for i = 1:N-1     
+%             An_val(index,5) = values(i+1+1,j+1,k+1);
+%             index = index+1;
+%         end
+%         index = index+1;  %add on the element which = 0 --> corner...
+%     end
+% end
+       
 %--------------------------------------------------------------------------
 %upper diagonal
-i = 1;
-j = 1;
-k = 1;
 values = -n_mob_Y_avg.*Bn_posY;
-for index = 1+N:N^3 - N +N 
-    if (j > 0)
-        An_val(index, 6) = values(i+1,j+1+1,k+1);
-    end
+values_cut = zeros(N,N,N);
+values_cut(1:N, 1:N-1,1:N) = values(2:N+1, 2:N, 2:N+1);
 
-     i = i+1;
-     if (i > N)
-        i = 1;
-        j = j+1;
-     end
-     if (j > N-1)
-        j = 0;
-        k = k+1;
-     end
-end
+An_val(1+N:N^3+N, 6) = values_cut(:);
+
+% index = 1+N;
+% for k = 1:N
+%     for j = 1:N-1
+%         for i = 1:N    
+%             An_val(index, 6) = values(i+1,j+1+1,k+1);
+%             index = index+1;
+%         end
+%     end
+%     index = index + N;  %add on the empty block--> of 0's corresponding to y BC's. 
+% end
+            
 %--------------------------------------------------------------------------
 %far upper diagonal
-i = 1;
-j = 1;
-k = 1;
 values = -n_mob_Z_avg.*Bn_posZ;
-for index = 1+N*N:num_elements      %matlab fills from bottom, so this starts at 1+N (since 1st element is in the 2nd subblock of matrix) 
-    An_val(index,7) = values(i+1,j+1,k+1+1);         
-    
-    i = i+1;  
-    if (i > N)
-        i = 1;
-        j = j+1;
-    end
-     if (j > N)
-        j = 1;
-        k = k+1;
-    end
-end 
+values_cut = zeros(N,N,N);
+values_cut(1:N, 1:N,1:N-1) = values(2:N+1, 2:N+1, 2:N);
+
+An_val(1+N*N:N^3+N^2,7) = values_cut(:);
+
+% index = 1+N*N;
+% for k = 1:N-1
+%     for j = 1:N
+%         for i = 1:N    
+%              An_val(index,7) = values(i+1,j+1,k+1+1);  
+%              index = index+1;
+%         end
+%     end
+% end
+
 
 %all not specified elements will remain zero, as they were initialized
 %above.

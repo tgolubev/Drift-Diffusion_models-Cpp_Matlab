@@ -233,7 +233,7 @@ end
 
 % Set up Poisson matrix equation
 AV = SetAV_3D(epsilon);
-[L,U] = lu(AV);  %do and LU factorization here--> since Poisson matrix doesn't change
+% [L,U] = lu(AV);  %do and LU factorization here--> since Poisson matrix doesn't change
 %this will significantly speed up backslash, on LU factorized matrix
 %spy(AV);  %allows to see matrix structure, very useful!
 

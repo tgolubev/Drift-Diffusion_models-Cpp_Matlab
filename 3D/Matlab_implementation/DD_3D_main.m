@@ -46,7 +46,7 @@ Vt = (kb*T)/q;
 
 %Voltage sweep loop
 Va_min = -0.5;            %volts
-Va_max = 0.5;
+Va_max = -0.48;
 increment = 0.01;         %by which to increase V
 num_V = floor((Va_max-Va_min)/increment)+1;   %number of V points
 
@@ -57,7 +57,7 @@ tolerance = 5*10^-12;        %error tolerance
 tolerance_i =  5*10^-12;     %initial error tolerance, will be increased if can't converge to this level
 
 %% System Setup
-L = 5.0000001e-9;     %there's some integer rounding issue, so use this .0000001
+L = 20.0000001e-9;     %there's some integer rounding issue, so use this .0000001
 dx = 1e-9;                        %mesh size
 num_cell = floor(L/dx);
 N = num_cell -1;       %number of INTERIOR mesh points (total mesh pts = num_cell +1 b/c matlab indixes from 1)
@@ -104,16 +104,42 @@ J_total_Z_middle = zeros(num_V+1,1);
 %will use indexing: i + 1/2 is defined as i+1 for the index
 epsilon = 3.0*ones(num_cell+1, num_cell +1, num_cell +1);
 
+%-----------------Mobilities setup-----------------------------------------
 % Define mobilities matrix (can be position dependent)
-%using indexing: i+1/2 is defined as i+1 for index, just like the epsilons
-p_mob = (4.5*10^-6)*ones(num_cell+1, num_cell+1, num_cell+1);
+p_mob = (4.5*10^-6)*ones(num_cell+2, num_cell+2, num_cell+2);
 n_mob = p_mob;
 
-mobil = 5.*10^-6;                    %scaling for mobility (for numerical stability when solving matrix equations)
+mobil = 5.*10^-6;        %scaling for mobility 
 
 p_mob = p_mob./mobil;
 n_mob = n_mob./mobil;
 
+%Pre-calculate the mobility averages 
+%using indexing: i+1/2 is defined as i+1 for index, just like the epsilons
+p_mob_avged.p_mob_X_avg = zeros(num_cell+1, num_cell+1, num_cell+1);
+p_mob_avged.p_mob_Y_avg = zeros(num_cell+1, num_cell+1, num_cell+1);
+p_mob_avged.p_mob_Z_avg = zeros(num_cell+1, num_cell+1, num_cell+1);
+
+n_mob_avged.n_mob_X_avg = zeros(num_cell+1, num_cell+1, num_cell+1);
+n_mob_avged.n_mob_Y_avg = zeros(num_cell+1, num_cell+1, num_cell+1);
+n_mob_avged.n_mob_Z_avg = zeros(num_cell+1, num_cell+1, num_cell+1);
+
+for k =  1:num_cell+1   %go extra +1 so matches size with Bernoulli fnc's which multiply by
+    for j = 1:num_cell+1
+        for i = 1:num_cell+1
+            p_mob_avged.p_mob_X_avg(i,j,k) = (p_mob(i,j,k) + p_mob(i,j+1,k) + p_mob(i,j,k+1) + p_mob(i,j+1,k+1))./4.;
+            p_mob_avged.p_mob_Y_avg(i,j,k) = (p_mob(i,j,k) + p_mob(i+1,j,k) + p_mob(i,j,k+1) + p_mob(i+1,j,k+1))./4.;
+            p_mob_avged.p_mob_Z_avg(i,j,k) = (p_mob(i,j,k) + p_mob(i+1,j,k) + p_mob(i,j+1,k) + p_mob(i+1,j+1,k))./4.;
+            
+            n_mob_avged.n_mob_X_avg(i,j,k) = (n_mob(i,j,k) + n_mob(i,j+1,k) + n_mob(i,j,k+1) + n_mob(i,j+1,k+1))./4.;
+            n_mob_avged.n_mob_Y_avg(i,j,k) = (n_mob(i,j,k) + n_mob(i+1,j,k) + n_mob(i,j,k+1) + n_mob(i+1,j,k+1))./4.;
+            n_mob_avged.n_mob_Z_avg(i,j,k) = (n_mob(i,j,k) + n_mob(i+1,j,k) + n_mob(i,j+1,k) + n_mob(i+1,j+1,k))./4.;
+        end
+    end
+end
+
+
+%--------------------------------------------------------------------------
 %Scaling coefficients
 Cp = dx^2/(Vt*N_dos*mobil);          %note: scaled p_mob and n_mob are inside matrices
 Cn = dx^2/(Vt*N_dos*mobil);
@@ -207,7 +233,7 @@ end
 
 % Set up Poisson matrix equation
 AV = SetAV_3D(epsilon);
-[L,U] = lu(AV);  %do and LU factorization here--> since Poisson matrix doesn't change
+% [L,U] = lu(AV);  %do and LU factorization here--> since Poisson matrix doesn't change
 %this will significantly speed up backslash, on LU factorized matrix
 %spy(AV);  %allows to see matrix structure, very useful!
 
@@ -253,14 +279,16 @@ for Va_cnt = 0:num_V +1
 
         %solve for V
         oldV = V;
-            
-         newV = U\(L\bV);  %much faster to solve pre-factorized matrix. Not applicable to cont. eqn. b/c matrices keep changing.
+
+%           newV = U\(L\bV);  %much faster to solve pre-factorized matrix. Not applicable to cont. eqn. b/c matrices keep changing.
 %          newV = AV\bV;
-        
-%           [newV, ~] = bicgstab(AV,bV, 10^-14);  %last specification is max iters. 
+  [newV,~] = bicgstab(AV,bV, 10^-14, 1000);  %last specification is max iters. 
+  %This is fastest for larger systems (i.e. 30x30x30)
 %NOTE: USING bicgstab as default (w/o specifying a tolerance), results in BAD results!! 
-%NOTE: Poisson solve with bicgstab doesn't converge well at all! Residual
-%is 0.0037
+
+
+%for poisson, don't see any cpu advantage in using bicgstab, vs. the
+%prefactorized LU plus \.
 
         
         if(iter >1)
@@ -309,7 +337,7 @@ for Va_cnt = 0:num_V +1
         fullV(N+2,1,2:N+1) = V_rightBC_x(1,:);
         fullV(N+2,N+2,2:N+1) = V_rightBC_x(N,:);
           
-        %WORKS UP TO HERE
+        
         %% Update net generation rate
         if(Va_cnt > 0)
             Up = G;   %these only  include insides since want ctoo be consistent with i,j matrix indices
@@ -321,42 +349,26 @@ for Va_cnt = 0:num_V +1
         %% Continuity equations solve
         Bernoulli_p_values = Calculate_Bernoullis_p(fullV);  %the values are returned as a struct
         Bernoulli_n_values = Calculate_Bernoullis_n(fullV);
-        Ap = SetAp_3D(p_mob, Bernoulli_p_values);           
-        An = SetAn_3D(n_mob, Bernoulli_n_values);
+        Ap = SetAp_3D(p_mob_avged, Bernoulli_p_values);           
+        An = SetAn_3D(n_mob_avged, Bernoulli_n_values);
         bp = Setbp_3D(Bernoulli_p_values, p_mob, Up);
         bn = Setbn_3D(Bernoulli_n_values, n_mob, Un);
-       
-
+        
+        
         %NOTE TO SEE THE WHOLE SPARSE MATRICES: use :
         % full([name of sparse matrix])
         
         oldp = p;
-         newp = Ap\bp;
-         
-%        newp = lsqr(Ap, bp, 10^-12, 1000);  %LSQR IS SUPER SLOW-->BAD
-%         [newp, ~] = qmr(Ap, bp, 10^-12, 1000);  %about 50% slower than
-%         backslash. i.e. 25sec vs. 15sec.
- %         [newp, ~] = bicgstab(Ap, bp, 10^-14, 1000); %This is fast!, fastest iterative solver for continuity eqn.
-          %bicgstab beats backslash, for large matrices. (i.e. 50nm, spends
-          %75sec, vs. 102sec with  \).
-          
-%          [newp, ~] = gmres(Ap, bp, 10,  10^-12, 1000); %way too slow: i.e
-%          70sec vs. 15sec with backslah
-
-        %try LU factorization for matrix solving
-        %THIS IS a bit SLOWER THAN JUST USING DIRECT BACKSLASH. Since Ap changes,
-        %need to factorize at each iter..., and factorizatoin is slow.
-%         [L,U] = lu(Ap);
-%         newp = U\(L\bp);
-
+        
+        %          newp = Ap\bp;
+        %          newp = qmr(Ap, bp, 10^-14, 1000);  %not bad: 0.035sec vs. 0.025 with bicgstab
+        
+        [newp, ~] = bicgstab(Ap, bp, 10^-14, 1000); %This is fast!, fastest iterative solver for continuity eqn.
+        
         oldn = n;
-%         tic
-            newn = An\bn;
-%             toc
-  %        [newn, ~] = bicgstab(An,bn, 10^-14, 1000);  %NOTE: using a lower tolerance, i..e 10^-14, makes this faster--> since more accuracy makes overall convergence of DD model faster
+        %          newn = An\bn;
+        [newn, ~] = bicgstab(An,bn, 10^-14, 1000);  %NOTE: using a lower tolerance, i..e 10^-14, makes this faster--> since more accuracy makes overall convergence of DD model faster
         %Note: seems 10^-14, is about the best level it can converge to
-        %An*newn-bn   %see error
-         %Ap*newp-bp   %see error
         
         % if get negative p's or n's, make them equal 0
         for i = 1:num_elements

@@ -46,7 +46,7 @@ Vt = (kb*T)/q;
 
 %Voltage sweep loop
 Va_min = -0.5;            %volts
-Va_max = -0.49;
+Va_max = -0.45;
 increment = 0.01;         %by which to increase V
 num_V = floor((Va_max-Va_min)/increment)+1;   %number of V points
 
@@ -57,7 +57,7 @@ tolerance = 5*10^-12;        %error tolerance
 tolerance_i =  5*10^-12;     %initial error tolerance, will be increased if can't converge to this level
 
 %% System Setup
-L = 5.0000001e-9;     %there's some integer rounding issue, so use this .0000001
+L = 75.0000001e-9;     %there's some integer rounding issue, so use this .0000001
 dx = 1e-9;                        %mesh size
 num_cell = floor(L/dx);
 N = num_cell -1;       %number of INTERIOR mesh points (total mesh pts = num_cell +1 b/c matlab indixes from 1)
@@ -100,26 +100,37 @@ J_total_Z_middle = zeros(num_V+1,1);
 %Epsilons are defined at 1/2 integer points, so epsilons inside
 %the cells, not at cell boundaries
 %will use indexing: i + 1/2 is defined as i+1 for the index
-epsilon = zeros(num_cell+1, num_cell +1);
-for i = 1:num_cell+1
-    epsilon(i,:) = 3.0;
-end
+epsilon = 3.0*ones(num_cell+1, num_cell +1);
 
 % Define mobilities matrix (can be position dependent)
 %using indexing: i+1/2 is defined as i+1 for index, just like the epsilons
-p_mob = zeros(num_cell+1,num_cell+1);
-n_mob = zeros(num_cell+1,num_cell+1);
-for i = 1:num_cell+1
-    for j = 1:num_cell+1
-        p_mob(i,j) = 4.5*10^-6;
-        n_mob(i,j) = 4.5*10^-6;
-    end
-end
+p_mob = (4.5*10^-6)*ones(num_cell+2, num_cell+2);
+n_mob = p_mob;
 
 mobil = 5.*10^-6;                    %scaling for mobility (for numerical stability when solving matrix equations)
 
 p_mob = p_mob./mobil;
 n_mob = n_mob./mobil;
+
+%Pre-calculate the mobility averages 
+%using indexing: i+1/2 is defined as i+1 for index, just like the epsilons
+p_mob_avged.p_mob_X_avg = zeros(num_cell+1, num_cell+1);
+p_mob_avged.p_mob_Z_avg = zeros(num_cell+1, num_cell+1);
+
+n_mob_avged.n_mob_X_avg = zeros(num_cell+1, num_cell+1);
+n_mob_avged.n_mob_Z_avg = zeros(num_cell+1, num_cell+1);
+
+for j = 1:num_cell+1   %go extra +1 so matches size with Bernoulli fnc's which multiply by
+    for i = 1:num_cell+1
+        p_mob_avged.p_mob_X_avg(i,j) = (p_mob(i,j) + p_mob(i,j+1))./2.;     
+        p_mob_avged.p_mob_Z_avg(i,j) = (p_mob(i,j) + p_mob(i+1,j))./2.;
+        
+        n_mob_avged.n_mob_X_avg(i,j) = (n_mob(i,j) + n_mob(i,j+1))./2.;
+        n_mob_avged.n_mob_Z_avg(i,j) = (n_mob(i,j) + n_mob(i+1,j))./2.;
+    end
+end
+
+%--------------------------------------------------------------------------
 
 %Scaling coefficients
 Cp = dx^2/(Vt*N_dos*mobil);          %note: scaled p_mob and n_mob are inside matrices
@@ -238,8 +249,7 @@ for Va_cnt = 0:num_V +1
 %NOTE: USING bicgstab as default (w/o specifying a tolerance), results in BAD results!! 
 %NOTE: Poisson solve with bicgstab doesn't converge well at all! Residual
 %is 0.0037
-
-        
+ 
         if(iter >1)
             V = newV*w + oldV*(1.-w);
         else
@@ -275,17 +285,13 @@ for Va_cnt = 0:num_V +1
         %% Continuity equations solve
         Bernoulli_p_values = Calculate_Bernoullis_p(fullV);  %the values are returned as a struct
         Bernoulli_n_values = Calculate_Bernoullis_n(fullV);
-        Ap = SetAp_2D(p_mob, Bernoulli_p_values);           
-        An = SetAn_2D(n_mob, Bernoulli_n_values);
+        Ap = SetAp_2D(p_mob_avged, Bernoulli_p_values);           
+        An = SetAn_2D(n_mob_avged, Bernoulli_n_values);
         bp = Setbp_2D(Bernoulli_p_values, p_mob, Up);
         bn = Setbn_2D(Bernoulli_n_values, n_mob, Un);
-        
-        
-        %NOTE TO SEE THE WHOLE SPARSE MATRICES: use :
-        % full([name of sparse matrix])
-        
+
         oldp = p;
-         newp = Ap\bp;
+        newp = Ap\bp;
          
 %        newp = lsqr(Ap, bp, 10^-12, 1000);  %LSQR IS SUPER SLOW-->BAD
 %         [newp, ~] = qmr(Ap, bp, 10^-12, 1000);  %about 50% slower than
@@ -304,9 +310,9 @@ for Va_cnt = 0:num_V +1
 %         newp = U\(L\bp);
 
         oldn = n;
-        tic
+    
             newn = An\bn;
-            toc
+    
   %        [newn, ~] = bicgstab(An,bn, 10^-14, 1000);  %NOTE: using a lower tolerance, i..e 10^-14, makes this faster--> since more accuracy makes overall convergence of DD model faster
         %Note: seems 10^-14, is about the best level it can converge to
         %An*newn-bn   %see error

@@ -70,7 +70,7 @@ values3 = p_mob_Z_avg.*Bp_posZ;
 values_cut = zeros(N,N);  %preallocation is not neccessary  here, since
 % all the values are filled
 values_cut(1:N,1:N) = values1(2:N+1, 2:N+1) + values2(2+1:N+1+1, 2:N+1) + values3(2:N+1,2+1:N+1+1);
-Ap_val(1:N^2,3) = values_cut(:);
+Ap_val(1:N^3,4) = values_cut(:);
 
 
 % i = 1;
@@ -87,51 +87,38 @@ Ap_val(1:N^2,3) = values_cut(:);
 % end
 %--------------------------------------------------------------------------
 %main uppper diagonal: corresponds to V(i+1,j)
-values = -p_mob_X_avg.*Bp_negX;
-values_cut = zeros(N,N);
-values_cut(1:N-1, 1:N) = values(2+1:N+1, 2:N+1); %i+1+1
-
-Ap_val(2:N^2+1,4) = values_cut(:);
-
-% i = 1;
-% j = 1;
-% for index = 2:num_elements     %matlab fills this from the bottom (so i = 2 corresponds to 1st row in matrix)
-%     
-% %     if(i == 0)     
-% %         Ap_val(index,4) = 0;
-% %     else
-%     if (i > 0)
-%         Ap_val(index,4) = -((p_mob(i+1+1,j+1) + p_mob(i+1+1,j+1+1))/2.)*Bp_negX(i+1+1,j+1);
-%     end
-%     
-%     i=i+1;
-%     if (i > N-1)  %here are only N-1 elements per block and i starts from 1
-%         i = 0;
-%         j  = j+1;
-%     end
-%     
-% end
+i = 1;
+j = 1;
+for index = 2:num_elements     %matlab fills this from the bottom (so i = 2 corresponds to 1st row in matrix)
+    
+%     if(i == 0)     
+%         Ap_val(index,4) = 0;
+%     else
+    if (i > 0)
+        Ap_val(index,4) = -((p_mob(i+1+1,j+1) + p_mob(i+1+1,j+1+1))/2.)*Bp_negX(i+1+1,j+1);
+    end
+    
+    i=i+1;
+    if (i > N-1)  %here are only N-1 elements per block and i starts from 1
+        i = 0;
+        j  = j+1;
+    end
+    
+end
 %--------------------------------------------------------------------------
 %far upper diagonal: corresponds to V(i,j+1)
-values = -p_mob_Z_avg.*Bp_negZ;
-values_cut = zeros(N,N);
-values_cut(1:N, 1:N-1) = values(2:N+1, 2+1:N+1);  %2+1 b/c is j+1+1
-
-Ap_val(1+N:N^2+N, 5) = values_cut(:);
-
-
-% i = 1;
-% j = 1;
-% for index = 1+N:num_elements      %matlab fills from bottom, so this starts at 1+N (since 1st element is in the 2nd subblock of matrix) 
-%     Ap_val(index,5) = -((p_mob(i+1,j+1+1) + p_mob(i+1+1,j+1+1))/2.)*Bp_negZ(i+1,j+1+1);            %1st element corresponds to 1st row.   this has N^2 -N elements
-%     
-%     i = i+1;
-%     
-%     if (i > N)
-%         i = 1;
-%         j = j+1;
-%     end
-% end
+i = 1;
+j = 1;
+for index = 1+N:num_elements      %matlab fills from bottom, so this starts at 1+N (since 1st element is in the 2nd subblock of matrix) 
+    Ap_val(index,5) = -((p_mob(i+1,j+1+1) + p_mob(i+1+1,j+1+1))/2.)*Bp_negZ(i+1,j+1+1);            %1st element corresponds to 1st row.   this has N^2 -N elements
+    
+    i = i+1;
+    
+    if (i > N)
+        i = 1;
+        j = j+1;
+    end
+end
 %--------------------------------------------------------------------------
 %all not specified elements will remain zero, as they were initialized
 %above.

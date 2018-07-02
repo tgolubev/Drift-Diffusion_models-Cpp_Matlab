@@ -88,7 +88,7 @@ values2 = n_mob_X_avg.*Bn_negX;
 values3 = n_mob_Y_avg.*Bn_negY;
 values4 = n_mob_Z_avg.*Bn_negZ;
 
-% values_cut = zeros(N,N,N);  %preallocation is not neccessary  here, since
+values_cut = zeros(N,N,N);  %preallocation is not neccessary  here, since
 % all the values are filled
 values_cut(1:N,1:N,1:N) = values1(2:N+1, 2:N+1,2:N+1) + values2(2+1:N+1+1, 2:N+1,2:N+1) + values3(2:N+1,2+1:N+1+1,2:N+1) + values4(2:N+1,2:N+1,2+1:N+1+1);
 An_val(1:N^3,4) = values_cut(:);
@@ -107,11 +107,9 @@ An_val(1:N^3,4) = values_cut(:);
 %main uppper diagonal
 values = -n_mob_X_avg.*Bn_posX;
 values_cut = zeros(N,N,N);
-values_cut(1:N-1, 1:N,1:N) = values(2:N, 2:N+1, 2:N+1);
+values_cut(1:N-1, 1:N,1:N) = values(2+1:N+1, 2:N+1, 2:N+1); %i+1+1
 
 An_val(2:N^3+1,5) = values_cut(:);
-
-
 
 % index = 2;
 % for k = 1:N
@@ -128,7 +126,7 @@ An_val(2:N^3+1,5) = values_cut(:);
 %upper diagonal
 values = -n_mob_Y_avg.*Bn_posY;
 values_cut = zeros(N,N,N);
-values_cut(1:N, 1:N-1,1:N) = values(2:N+1, 2:N, 2:N+1);
+values_cut(1:N, 1:N-1,1:N) = values(2:N+1, 2+1:N+1, 2:N+1);  %note is j+1+1
 
 An_val(1+N:N^3+N, 6) = values_cut(:);
 
@@ -147,7 +145,7 @@ An_val(1+N:N^3+N, 6) = values_cut(:);
 %far upper diagonal
 values = -n_mob_Z_avg.*Bn_posZ;
 values_cut = zeros(N,N,N);
-values_cut(1:N, 1:N,1:N-1) = values(2:N+1, 2:N+1, 2:N);
+values_cut(1:N, 1:N,1:N-1) = values(2:N+1, 2:N+1, 2+1:N+1);  %2+1 b/c is k+1+1
 
 An_val(1+N*N:N^3+N^2,7) = values_cut(:);
 

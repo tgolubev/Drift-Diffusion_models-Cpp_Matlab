@@ -68,6 +68,7 @@ values = -p_mob_X_avg.*Bp_posX;
 values_cut = zeros(N, N, N); %again made i have N elements here, but fill to N-1--> to have the  0's in corners where need them
 values_cut(1:N-1,1:N,1:N) = values(2+1:N+1,2:N+1,2:N+1); 
 Ap_val(1:N^3, 3) = values_cut(:);
+
 % index = 1;
 % for k = 1:N
 %     for j = 1:N
@@ -85,7 +86,7 @@ values2 = p_mob_X_avg.*Bp_posX;  %these have +1+1 in some elements, so need to b
 values3 = p_mob_Y_avg.*Bp_posY;
 values4 = p_mob_Z_avg.*Bp_posZ;
 
-% values_cut = zeros(N,N,N);  %preallocation is not neccessary  here, since
+values_cut = zeros(N,N,N);  %preallocation is not neccessary  here, since
 % all the values are filled
 values_cut(1:N,1:N,1:N) = values1(2:N+1, 2:N+1,2:N+1) + values2(2+1:N+1+1, 2:N+1,2:N+1) + values3(2:N+1,2+1:N+1+1,2:N+1) + values4(2:N+1,2:N+1,2+1:N+1+1);
 Ap_val(1:N^3,4) = values_cut(:);
@@ -104,9 +105,10 @@ Ap_val(1:N^3,4) = values_cut(:);
 %main uppper diagonal
 values = -p_mob_X_avg.*Bp_negX;
 values_cut = zeros(N,N,N);
-values_cut(1:N-1, 1:N,1:N) = values(2:N, 2:N+1, 2:N+1);
+values_cut(1:N-1, 1:N,1:N) = values(2+1:N+1, 2:N+1, 2:N+1); %i+1+1
 
 Ap_val(2:N^3+1,5) = values_cut(:);
+
 % index = 2;
 % for k = 1:N
 %     for j = 1:N
@@ -122,7 +124,7 @@ Ap_val(2:N^3+1,5) = values_cut(:);
 %upper diagonal
 values = -p_mob_Y_avg.*Bp_negY;
 values_cut = zeros(N,N,N);
-values_cut(1:N, 1:N-1,1:N) = values(2:N+1, 2:N, 2:N+1);
+values_cut(1:N, 1:N-1,1:N) = values(2:N+1, 2+1:N+1, 2:N+1);  %note is j+1+1
 
 Ap_val(1+N:N^3+N, 6) = values_cut(:);
 % 
@@ -140,7 +142,7 @@ Ap_val(1+N:N^3+N, 6) = values_cut(:);
 %far upper diagonal
 values = -p_mob_Z_avg.*Bp_negZ;
 values_cut = zeros(N,N,N);
-values_cut(1:N, 1:N,1:N-1) = values(2:N+1, 2:N+1, 2:N);
+values_cut(1:N, 1:N,1:N-1) = values(2:N+1, 2:N+1, 2+1:N+1);  %2+1 b/c is k+1+1
 
 Ap_val(1+N*N:N^3+N^2,7) = values_cut(:);
 

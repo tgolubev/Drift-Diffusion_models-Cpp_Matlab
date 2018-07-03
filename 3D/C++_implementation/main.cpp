@@ -61,6 +61,7 @@
 #include<Eigen/SparseQR>
 #include <Eigen/OrderingMethods>
 #include<Eigen/SparseLU>
+#include <unsupported/Eigen/CXX11/Tensor>  //allows for 3D matrices (Tensors)
 
 #include "constants.h"        //these contain physics constants only
 #include "parameters.h"
@@ -83,7 +84,7 @@ int main()
     const int num_V = static_cast<int>(floor((params.Va_max-params.Va_min)/params.increment))+1;  //floor returns double, explicitely cast to int
     params.tolerance_eq = 100.*params.tolerance_i;
     const int N = params.num_cell -1;
-    const int num_rows = N*N;  //number of rows in the solution vectors (V, n, p)
+    const int num_rows = N*N*N;  //number of rows in the solution vectors (V, n, p)
     //NOTE: num_rows is the same as num_elements
 
     std::ofstream JV;
@@ -101,10 +102,10 @@ int main()
     Eigen::VectorXd soln_Xd(num_rows);  //vector for storing solutions to the  sparse solver (indexed from 0, so only num_rows size)
 
     //For the following, only need gen rate on insides, so N+1 size is enough
-    Eigen::MatrixXd Un_matrix = Eigen::MatrixXd::Zero(N+1,N+1);
-    Eigen::MatrixXd Up_matrix = Eigen::MatrixXd::Zero(N+1,N+1);
-    Eigen::MatrixXd R_Langevin(N+1,N+1), PhotogenRate(N+1,N+1);
-    Eigen::MatrixXd J_total_Z(num_cell+1, num_cell+1), J_total_X(num_cell+1, num_cell+1);                  //matrices for spacially dependent current
+    std::vector<double> Un(num_rows+1); //will store generation rate as vector, for easy use in rhs
+    std::vector<double> Up = Un;
+    Eigen::Tensor<double, 3> R_Langevin(N+1,N+1,N+1), PhotogenRate(N+1,N+1,N+1);
+    Eigen::Tensor<double, 3> J_total_Z(num_cell+1, num_cell+1, num_cell+1), J_total_X(num_cell+1, num_cell+1, num_cell+1), J_total_Y(num_cell+1, num_cell+1, num_cell+1);                  //matrices for spacially dependent current
 
     Eigen::SparseMatrix<double> input; //for feeding input matrix into BiCGSTAB, b/c it crashes if try to call get matrix from the solve call.
 
@@ -125,6 +126,8 @@ int main()
     Eigen::BiCGSTAB<Eigen::SparseMatrix<double>, Eigen::IncompleteLUT<double>> BiCGStab_solver;  //BiCGStab solver object
 
     Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::UpLoType::Lower|Eigen::UpLoType::Upper > cg;
+
+
 //--------------------------------------------------------------------------------------------
     //Define boundary conditions and initial conditions. Note: electrodes are at the top and bottom.
     double Va = 0;
@@ -140,20 +143,21 @@ int main()
     double diff = (poisson.get_V_topBC()[0] - poisson.get_V_bottomBC()[0])/num_cell;  //this is  calculated correctly
 
     int index = 0;
-    for (int j = 1; j <= N; j++) {//  %corresponds to z coord
+    for (int k = 1; k <= N; k++) {
         index++;
-        V[index] = poisson.get_V_bottomBC()[0] + diff*j;   //for now just  use 1 pt on bottom BC, since is uniform anyway
-        for (int i = 2; i <= N; i++) {//  %elements along the x direction assumed to have same V
+        V[index] = poisson.get_V_bottomBC()[0] + diff*k;   //for now just  use 1 pt on bottom BC, since is uniform anyway
+        for (int i = 2; i <= N*N; i++) {//  %elements along the x and y directions assumed to have same V
             index++;
             V[index] = V[index-1];
         }
     }
 
     //side BCs, insulating BC's
-    poisson.set_V_leftBC(V);
-    poisson.set_V_rightBC(V);
+    poisson.set_V_leftBC_X(V);
+    poisson.set_V_rightBC_X(V);
+    poisson.set_V_leftBC_Y(V);
+    poisson.set_V_rightBC_Y(V);
 
-    //-----------------------
     //Fill n and p with initial conditions (need for error calculation)
     double min_dense = std::min(continuity_n.get_n_bottomBC()[1], continuity_p.get_p_topBC()[1]);  //Note: the bc's along bottom and top are currently uniform, so index, doesn't really matter.
     for (int i = 1; i<= num_rows; i++) {
@@ -242,8 +246,10 @@ int main()
                 V = newV;
 
             //update side BC's and V_matrix
-            poisson.set_V_leftBC(V);
-            poisson.set_V_rightBC(V);
+            poisson.set_V_leftBC_X(V);
+            poisson.set_V_rightBC_X(V);
+            poisson.set_V_leftBC_Y(V);
+            poisson.set_V_rightBC_Y(V);
             poisson.to_matrix(V);
 
             //------------------------------Calculate Net Generation Rate----------------------------------------------------------
@@ -252,17 +258,15 @@ int main()
             //FOR NOW CAN USE 0 FOR R_Langevin
 
             if (Va_cnt > 0) {
-                for (int i = 1; i <= N; i++) {
-                    for (int j = 1; j <= N; j++) {
-                        Un_matrix(i,j) = params.Photogen_scaling;  //This is what was used in Matlab version for testing.   photogen.getPhotogenRate()(i,j); //- R_Langevin(i,j);
-                    }
+                for (int i = 1; i <= num_rows; i++) {
+                    Un[i] = params.Photogen_scaling;  //This is what was used in Matlab version for testing.   photogen.getPhotogenRate()(i,j); //- R_Langevin(i,j);
                 }
-                Up_matrix = Un_matrix;
+                Up = Un;
             }
 
             //--------------------------------Solve equations for n and p------------------------------------------------------------ 
 
-            continuity_n.setup_eqn(poisson.get_V_matrix(), Un_matrix, n);
+            continuity_n.setup_eqn(poisson.get_V_matrix(), Un, n);
             oldn = n;
 
             //std::chrono::high_resolution_clock::time_point start2 = std::chrono::high_resolution_clock::now();  //start clock timer
@@ -296,7 +300,7 @@ int main()
             }
 
             //-------------------------------------------------------
-            continuity_p.setup_eqn(poisson.get_V_matrix(), Up_matrix, p);
+            continuity_p.setup_eqn(poisson.get_V_matrix(), Up, p);
             //std::cout << continuity_p.get_sp_matrix() << std::endl;   //Note: get rhs, returns an Eigen VectorXd
             oldp = p;
 /*
@@ -354,10 +358,15 @@ int main()
             //Apply side continuity equation  BC's
             //WE ARE UPDATING BC'S here b/c we need them for setting up the n and p matrices below
             //Bc's are also updated when setup continuity eqn.
-            continuity_n.set_n_leftBC(n);
-            continuity_n.set_n_rightBC(n);
-            continuity_p.set_p_leftBC(p);
-            continuity_p.set_p_rightBC(p);
+            continuity_n.set_n_leftBC_X(n);  //this sets both x and y left BC's
+            continuity_n.set_n_rightBC_X(n);
+            continuity_n.set_n_leftBC_Y(n);  //this sets both x and y left BC's
+            continuity_n.set_n_rightBC_Y(n);
+
+            continuity_p.set_p_leftBC_X(p);
+            continuity_p.set_p_rightBC_X(p);
+            continuity_p.set_p_leftBC_Y(p);
+            continuity_p.set_p_rightBC_Y(p);
             //note: top and bottom BC's don't need to be changed for now, since assumed to be constant... (they are set when initialize continuity objects)
 
             //Convert the n and p to n_matrix and p_matrix
@@ -377,6 +386,7 @@ int main()
 
         J_total_Z = continuity_p.get_Jp_Z() + continuity_n.get_Jn_Z();
         J_total_X = continuity_p.get_Jp_X() + continuity_n.get_Jn_X();
+        J_total_Y = continuity_p.get_Jp_Y() + continuity_n.get_Jn_Y();
 
         //---------------------Write to file----------------------------------------------------------------
         utils.write_details(params, Va, poisson.get_V_matrix(), continuity_p.get_p_matrix(), continuity_n.get_n_matrix(), J_total_Z, Un_matrix);

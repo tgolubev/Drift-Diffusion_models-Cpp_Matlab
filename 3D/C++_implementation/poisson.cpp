@@ -17,10 +17,12 @@ Poisson::Poisson(const Parameters &params)
     far_upper_diag.resize(num_elements-N+1);
     rhs.resize(num_elements+1);  //+1 b/c I am filling from index 1
 
-    V_leftBC.resize(num_cell+1);
-    V_rightBC.resize(num_cell+1);
-    V_bottomBC.resize(num_cell+1);
-    V_topBC.resize(num_cell+1);
+    V_bottomBC.resize(num_cell+1, num_cell+1);
+    V_topBC.resize(num_cell+1, num_cell+1);
+    V_leftBC_X.resize(num_cell+1, num_cell+1);
+    V_rightBC_X.resize(num_cell+1, num_cell+1);
+    V_leftBC_Y.resize(num_cell+1, num_cell+1);
+    V_rightBC_Y.resize(num_cell+1, num_cell+1);
 
     //MUST FILL WITH THE VALUES OF EPSILON!!  WILL NEED TO MODIFY THIS WHEN HAVE SPACE VARYING EPSILON
     epsilon =  params.eps_active*Eigen::MatrixXd::Ones(num_cell+1, num_cell+1);  //can fill with constant epsilon, like this!
@@ -37,28 +39,66 @@ Poisson::Poisson(const Parameters &params)
 
 void Poisson::set_V_topBC(const Parameters &params, double Va)
 {
-    for (int i = 0; i <= num_cell; i++)
-        V_topBC[i] = (params.Vbi-Va)/(2*Vt) - params.phi_c/Vt;
+    for (int j = 0; j <= num_cell; j++) {
+        for (int i = 0; i <= num_cell; i++) {
+            V_topBC(i,j) = (params.Vbi-Va)/(2*Vt) - params.phi_c/Vt;
+        }
+    }
 }
 
 void Poisson::set_V_bottomBC(const Parameters &params, double Va)
 {
-    for (int i = 0; i <= num_cell; i++)
-        V_bottomBC[i] = -((params.Vbi-Va)/(2*Vt) - params.phi_a/Vt);
+    for (int j = 0; j <= num_cell; j++) {
+        for (int i = 0; i <= num_cell; i++) {
+            V_bottomBC(i,j) = -((params.Vbi-Va)/(2*Vt) - params.phi_a/Vt);
+        }
+    }
 }
 
-void Poisson::set_V_leftBC(const std::vector<double> &V)
+void Poisson::set_V_leftBC_X(const std::vector<double> &V)
 {
-    for (int i = 1; i <= N; i++)
-        V_leftBC[i] = V[(i-1)*N + 1];
-
+    int index = 0;
+    for (int k = 1; k <= N; k++) {
+        for (int j = 1; j <= N; j++) {
+            V_leftBC_X(j,k) = V[index + (j-1)*N + 1];
+        }
+        index = index+N*N;  //brings us to next vertical subblock set
+    }
 }
 
-void Poisson::set_V_rightBC(const std::vector<double> &V)
+void Poisson::set_V_rightBC_X(const std::vector<double> &V)
 {
-    for (int i = 1; i <= N; i++)
-        V_rightBC[i] = V[i*N];
+    int index = 0;
+    for (int k = 1; k <= N; k++) {
+        for (int j = 1; j <= N; j++) {
+            V_rightBC_X(j,k) = V[index + j*N];
+        }
+        index = index+N*N;  //brings us to next vertical subblock set
+    }
 }
+
+void Poisson::set_V_leftBC_Y(const std::vector<double> &V)
+{
+    int index = 0;
+    for (int k = 1; k <= N; k++) {
+        for (int i = 1; i <= N; i++) {
+            V_leftBC_Y(i, k) = V[index + i];
+        }
+        index = index + N*N;
+    }
+}
+
+void Poisson::set_V_rightBC_Y(const std::vector<double> &V)
+{
+    int index = 0;
+    for (int k = 1; k <= N; k++) {
+        for (int i = 1; i <= N; i++) {
+            V_rightBC_Y(i, k) = V[index + i + N*N - N];
+        }
+        index = index + N*N;
+    }
+}
+
 
 
 void Poisson::setup_matrix()  //Note: this is on purpose different than the setup_eqn used for Continuity eqn's, b/c I need to setup matrix only once

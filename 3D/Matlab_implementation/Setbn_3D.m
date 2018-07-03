@@ -119,7 +119,7 @@ for k = 1:N
                 for i = 1:N
                     index = index +1;
                     if (i==1)
-                        bn(index,1) = bn(index,1) + n_mob(0+1, j+1, k+1)*n_leftBC_x(j,k)*Bn_negX(i+1,j+1,k+1) ;
+                        bn(index,1) = bn(index,1) + n_mob(0+1, j+1, k+1)*n_leftBC_x(j,k)*Bn_negX(i+1,j+1,k+1);
                     elseif (i==N)
                         bn(index,1) = bn(index,1) + n_mob(N+1+1, j+1, k+1)*n_rightBC_x(j,k)*Bn_posX(i+1+1,j+1,k+1);
                     end

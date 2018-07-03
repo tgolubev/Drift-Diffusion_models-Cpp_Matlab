@@ -46,7 +46,7 @@ Vt = (kb*T)/q;
 
 %Voltage sweep loop
 Va_min = -0.5;            %volts
-Va_max = -0.45;
+Va_max = -0.49;
 increment = 0.01;         %by which to increase V
 num_V = floor((Va_max-Va_min)/increment)+1;   %number of V points
 
@@ -71,7 +71,7 @@ N_dos = 10^24.;       %scaling factor helps CV be on order of 1
 
 %injection barriers
 inj_a = 0.2;	%at anode
-inj_c = 0.2;	%at cathode
+inj_c = 0.1;	%at cathode
 
 %work functions of anode and cathode
 WF_anode = 4.8;

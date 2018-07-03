@@ -38,7 +38,7 @@ struct Parameters   //parameters need to be accessble, so all members are public
 
     double tolerance_i, w_i, w_eq;
     double L;
-    int num_cell, num_elements;  //num_elements = (num_cell-1)^2
+    int num_cell, num_elements;  //num_elements = (num_cell-1)^3
     std::string GenRateFileName;
     double Va_min, Va_max, increment;
     double Vbi;

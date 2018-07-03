@@ -233,7 +233,7 @@ end
 
 % Set up Poisson matrix equation
 AV = SetAV_3D(epsilon);
-% [L,U] = lu(AV);  %do and LU factorization here--> since Poisson matrix doesn't change
+[L,U] = lu(AV);  %do and LU factorization here--> since Poisson matrix doesn't change
 %this will significantly speed up backslash, on LU factorized matrix
 %spy(AV);  %allows to see matrix structure, very useful!
 
@@ -281,9 +281,9 @@ for Va_cnt = 0:num_V +1
         %solve for V
         oldV = V;
 
-%            newV = U\(L\bV);  %much faster to solve pre-factorized matrix. Not applicable to cont. eqn. b/c matrices keep changing.
+            newV = U\(L\bV);  %much faster to solve pre-factorized matrix. Not applicable to cont. eqn. b/c matrices keep changing.
 %          newV = AV\bV;
-   [newV,~] = bicgstab(AV,bV, 10^-14, 1000);  %last specification is max iters. 
+%    [newV,~] = bicgstab(AV,bV, 10^-14, 1000);  %last specification is max iters. 
   %This is fastest for larger systems (i.e. 30x30x30)
 %NOTE: USING bicgstab as default (w/o specifying a tolerance), results in BAD results!! 
 

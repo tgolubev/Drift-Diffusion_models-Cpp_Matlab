@@ -73,7 +73,7 @@ void Parameters::Initialize()
         exit(1);
     }
 
-    num_elements = (num_cell-1)*(num_cell-1);
+    num_elements = (num_cell-1)*(num_cell-1)*(num_cell-1);
     Vbi = WF_anode - WF_cathode +phi_a +phi_c;
 
 }

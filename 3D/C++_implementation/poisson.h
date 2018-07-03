@@ -7,6 +7,7 @@
 #include <Eigen/SparseCholesky>
 #include<Eigen/SparseQR>
 #include <Eigen/OrderingMethods>
+#include <unsupported/Eigen/CXX11/Tensor>
 
 #include "parameters.h"  //needs this to know what paramsation is
 #include "constants.h"
@@ -22,7 +23,7 @@ public:
 
     //!Setup the right hand side of Poisson equation. This depends on the electron density \param n_matrix,
     //! hole density \param p_matrix, and left and right boundary conditions \param V_leftBC and \param V_rightBC
-    void set_rhs(const Eigen::MatrixXd &n_matrix, const Eigen::MatrixXd &p_matrix);
+    void set_rhs(const Eigen::Tensor<double, 3> &n_matrix, const Eigen::Tensor<double, 3> &p_matrix);
 
     void Poisson::to_matrix(const std::vector<double> &V);
 
@@ -30,15 +31,17 @@ public:
     //for left and right BC's, will use input from the n matrix to determine
     void set_V_topBC(const Parameters &params, double Va);  //need applied voltage input, to know what the BC's are
     void set_V_bottomBC(const Parameters &params, double Va);
-    void set_V_leftBC(const std::vector<double> &V);
-    void set_V_rightBC(const std::vector<double> &V);
+    void set_V_leftBC_X(const std::vector<double> &V);
+    void set_V_rightBC_X(const std::vector<double> &V);
+    void set_V_leftBC_Y(const std::vector<double> &V);
+    void set_V_rightBC_Y(const std::vector<double> &V);
 
     //getters
     Eigen::VectorXd get_rhs() const {return VecXd_rhs;}  //returns the Eigen object
     Eigen::SparseMatrix<double> get_sp_matrix() const {return sp_matrix;}
-    std::vector<double> get_V_topBC() const {return V_topBC;}    //top and bottom  bc getters are needed to determine initial V
-    std::vector<double> get_V_bottomBC() const {return V_bottomBC;}
-    Eigen::MatrixXd get_V_matrix() const {return V_matrix;}
+    Eigen::MatrixXd get_V_topBC() const {return V_topBC;}    //top and bottom  bc getters are needed to determine initial V
+    Eigen::MatrixXd get_V_bottomBC() const {return V_bottomBC;}
+    Eigen::Tensor<double, 3> get_V_matrix() const {return V_matrix;}
 
     //The below getters can be useful for testing and debugging
     //std::vector<double> get_main_diag() const {return main_diag;}
@@ -57,26 +60,30 @@ private:
 
     void set_far_lower_diag();
     void set_lower_diag();
+    void set_main_lower_diag();
     void set_main_diag();
+    void set_main_upper_diag();
     void set_upper_diag();
     void set_far_upper_diag();
 
     std::vector<double> far_lower_diag;
-    std::vector<double> lower_diag;
-    std::vector<double> main_diag;
-    std::vector<double> upper_diag;
     std::vector<double> far_upper_diag;
+    std::vector<double> main_lower_diag;
+    std::vector<double> main_diag;
+    std::vector<double> main_upper_diag;
+    std::vector<double> upper_diag;
+    std::vector<double> lower_diag;
     std::vector<double> rhs;
     Eigen::VectorXd VecXd_rhs;  //rhs in Eigen object vector form, for sparse matrix solver
     Eigen::SparseMatrix<double> sp_matrix;
-    Eigen::MatrixXd V_matrix;
-    Eigen::MatrixXd netcharge;
+    Eigen::Tensor<double, 3> V_matrix;
+    Eigen::Tensor<double, 3> netcharge;
 
     //Boundary conditions
-    std::vector<double> V_leftBC, V_rightBC, V_bottomBC, V_topBC;
+    Eigen::MatrixXd V_leftBC_X, V_rightBC_X, V_leftBC_Y, V_rightBC_Y, V_bottomBC, V_topBC;
 
     //!This matrix stores the possibly position-dependent relative dielectric constant.
-    Eigen::MatrixXd epsilon;
+    Eigen::Tensor<double, 3> epsilon;
 
 };
 

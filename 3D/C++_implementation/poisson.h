@@ -14,6 +14,9 @@
 
 class Poisson
 {
+
+typedef Eigen::Triplet<double> Trp;
+
 public:
     Poisson(const Parameters &params);
 
@@ -21,9 +24,9 @@ public:
     //! since it only depends on dielectric constant, so this function should be called only once.
     void setup_matrix();
 
-    //!Setup the right hand side of Poisson equation. This depends on the electron density \param n_matrix,
-    //! hole density \param p_matrix, and left and right boundary conditions \param V_leftBC and \param V_rightBC
-    void set_rhs(const Eigen::Tensor<double, 3> &n_matrix, const Eigen::Tensor<double, 3> &p_matrix);
+    //!Setup the right hand side of Poisson equation. This depends on the electron density \param n,
+    //! hole density \param p, and left and right boundary conditions \param V_leftBC and \param V_rightBC
+    void set_rhs(const std::vector<double> &n, const std::vector<double> &p);
 
     void Poisson::to_matrix(const std::vector<double> &V);
 
@@ -79,11 +82,14 @@ private:
     Eigen::Tensor<double, 3> V_matrix;
     Eigen::Tensor<double, 3> netcharge;
 
+    std::vector<Trp> triplet_list;
+    int trp_cnt;  //for counting the triplets
+
     //Boundary conditions
     Eigen::MatrixXd V_leftBC_X, V_rightBC_X, V_leftBC_Y, V_rightBC_Y, V_bottomBC, V_topBC;
 
     //!This matrix stores the possibly position-dependent relative dielectric constant.
-    Eigen::Tensor<double, 3> epsilon;
+    Eigen::Tensor<double, 3> epsilon, epsilon_avg_X, epsilon_avg_Y, epsilon_avg_Z;
 
 };
 

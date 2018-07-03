@@ -159,7 +159,8 @@ int main()
     poisson.set_V_rightBC_Y(V);
 
     //Fill n and p with initial conditions (need for error calculation)
-    double min_dense = std::min(continuity_n.get_n_bottomBC()[1], continuity_p.get_p_topBC()[1]);  //Note: the bc's along bottom and top are currently uniform, so index, doesn't really matter.
+    double min_dense = continuity_n.get_n_bottomBC(1,1) < continuity_p.get_p_topBC(1,1) ? continuity_n.get_n_bottomBC(1,1):continuity_p.get_p_topBC(1,1);  //this should be same as std::min  fnc which doesn't work for some reason
+    //double min_dense = std::min (continuity_n.get_n_bottomBC(1,1), continuity_p.get_p_topBC(1,1));  //Note: I defined the get fnc to take as arguments the i,j values... //Note: the bc's along bottom and top are currently uniform, so index, doesn't really matter.
     for (int i = 1; i<= num_rows; i++) {
         n[i] = min_dense;
         p[i] = min_dense;
@@ -211,7 +212,7 @@ int main()
             //std::cout << "Va " << Va <<std::endl;
 
             //-----------------Solve Poisson Equation------------------------------------------------------------------     
-            poisson.set_rhs(continuity_n.get_n_matrix(), continuity_p.get_p_matrix());  //this finds netcharge and sets rhs
+            poisson.set_rhs(n, p);  //this finds netcharge and sets rhs
             //std::cout << poisson.get_sp_matrix() << std::endl;
             oldV = V;
 
@@ -389,7 +390,7 @@ int main()
         J_total_Y = continuity_p.get_Jp_Y() + continuity_n.get_Jn_Y();
 
         //---------------------Write to file----------------------------------------------------------------
-        utils.write_details(params, Va, poisson.get_V_matrix(), continuity_p.get_p_matrix(), continuity_n.get_n_matrix(), J_total_Z, Un_matrix);
+        utils.write_details(params, Va, poisson.get_V_matrix(), p, n, J_total_Z, Un);
         if(Va_cnt >0) utils.write_JV(params, JV, iter, Va, J_total_Z);
 
 

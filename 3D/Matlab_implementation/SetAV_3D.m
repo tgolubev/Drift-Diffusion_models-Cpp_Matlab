@@ -34,7 +34,7 @@ j = 2;
 k = 1;
 for index = 1:N^3 - N       
     if (j > 1)
-        AV_val(index,2) = -(epsilon(i+1,j+1, k+1) + epsilon(i+1+1, j+1, k+1) + epsilon(i+1, j+1+1, k+1) + epsilon(i+1+1, j+1+1, k+1))/4.;
+        AV_val(index,2) = -(epsilon(i+1,j+1, k+1) + epsilon(i+1+1, j+1, k+1) + epsilon(i+1, j+1+1, k+1) + epsilon(i+1+1, j+1+1, k+1))/4.;  %THIS IS WRONG!
     end
     
     i = i+1;

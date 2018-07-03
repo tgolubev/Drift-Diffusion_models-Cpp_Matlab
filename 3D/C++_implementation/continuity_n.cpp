@@ -44,6 +44,9 @@ Continuity_n::Continuity_n(const Parameters &params)
    //------------------------------------------------------------------------------------------
    // //MUST FILL WITH THE VALUES OF n_mob!!  WILL NEED TO MODIFY THIS WHEN HAVE SPACE VARYING
    n_mob = Eigen::Tensor<double, 3> (num_cell+2, num_cell+2, num_cell+2);
+   n_mob_avg_X = Eigen::Tensor<double, 3> (num_cell+2, num_cell+2, num_cell+2);
+   n_mob_avg_Y = Eigen::Tensor<double, 3> (num_cell+2, num_cell+2, num_cell+2);
+   n_mob_avg_Z = Eigen::Tensor<double, 3> (num_cell+2, num_cell+2, num_cell+2);
    n_mob.setConstant(params.n_mob_active/params.mobil);
 
    //Compute averaged mobilities
@@ -487,7 +490,8 @@ void Continuity_n::Bernoulli_n_Z(const Eigen::Tensor<double, 3> &V_matrix)
 }
 
 //----------------------------------
-
+//I THINK I DON'T NEED THIS ANYWHERE EXCEPT FOR WRITING TO FILE--> so move this conversion to utilities write to file function.
+/*
 void Continuity_n::to_matrix(const std::vector<double> &n)
 {
     for (int index = 1; index <= num_elements; index++) {
@@ -508,6 +512,7 @@ void Continuity_n::to_matrix(const std::vector<double> &n)
     }
 
 }
+*/
 
 void Continuity_n::calculate_currents()
 {

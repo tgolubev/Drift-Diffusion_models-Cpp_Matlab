@@ -41,6 +41,9 @@ Continuity_p::Continuity_p(const Parameters &params)
     //------------------------------------------------------------------------------------------
     //MUST FILL WITH THE VALUES OF p_mob!!  WILL NEED TO MODIFY THIS WHEN HAVE SPACE VARYING
     p_mob = Eigen::Tensor<double, 3> (num_cell+2, num_cell+2, num_cell+2);
+    p_mob_avg_X = Eigen::Tensor<double, 3> (num_cell+2, num_cell+2, num_cell+2);
+    p_mob_avg_Y = Eigen::Tensor<double, 3> (num_cell+2, num_cell+2, num_cell+2);
+    p_mob_avg_Z = Eigen::Tensor<double, 3> (num_cell+2, num_cell+2, num_cell+2);
     p_mob.setConstant(params.p_mob_active/params.mobil);
 
     //Compute averaged mobilities
@@ -477,6 +480,8 @@ void Continuity_p::set_rhs(const std::vector<double> &Up)
 }
 
 //----------------------------------------------
+//I THINK I DON'T NEED THIS ANYWHERE EXCEPT FOR WRITING TO FILE--> so move this conversion to utilities write to file function.
+/*
 void Continuity_p::to_matrix(const std::vector<double> &p)
 {
     for (int index = 1; index <= num_elements; index++) {
@@ -497,6 +502,7 @@ void Continuity_p::to_matrix(const std::vector<double> &p)
     }
 
 }
+*/
 
 
 void Continuity_p::calculate_currents()

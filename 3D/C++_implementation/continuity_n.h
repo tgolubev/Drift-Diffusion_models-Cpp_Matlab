@@ -28,7 +28,7 @@ public:
 
     void calculate_currents();
 
-   void Continuity_n::to_matrix(const std::vector<double> &n);
+    void Continuity_n::to_matrix(const std::vector<double> &n);
 
     //setters for BC's:
     //for left and right BC's, will use input from the n matrix to determine
@@ -43,8 +43,8 @@ public:
     Eigen::VectorXd get_rhs() const {return VecXd_rhs;}  //returns the Eigen object
     Eigen::SparseMatrix<double> get_sp_matrix() {return sp_matrix;}
     Eigen::Tensor<double, 3> get_n_matrix() const {return n_matrix;}
-    Eigen::MatrixXd get_n_bottomBC() const {return n_bottomBC;}  //bottom and top are needed to set initial conditions
-    Eigen::MatrixXd get_n_topBC() const {return n_topBC;}
+    double get_n_bottomBC(int i, int j) const {return n_bottomBC(i,j);}  //bottom and top are needed to set initial conditions
+    double get_n_topBC(int i, int j) const {return n_topBC(i,j);}
 
     Eigen::Tensor<double, 3> get_Jn_X() const {return Jn_X;}
     Eigen::Tensor<double, 3> get_Jn_Y() const {return Jn_Y;}

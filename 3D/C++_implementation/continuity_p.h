@@ -43,8 +43,8 @@ public:
     Eigen::VectorXd get_rhs() const {return VecXd_rhs;}  //returns the Eigen object
     Eigen::SparseMatrix<double> get_sp_matrix() const {return sp_matrix;}
     Eigen::Tensor<double, 3> get_p_matrix() const {return p_matrix;}
-    Eigen::MatrixXd get_p_topBC() const {return p_topBC;} //bottom and top are needed to set initial conditions
-    Eigen::MatrixXd get_p_bottomBC() const {return p_bottomBC;}
+    double get_p_bottomBC(int i, int j) const {return p_bottomBC(i,j);}  //bottom and top are needed to set initial conditions
+    double get_p_topBC(int i, int j) const {return p_topBC(i,j);}
 
     Eigen::Tensor<double, 3> get_Jp_X() const {return Jp_X;}
     Eigen::Tensor<double, 3> get_Jp_Y() const {return Jp_Y;}

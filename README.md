@@ -1,7 +1,6 @@
 # Drift-Diffusion_models
 
-The Drift-Diffusion folder contains codes which solve the semiconductor Poisson-Drift-Diffusion equations for both 1 carrier and 2 carriers (electrons and holes).
-Scharfetter Gummel discretization is used.
+Here are 1D, 2D, and 3D models which solve the semiconductor Poisson-Drift-Diffusion equations using finite-differences. These models can be used to model most semiconductor devices. The models currently solve for the current-voltage curve and charge densities for a solar cell under illumination but they can be easily modified to solve other systems (i.e. through changing the boundary conditions). 
 
-The Mott-Gurney_law folder solves the same system in the high field limit where the diffusion term is neglected using the 
-5th order weighted essentially nonoscillatory method (WENO5). The WENO5 code was adapted from codes by Manuel Diaz for solving 1D wave equation.
+The equations are solved using the self-consistent iterative approach called the Gummel method. In order to ensure numerical stability for the continuity equations, Scharfetter Gummel discretization is used.
+

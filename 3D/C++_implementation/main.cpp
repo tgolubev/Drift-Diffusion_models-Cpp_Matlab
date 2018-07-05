@@ -140,12 +140,12 @@ int main()
        //diff[x] = (poisson.get_V_topBC()[x] - poisson.get_V_bottomBC()[x])/num_cell;    //note, the difference can be different at different x values..., diff is in Z directiont
 
     //for now assume diff is constant everywhere...
-    double diff = (poisson.get_V_topBC()[0] - poisson.get_V_bottomBC()[0])/num_cell;  //this is  calculated correctly
+    double diff = (poisson.get_V_topBC(0,0) - poisson.get_V_bottomBC(0,0))/num_cell;  //this is  calculated correctly
 
     int index = 0;
     for (int k = 1; k <= N; k++) {
         index++;
-        V[index] = poisson.get_V_bottomBC()[0] + diff*k;   //for now just  use 1 pt on bottom BC, since is uniform anyway
+        V[index] = poisson.get_V_bottomBC(0,0) + diff*k;   //for now just  use 1 pt on bottom BC, since is uniform anyway
         for (int i = 2; i <= N*N; i++) {//  %elements along the x and y directions assumed to have same V
             index++;
             V[index] = V[index-1];

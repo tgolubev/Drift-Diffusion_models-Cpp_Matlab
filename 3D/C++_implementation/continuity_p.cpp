@@ -8,10 +8,10 @@ Continuity_p::Continuity_p(const Parameters &params)
     p_matrix = Eigen::MatrixXd::Zero(num_cell+1, num_cell+1);
 
     main_diag.resize(num_elements+1);
-    upper_diag.resize(num_elements);
-    lower_diag.resize(num_elements);
-    far_lower_diag.resize(num_elements-N+1);
-    far_upper_diag.resize(num_elements-N+1);
+    upper_diag.resize(num_elements+1);
+    lower_diag.resize(num_elements+1);
+    far_lower_diag.resize(num_elements+1);
+    far_upper_diag.resize(num_elements+1);
     rhs.resize(num_elements+1);  //+1 b/c I am filling from index 1
 
     Bp_posX = Eigen::Tensor<double, 3> (num_cell+1, num_cell+1, num_cell+1);

@@ -13,10 +13,10 @@ Poisson::Poisson(const Parameters &params)
     netcharge.setZero();
 
     main_diag.resize(num_elements+1);
-    upper_diag.resize(num_elements);
-    lower_diag.resize(num_elements);
-    far_lower_diag.resize(num_elements-N+1);
-    far_upper_diag.resize(num_elements-N+1);
+    upper_diag.resize(num_elements+1);
+    lower_diag.resize(num_elements+1);
+    far_lower_diag.resize(num_elements+1);
+    far_upper_diag.resize(num_elements+1);
     rhs.resize(num_elements+1);  //+1 b/c I am filling from index 1
 
     V_bottomBC.resize(num_cell+1, num_cell+1);

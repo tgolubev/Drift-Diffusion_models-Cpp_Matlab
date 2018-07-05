@@ -42,8 +42,8 @@ public:
     //getters
     Eigen::VectorXd get_rhs() const {return VecXd_rhs;}  //returns the Eigen object
     Eigen::SparseMatrix<double> get_sp_matrix() const {return sp_matrix;}
-    Eigen::MatrixXd get_V_topBC() const {return V_topBC;}    //top and bottom  bc getters are needed to determine initial V
-    Eigen::MatrixXd get_V_bottomBC() const {return V_bottomBC;}
+    double get_V_topBC(int i, int j) const {return V_topBC(i,j);}    //top and bottom  bc getters are needed to determine initial V
+    double get_V_bottomBC(int i, int j) const {return V_bottomBC(i,j);}
     Eigen::Tensor<double, 3> get_V_matrix() const {return V_matrix;}
 
     //The below getters can be useful for testing and debugging

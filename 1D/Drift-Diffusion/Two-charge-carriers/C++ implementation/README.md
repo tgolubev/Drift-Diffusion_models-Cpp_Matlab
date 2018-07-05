@@ -15,7 +15,7 @@ Code can be compiled using the makefile or the QT Creator .pro project file (jus
 
 Version History:
 
-Current version 2.0 (under development). Main changes
+Current version 2.0. Main changes
     - object orientation
     - parameter input from file
 

@@ -65,7 +65,7 @@ mobil = 5.*10^-6;                    %scaling for mobility (for numerical stabil
 
 %% JV sweep parameters
 Va_min = -0.5;               %volts
-Va_max = 1.0;
+Va_max = -0.45;
 increment = 0.01;         %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;   %number of V points
 
@@ -259,24 +259,12 @@ for Va_cnt = 0:num_V +1
         p = newp*w + old_p*(1.-w);
         n = newn*w + old_n*(1.-w);
         
-        V
-        
-        bV
-%         newp
-        
-%         Bp
-       
-        
         %unscale mobilities
         p_mob = p_mob*mobil;
         n_mob = n_mob*mobil;
         
         p_full = [p_full(1), p, p_full(num_cell+1)]; %bndrys already defined above
         n_full = [n_full(1), n, n_full(num_cell+1)];
-        
-     if (iter >1)
-         stop
-     end
      
       iter =  iter+1
        

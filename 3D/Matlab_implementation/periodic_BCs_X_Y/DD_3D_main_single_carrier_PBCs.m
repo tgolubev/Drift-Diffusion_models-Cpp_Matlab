@@ -59,7 +59,7 @@ tolerance = 5*10^-12;        %error tolerance
 tolerance_i =  5*10^-12;     %initial error tolerance, will be increased if can't converge to this level
 
 %% System Setup
-L = 30.0000001e-9;     %there's some integer rounding issue, so use this .0000001
+L = 10.0000001e-9;     %there's some integer rounding issue, so use this .0000001
 dx = 1e-9;                        %mesh size
 num_cell = floor(L/dx);
 N = num_cell -1;       %number of INTERIOR mesh points (total mesh pts = num_cell +1 b/c matlab indixes from 1)
@@ -365,7 +365,7 @@ for Va_cnt = 0:num_V +1
                 error_np_matrix(count) = (abs(newp(i)-oldp(i)))./abs(oldp(i));  %need the dot slash, otherwise it tries to do matrix operation! %ERROR SHOULD BE CALCULATED BEFORE WEIGHTING
             end
         end
-        error_np = max(error_np_matrix);
+        error_np = max(error_np_matrix)
         
         %auto decrease w if not converging
         if(error_np>= old_error)

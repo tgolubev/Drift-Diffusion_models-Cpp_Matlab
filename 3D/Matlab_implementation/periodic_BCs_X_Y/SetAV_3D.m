@@ -52,7 +52,7 @@ AV_val(1:num_elements, 4) = values_cut(:);  %is N^3 lenght, but the last block w
 %--------------------------------------------------------------------------
 %main lower diagonal (below main diagonal)
 values_cut = zeros(N+1, N+1, N); 
-values_cut(1:N+1,1:N+1,1:N-1) = -eps_Z_avg(2:N+1+1,2:N+1+1,2:N);  
+values_cut(1:N+1,1:N+1,1:N-1) = -eps_Z_avg(2:N+1+1,2:N+1+1,2+1:N+1);  
 values_cut = permute(values_cut, [3 2 1]);
 AV_val(1:num_elements, 5) = values_cut(:); 
 

@@ -68,7 +68,7 @@ Ap_val(1:num_elements, 4) = values_cut(:);  %is N^3 lenght, but the last block w
 %main lower diagonal (below main diagonal)
 values = -p_mob_Z_avg.*Bp_posZ;
 values_cut = zeros(N+1, N+1, N); 
-values_cut(1:N+1,1:N+1,1:N-1) = values(2:N+1+1,2:N+1+1,2:N);  
+values_cut(1:N+1,1:N+1,1:N-1) = values(2:N+1+1,2:N+1+1,2+1:N+1);  
 values_cut = permute(values_cut, [3 2 1]);
 Ap_val(1:num_elements, 5) = values_cut(:); 
 

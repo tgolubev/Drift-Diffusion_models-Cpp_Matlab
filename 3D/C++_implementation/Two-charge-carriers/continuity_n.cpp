@@ -518,8 +518,11 @@ void Continuity_n::calculate_currents()
 {
     for (int i = 1; i < num_cell; i++) {
         for (int j = 1; j < num_cell; j++) {
-            Jn_Z(i,j) =  J_coeff * n_mob(i,j) * (n_matrix(i,j)*Bn_posZ(i,j) - n_matrix(i,j-1)*Bn_negZ(i,j));
-            Jn_X(i,j) =  J_coeff * n_mob(i,j) * (n_matrix(i,j)*Bn_posX(i,j) - n_matrix(i-1,j)*Bn_negX(i,j));
+            for (int k = 1; k < num_cell; k++) {
+            Jn_Z(i,j,k) =  J_coeff * n_mob(i,j,k) * (n_matrix(i,j,k)*Bn_posZ(i,j,k) - n_matrix(i,j,k-1)*Bn_negZ(i,j,k));
+            Jn_X(i,j,k) =  J_coeff * n_mob(i,j,k) * (n_matrix(i,j,k)*Bn_posX(i,j,k) - n_matrix(i-1,j,k)*Bn_negX(i,j,k));
+            Jn_Y(i,j,k) =  J_coeff * n_mob(i,j,k) * (n_matrix(i,j,k)*Bn_posY(i,j,k) - n_matrix(i,j-1,k)*Bn_negY(i,j,k));
+            }
         }
     }
 }

@@ -5,7 +5,7 @@ Continuity_p::Continuity_p(const Parameters &params)
     num_elements = params.num_elements;
     N = params.num_cell - 1;
     num_cell = params.num_cell;
-    p_matrix = Eigen::MatrixXd::Zero(num_cell+1, num_cell+1);
+    p_matrix = Eigen::Tensor<double, 3> (num_cell+1, num_cell+1, num_cell+1);
 
     main_diag.resize(num_elements+1);
     upper_diag.resize(num_elements+1);
@@ -21,13 +21,15 @@ Continuity_p::Continuity_p(const Parameters &params)
     Bp_posZ = Eigen::Tensor<double, 3> (num_cell+1, num_cell+1, num_cell+1);
     Bp_negZ = Eigen::Tensor<double, 3> (num_cell+1, num_cell+1, num_cell+1);
 
-    values = Eigen::Tensor<double, 3> (num_cell+1, num_cell+1, num_cell+1);
+    values  = Eigen::Tensor<double, 3> (num_cell+1, num_cell+1, num_cell+1);
     values2 = Eigen::Tensor<double, 3> (num_cell+1, num_cell+1, num_cell+1);
     values3 = Eigen::Tensor<double, 3> (num_cell+1, num_cell+1, num_cell+1);
     values4 = Eigen::Tensor<double, 3> (num_cell+1, num_cell+1, num_cell+1);
 
-    Jp_Z.resize(num_cell+1, num_cell+1);
-    Jp_X.resize(num_cell+1, num_cell+1);
+    Jp_Z = Eigen::Tensor<double, 3> (num_cell+1, num_cell+1, num_cell+1);
+    Jp_X = Eigen::Tensor<double, 3> (num_cell+1, num_cell+1, num_cell+1);
+    Jp_Y = Eigen::Tensor<double, 3> (num_cell+1, num_cell+1, num_cell+1);
+
 
     p_bottomBC.resize(num_cell+1, num_cell+1);
     p_topBC.resize(num_cell+1, num_cell+1);
@@ -480,8 +482,8 @@ void Continuity_p::set_rhs(const std::vector<double> &Up)
 }
 
 //----------------------------------------------
-//I THINK I DON'T NEED THIS ANYWHERE EXCEPT FOR WRITING TO FILE--> so move this conversion to utilities write to file function.
-/*
+//NEEDS TO BE REWRITTEN...
+
 void Continuity_p::to_matrix(const std::vector<double> &p)
 {
     for (int index = 1; index <= num_elements; index++) {
@@ -502,15 +504,18 @@ void Continuity_p::to_matrix(const std::vector<double> &p)
     }
 
 }
-*/
+
 
 
 void Continuity_p::calculate_currents()
 {
     for (int i = 1; i <= num_cell; i++) {
         for (int j = 1; j < num_cell; j++) {
-            Jp_Z(i,j) = -J_coeff * p_mob(i,j) * (p_matrix(i,j)*Bp_negZ(i,j) - p_matrix(i,j-1)*Bp_posZ(i,j));
-            Jp_X(i,j) = -J_coeff * p_mob(i,j) * (p_matrix(i,j)*Bp_negX(i,j) - p_matrix(i-1,j)*Bp_posX(i,j));
+            for (int k = 1; k < num_cell; k++) {
+            Jp_Z(i,j,k) = -J_coeff * p_mob(i,j,k) * (p_matrix(i,j,k)*Bp_negZ(i,j,k) - p_matrix(i,j,k-1)*Bp_posZ(i,j,k));
+            Jp_Y(i,j,k) = -J_coeff * p_mob(i,j,k) * (p_matrix(i,j,k)*Bp_negY(i,j,k) - p_matrix(i,j-1,k)*Bp_posY(i,j,k));
+            Jp_X(i,j,k) = -J_coeff * p_mob(i,j,k) * (p_matrix(i,j,k)*Bp_negX(i,j,k) - p_matrix(i-1,j,k)*Bp_posX(i,j,k));
+            }
         }
     }
 

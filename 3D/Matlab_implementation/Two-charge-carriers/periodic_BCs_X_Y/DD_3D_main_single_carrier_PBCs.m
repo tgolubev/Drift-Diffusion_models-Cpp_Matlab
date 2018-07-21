@@ -280,7 +280,7 @@ for Va_cnt = 0:num_V +1
 
             newV = U\(L\bV);  %much faster to solve pre-factorized matrix. Not applicable to cont. eqn. b/c matrices keep changing.
 %          newV = AV\bV;
-%    [newV,~] = bicgstab(AV,bV, 10^-14, 1000);  %last specification is max iters. 
+%    [newV,~] = bicgstab(AV,bV, 10^-14, 1000, [], [], V);  
   %This is fastest for larger systems (i.e. 30x30x30)
 %NOTE: USING bicgstab as default (w/o specifying a tolerance), results in BAD results!! 
 
@@ -339,7 +339,7 @@ for Va_cnt = 0:num_V +1
         %          newp = Ap\bp;
         %          newp = qmr(Ap, bp, 10^-14, 1000);  %not bad: 0.035sec vs. 0.025 with bicgstab
         
-        [newp, ~] = bicgstab(Ap, bp, 10^-14, 1000); %This is fast!, fastest iterative solver for continuity eqn.
+        [newp, ~] = bicgstab(Ap, bp, 10^-14, 1000, [], [], p); %This is fast!, fastest iterative solver for continuity eqn.
         
 %         oldn = n;
         %          newn = An\bn;

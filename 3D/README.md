@@ -11,3 +11,15 @@ discretization as well as linear mixing of old and new solutions is used to main
 
 Periodic boundary conditions are used for the x and y boundaries and Dirichlet boundary conditions are used for the z boundaries in order to be able to apply a voltage in the z direction. The electrodes of the device are assumed to be located at z = 0 and z = Lz.
 
+--------------------------------------------------------------------------------------------------------------
+Requirements for C++ implementations:
+In addition to a C++11 compiler, the linear algebra library Eigen is needed. The library is 
+composed of only header files, so no linking is necessary. One just needs to specify the directory of the library files in the include. Eigen can be downloaded at: http://eigen.tuxfamily.org/index.php?title=Main_Page
+
+Also the input files: "parameters.inp" and "gen_rate.inp" (for the 2 carrier versions) need to be located in the same directory as the source code.
+
+Also include the openmp compiler flag to allow for Eigen to parallelize the matrix solving.
+
+------------------------------------------------
+The Matlab implementations only require Matlab.
+

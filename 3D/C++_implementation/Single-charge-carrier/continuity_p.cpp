@@ -10,7 +10,7 @@ Continuity_p::Continuity_p(const Parameters &params)
     Ny = num_cell_y - 1;
     Nz = num_cell_z - 1;
 
-    p_matrix = Eigen::Tensor<double, 3> (num_cell_x+1, num_cell_y+1, num_cell_z+1);  //note: this variable is updated every type find a new p_matrix inside main
+    //p_matrix = Eigen::Tensor<double, 3> (num_cell_x+1, num_cell_y+1, num_cell_z+1);  //note: this variable is updated every type find a new p_matrix inside main
     //later, can somehow make this more efficient
 
     //these diags vectors are not needed
@@ -52,6 +52,7 @@ Continuity_p::Continuity_p(const Parameters &params)
     p_mob_avg_Z = Eigen::Tensor<double, 3> (num_cell_x+2, num_cell_y+2, num_cell_z+2);
     p_mob.setConstant(params.p_mob_active/params.mobil);
 
+    /*
     //Compute averaged mobilities
     for (int i = 1; i <= num_cell_x; i++) {
         for (int j = 1; j <= num_cell_y; j++) {
@@ -79,13 +80,20 @@ Continuity_p::Continuity_p(const Parameters &params)
             p_mob_avg_Z(i,j,num_cell_z+1) = p_mob(i,j,num_cell_z);
         }
     }
+    */
+
+    //for now (THERES SOMETHING WRONG WITH ABOVE AVERAGING), USE
+    p_mob_avg_X = p_mob;
+    p_mob_avg_Y = p_mob;
+    p_mob_avg_Z = p_mob;
 
      //------------------------------------------------------------------------------------------
-    Cp = (params.dx*params.dx)/(Vt*params.N_dos*params.mobil);  //can't use static, b/c dx wasn't defined as const, so at each initialization of Continuity_p object, new const will be made.
+    Cp = (params.dz*params.dz)/(Vt*params.N_dos*params.mobil);  //can't use static, b/c dx wasn't defined as const, so at each initialization of Continuity_p object, new const will be made.
 
     //these BC's for now stay constant throughout simulation, so fill them once, upon Continuity_p object construction
+ //issue is here!
     for (int j =  0; j <= num_cell_y; j++) {
-        for (int i = 1; i <= num_cell_x+1; i++) {
+        for (int i = 0; i <= num_cell_x; i++) {
             p_bottomBC(i,j) = 0;
             p_topBC(i,j) = 1;
         }
@@ -101,6 +109,10 @@ Continuity_p::Continuity_p(const Parameters &params)
 
 //------------------------------------------------------------------
 
+//void Continuity_p::set_p_matrix(Eigen::Tensor<double, 3> p_matrix_input)
+//{
+//  p_matrix = p_matrix_input;
+//}
 
 //Calculates Bernoulli fnc values, then sets the diagonals and rhs
 void Continuity_p::setup_eqn(const Eigen::Tensor<double, 3> &V_matrix, const std::vector<double> &Up, const Eigen::Tensor<double, 3> &p)
@@ -237,7 +249,6 @@ void Continuity_p::set_main_diag()
                 index = index +1;
             }
             //add the Dirichlet BC's element --> in matrix just have a 1
-            int k = Nz+1;
             triplet_list[trp_cnt] = {index-1, index-1, 1};
             trp_cnt++;
             index = index + 1;
@@ -439,7 +450,7 @@ void Continuity_p::set_rhs(const std::vector<double> &Up)
 }
 
 
-void Continuity_p::calculate_currents()
+void Continuity_p::calculate_currents(Eigen::Tensor<double, 3> p_matrix)  //don't use the local p_matrix...!, need to pass it the one from main
 {
     for (int i = 1; i <= num_cell_x; i++) {
         for (int j = 1; j < num_cell_y; j++) {

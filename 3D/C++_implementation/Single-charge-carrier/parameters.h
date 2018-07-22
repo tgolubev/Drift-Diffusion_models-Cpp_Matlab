@@ -25,10 +25,10 @@ struct Parameters   //parameters need to be accessble, so all members are public
     void isNegative(double input, const std::string &comment);
     void isNegative(int input, const std::string &comment);
 
-    double N_LUMO, N_HOMO, phi_a, phi_c, eps_active, p_mob_active, n_mob_active;
+    double N_LUMO, N_HOMO, eps_active, p_mob_active;
     double mobil;
-    double E_gap, active_CB, active_VB, WF_anode, WF_cathode, N_dos, Nsqrd;
-    double Photogen_scaling, k_rec;
+    double N_dos, Nsqrd;
+    //double Photogen_scaling, k_rec;
 
     double w;
     double w_reduce_factor;
@@ -43,8 +43,6 @@ struct Parameters   //parameters need to be accessble, so all members are public
     int num_cell_x, num_cell_y, num_cell_z, num_elements;  //num_elements = (num_cell-1)^3
     std::string GenRateFileName;
     double Va_min, Va_max, increment;
-    double Vbi;
-
 
 };
 

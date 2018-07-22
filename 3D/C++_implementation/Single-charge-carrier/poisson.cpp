@@ -3,7 +3,7 @@
 
 Poisson::Poisson(const Parameters &params)
 {
-    CV = (params.N_dos*params.dx*params.dx*q)/(epsilon_0*Vt);
+    CV = (params.N_dos*params.dz*params.dz*q)/(epsilon_0*Vt);
     num_cell_x = params.num_cell_x;
     num_cell_y = params.num_cell_y;
     num_cell_z = params.num_cell_z;
@@ -33,9 +33,14 @@ Poisson::Poisson(const Parameters &params)
     epsilon_avg_X = Eigen::Tensor<double, 3> (num_cell_x+2, num_cell_y+2, num_cell_z+2);
     epsilon_avg_Y = Eigen::Tensor<double, 3> (num_cell_x+2, num_cell_y+2, num_cell_z+2);
     epsilon_avg_Z = Eigen::Tensor<double, 3> (num_cell_x+2, num_cell_y+2, num_cell_z+2);
-    epsilon.setConstant(params.eps_active/epsilon_0);
+    epsilon.setConstant(params.eps_active);  //the  parameter is already the RELATIVE DIELECTRICE CONSTANT!
+
 
     //Compute averaged mobilities
+    //==============================================
+    //THIS ISN'T WORKING PROPERLY RIGHT NOW!!!!
+    //==============================================
+    /*
     for (int i = 1; i <= num_cell_x; i++) {
         for (int j = 1; j <= num_cell_y; j++) {
             for (int k = 1; k <= num_cell_z; k++) {
@@ -63,9 +68,12 @@ Poisson::Poisson(const Parameters &params)
         }
     }
     //Scale the epsilons for using in the matrix
-    epsilon_avg_X = ((params.dz*params.dz)/(params.dx*params.dx))*epsilon_avg_X/18.;  //scale
-    epsilon_avg_Y = ((params.dz*params.dz)/(params.dy*params.dy))*epsilon_avg_Y/18.;  //to take into account possible dz dx dy difference, multipy by coefficient...
-    epsilon_avg_Z = epsilon_avg_Z/18.;
+    epsilon_avg_X = ((params.dz*params.dz)/(params.dx*params.dx))*epsilon/18.;  //JUST DO THIS FOR NOW, SINCE ALL EPSILONS ARE THE SAME((params.dz*params.dz)/(params.dx*params.dx))*epsilon_avg_X/18.;  //scale
+    epsilon_avg_Y = ((params.dz*params.dz)/(params.dy*params.dy))*epsilon/18.; //((params.dz*params.dz)/(params.dy*params.dy))*epsilon_avg_Y/18.;  //to take into account possible dz dx dy difference, multipy by coefficient...
+    epsilon_avg_Z = epsilon/18.; //epsilon_avg_Z/18.;
+    */
+
+
     //===========================================================
 
     //LATER NEED TO MAKE THE SCALLING ADJUST AUTOMATICALLY BASED ON INPUT PARAMETERS
@@ -109,6 +117,10 @@ void Poisson::set_V_bottomBC(const Parameters &params, double Va)
 
 void Poisson::setup_matrix()  //Note: this is on purpose different than the setup_eqn used for Continuity eqn's, b/c I need to setup matrix only once
 {
+
+
+    std::cerr<<"is inside the setup matrix fnc" << std::endl;
+
     set_lowest_diag();
     set_lower_diag_Xs();   //lower diag corresponding to X direction finite differences
     set_lower_diag_Y_PBCs(); //lower diag corresponding to Y periodic boundary conditions
@@ -120,6 +132,7 @@ void Poisson::setup_matrix()  //Note: this is on purpose different than the setu
     set_upper_diag_Y_PBCs();
     set_upper_diag_Xs();
     set_highest_diag();
+
 
     typedef Eigen::Triplet<double> Trp;
 
@@ -225,10 +238,10 @@ void Poisson::set_main_diag()
             for (int k = 1; k <= Nz; k++) { // only to Nz b/c of Dirichlet BCs
                 triplet_list[trp_cnt] = {index-1, index-1, epsilon_avg_X(i,j,k) + epsilon_avg_X(i+1,j,k) + epsilon_avg_Y(i,j,k) + epsilon_avg_Y(i,j+1,k) + epsilon_avg_Z(i,j,k) + epsilon_avg_Z(i,j,k+1)};
                 trp_cnt++;
+                std::cout << epsilon_avg_X(i,j,k) << std::endl;
                 index = index +1;
             }
             //add the Dirichlet BC's element --> in matrix just have a 1
-            int k = Nz+1;
             triplet_list[trp_cnt] = {index-1, index-1, 1};
             trp_cnt++;
             index = index + 1;

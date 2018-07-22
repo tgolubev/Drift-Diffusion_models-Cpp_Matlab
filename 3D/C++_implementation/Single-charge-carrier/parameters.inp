@@ -1,26 +1,15 @@
 //NOTE:IF-HAVE-ANY-SPACES-IN-COMMENTS-IT-WILL-FAIL
-30.0e-9 //device-lenght(m)X
-30.0e-9 //device-WIDTH(m)Y
-30.0e-9 //device-thickness(m)Z
+6.01e-9 //device-lenght(m)X
+6.01e-9 //device-WIDTH(m)Y
+6.01e-9 //device-thickness(m)Z
 2.0e-9  //dx_mesh_size
 2.0e-9  //dy_mesh_size
 2.0e-9  //dz_mesh_size
-1e24  //N-LUMO
-1e24  //N-HOMO
-4e27   //Photogeneration-scaling
-0.2    //phi_a
-0.1    //phi_c
+1.25e27  //N-LUMO
+1.25e27  //N-HOMO
 3.0    //eps_active
-4.5e-6 //p_mob_active
-4.5e-6 //n_mob_active
-5e-6   //mobil
-1.5    //E_gap
--3.9    //active_CB
--5.4    //active_VB
-4.8     //WF_anode
-3.7     //WF_cathode
-6e-17   //k_rec
-1.0e-9  //dx
+1e-8 //p_mob_active
+1e-8   //mobil
 
 0.1     //Va_min
 1.0    //Va_max

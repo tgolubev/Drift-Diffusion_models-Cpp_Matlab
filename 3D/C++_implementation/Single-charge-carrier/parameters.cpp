@@ -21,42 +21,26 @@ void Parameters::Initialize()
         isPositive(Ly, comment);
         parameters >> Lz >> comment;
         isPositive(Lz, comment);
+
         parameters >> dx >> comment;
         isPositive(dx, comment);
         parameters >> dy >> comment;
         isPositive(dy, comment);
         parameters >> dz >> comment;
         isPositive(dz, comment);
+
         parameters >> N_LUMO >> comment;  //we will just ignore the comments
         isPositive(N_LUMO,comment);
         parameters >> N_HOMO >> comment;
         isPositive(N_HOMO,comment);
-        parameters >> Photogen_scaling >> comment;
-        isPositive(Photogen_scaling,comment);
-        parameters >> phi_a >> comment;
-        parameters >> phi_c >> comment;
+
         parameters >> eps_active >> comment;
         isPositive(eps_active,comment);
         parameters >> p_mob_active >> comment;
         isPositive(p_mob_active,comment);
-        parameters >> n_mob_active >> comment;
-        isPositive(n_mob_active,comment);
         parameters >> mobil >> comment;
         isPositive(mobil,comment);
-        parameters >> E_gap >> comment;
-        isPositive(E_gap,comment);
-        parameters >> active_CB >> comment;  //this should be negative
-        isNegative(active_CB, comment);
-        parameters >> active_VB >> comment;  //should be negative
-        isNegative(active_VB, comment);
-        parameters >> WF_anode >> comment;
-        isPositive(WF_anode ,comment);
-        parameters >> WF_cathode >> comment;
-        isPositive(WF_cathode,comment);
-        parameters >> k_rec >> comment;
-        isPositive(k_rec,comment);
-        parameters >> dx >> comment;
-        isPositive(dx ,comment);
+
         parameters >> Va_min >> comment;
         parameters >> Va_max >> comment;
         parameters >> increment >> comment;
@@ -80,14 +64,14 @@ void Parameters::Initialize()
         exit(1);
     }
 
+    num_cell_x = floor(Lx/dx);
+    num_cell_y = floor(Ly/dy);
+    num_cell_z = floor(Lz/dz);
 
     Nx = num_cell_x - 1;
     Ny = num_cell_y - 1;
     Nz = num_cell_z - 1;
-    num_elements = Nx*Ny*Nz;
-    Vbi = WF_anode - WF_cathode +phi_a +phi_c;
-
-
+    num_elements = (Nx+1)*(Ny+1)*(Nz+1);
 
 }
 

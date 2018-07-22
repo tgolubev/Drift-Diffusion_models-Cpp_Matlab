@@ -26,7 +26,7 @@ public:
     //!\param p the hole density is needed to setup the boundary conditions.
     void setup_eqn(const Eigen::Tensor<double, 3> &V_matrix, const std::vector<double> &Up, const Eigen::Tensor<double, 3> &p);
 
-    void calculate_currents();
+    void calculate_currents(Eigen::Tensor<double, 3> p_matrix);
 
     //setters for BC's:
     //for left and right BC's, will use input from the n matrix to determine
@@ -36,8 +36,7 @@ public:
     void set_p_rightBC_X(const std::vector<double> &p);
     void set_p_leftBC_Y(const std::vector<double> &p);
     void set_p_rightBC_Y(const std::vector<double> &p);
-    void set_p_matrix(Eigen::Tensor<double, 3> p_matrix_input) {p_matrix = p_matrix_input;}
-
+    //void set_p_matrix(Eigen::Tensor<double, 3> p_matrix_input);
 
     //getters
     Eigen::VectorXd get_rhs() const {return VecXd_rhs;}  //returns the Eigen object
@@ -46,7 +45,7 @@ public:
     double get_p_bottomBC(int i, int j) const {return p_bottomBC(i,j);}  //bottom and top are needed to set initial conditions
     double get_p_topBC(int i, int j) const {return p_topBC(i,j);}
 
-    Eigen::Tensor<double, 3> get_p_matrix() const {return p_matrix;}
+    //Eigen::Tensor<double, 3> get_p_matrix() const {return p_matrix;}
     Eigen::Tensor<double, 3> get_Jp_X() const {return Jp_X;}
     Eigen::Tensor<double, 3> get_Jp_Y() const {return Jp_Y;}
     Eigen::Tensor<double, 3> get_Jp_Z() const {return Jp_Z;}
@@ -85,7 +84,7 @@ private:
     Eigen::Tensor<double, 3> p_mob_avg_X, p_mob_avg_Y, p_mob_avg_Z;
     Eigen::VectorXd VecXd_rhs;  //rhs in Eigen object vector form, for sparse matrix solver
     Eigen::SparseMatrix<double> sp_matrix;
-    Eigen::Tensor<double, 3> p_matrix;
+    //Eigen::Tensor<double, 3> p_matrix;
     Eigen::Tensor<double, 3> Jp_Z;
     Eigen::Tensor<double, 3> Jp_X;
     Eigen::Tensor<double, 3> Jp_Y;

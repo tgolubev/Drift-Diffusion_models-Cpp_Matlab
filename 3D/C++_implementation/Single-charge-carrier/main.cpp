@@ -75,8 +75,6 @@
 
 int main()
 {
-
-
     std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();  //start clock timer
     Parameters params;    //params is struct storing all parameters
     params.Initialize();  //reads parameters from file
@@ -114,6 +112,7 @@ int main()
     //Eigen::Tensor<double, 3> R_Langevin(N+1,N+1,N+1), PhotogenRate(N+1,N+1,N+1);
     Eigen::Tensor<double, 3> J_total_Z(num_cell_x+1, num_cell_y+1, num_cell_z+1), J_total_X(num_cell_x+1, num_cell_y+1, num_cell_z+1), J_total_Y(num_cell_x+1, num_cell_y+1, num_cell_z+1);  //we want the indices of J to correspond to the real x,y,z values..., for convinience                //matrices for spacially dependent current
     Eigen::Tensor<double, 3> V_matrix(num_cell_x, num_cell_y, num_cell_z), temp_permuted; //indexed from 0, so just num_cell....//temp_permuted is needed b/c it can't do in place permutations...., need to save to another tensor!  //Note: is actually a Tensor in Eigen
+    Eigen::Tensor<double, 3> fullV(num_cell_x+1, num_cell_y+1, num_cell_z+1), fullp(num_cell_x+1, num_cell_y+1, num_cell_z+1);  //for storing all the values in device, including bndrys
     Eigen::SparseMatrix<double> input; //for feeding input matrix into BiCGSTAB, b/c it crashes if try to call get matrix from the solve call.
 
     std::cout << Eigen::nbThreads( ) << std::endl;  //displays the # of threads that will be used by Eigen--> mine displays 8, but doesn't seem like it's using 8.
@@ -140,13 +139,9 @@ int main()
     //Define boundary conditions and initial conditions. Note: electrodes are at the top and bottom.
     double Va = params.Va_min;
     poisson.set_V_bottomBC(params, Va);
-    poisson.set_V_topBC(params, Va);
+    poisson.set_V_topBC(params, Va);  //THESE CAN BE MOVED TO BE DONE WITHIN constructor of Poisson object
 
     //Initial conditions
-    //std::vector<double> diff;
-    //for (int x = 0; x <= num_cell; x++)
-       //diff[x] = (poisson.get_V_topBC()[x] - poisson.get_V_bottomBC()[x])/num_cell;    //note, the difference can be different at different x values..., diff is in Z directiont
-
     //for now assume diff is constant everywhere...
     double diff = (poisson.get_V_topBC(0,0) - poisson.get_V_bottomBC(0,0))/num_cell_z;  //this is  calculated correctly
 
@@ -158,6 +153,8 @@ int main()
             }
         }
     }
+
+
 
     //need to permute the matrix, to be consistent with the z,y,x ordering which I use for the matrices when solving.
     //NOTE: for Tensor shuffle to work, NEED TO EXPLICTELY CREATE AN ARRAY--> this isn't clear from the documentation
@@ -174,33 +171,27 @@ int main()
      Eigen::array<ptrdiff_t, 3> reshape_sizes = {{num_rows, 1, 1}};  //need to only go to num_rows..., b/c it fills from 0 !!
      V = V_matrix.reshape(reshape_sizes);  //Note: even though reshaping to a column, V still must be a TENSOR type for this to work!
 
-//WORKS UP TO HERE!
      //prepare initial guess, for 1st iteration of bicgstab
-     for (int i = 0; i<num_rows; i++) {
-         V_Xd(i) = V(i,1,1);
+     for (int i = 0; i < num_rows; i++) {
+         V_Xd(i) = V(i,0,0);
      }
 
-    //Fill n and p with initial conditions (need for error calculation)
-    double min_dense = 0;//continuity_n.get_n_bottomBC(1,1) < continuity_p.get_p_topBC(1,1) ? continuity_n.get_n_bottomBC(1,1):continuity_p.get_p_topBC(1,1);  //this should be same as std::min  fnc which doesn't work for some reason
+    //Fill p with initial conditions (need for error calculation)
+    double min_dense = continuity_p.get_p_bottomBC(1,1) < continuity_p.get_p_topBC(1,1) ? continuity_p.get_p_bottomBC(1,1):continuity_p.get_p_topBC(1,1);  //this should be same as std::min  fnc which doesn't work for some reason
     //double min_dense = std::min (continuity_n.get_n_bottomBC(1,1), continuity_p.get_p_topBC(1,1));  //Note: I defined the get fnc to take as arguments the i,j values... //Note: the bc's along bottom and top are currently uniform, so index, doesn't really matter.
-    for (int i = 0; i< num_rows; i++) {
-        //n[i] = min_dense;
-        p(i,1,1) = min_dense;  //NOTE: p is tensor now, so need () to access elements
+    for (int i = 0; i < num_rows; i++) {
+        p(i,0,0) = min_dense;  //NOTE: p is tensor now, so need () to access elements
     }
 
     //prepare initial guess, for 1st iteration of bicgstab
-    for (int i = 0; i<num_rows; i++) {
-        p_Xd(i) = p(i,1,1);
+    for (int i = 0; i < num_rows; i++) {
+        p_Xd(i) = p(i,0,0);  //this is working correctly
     }
-//works up to here
-    //Convert the n and p to n_matrix and p_matrix
-    //USE THE RESHAPE FUNCTION!
-    Eigen::array<ptrdiff_t, 3> to_matrix_sizes{{Nx+1, Ny+1, Nz+1}};  //this is a reshape before solving, so keep in x,y,z format
+
+    //Convert the p to p_matrix
+    Eigen::array<ptrdiff_t, 3> to_matrix_sizes{{Nz+1, Ny+1, Nx+1}};  //use reshape according to the  ordering of the matrix, so: z, y, x
     Eigen::Tensor<double, 3> p_matrix = p.reshape(to_matrix_sizes);
     //continuity_p.set_p_matrix(p_matrix);  //THIS FOR SOME REASON FAILS..., so don't use it...//save p_matrix to continuity_p member variable--> THIS MIGHT BE INEFFIIENT, BUT DO IT FOR NOW
-exit(1);
-    //NOW IS AN ISSUE WITH THE P RESHAPE!!!
-//MAYBE INSTEAD OF THIS, JUST USE A MANUAL RESHAPE!!!
 
     //////////////////////MAIN LOOP////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -208,36 +199,34 @@ exit(1);
     bool not_converged;
     double error_np, old_error;  //this stores max value of the error and the value of max error from previous iteration
     std::vector<double> error_np_vector(num_rows+1);  //note: since n and p solutions are in vector form, can use vector form here also
-//gets here
-    for (Va_cnt = 0; Va_cnt <= num_V +1; Va_cnt++) {  //+1 b/c 1st Va is the equil run
+
+    for (Va_cnt = 1; Va_cnt <= num_V+1; Va_cnt++) {  //+1 b/c 1st Va is the equil run
         not_converged = false;
         not_cnv_cnt = 0;
-        if (params.tolerance > 1e-5)
-            std::cerr<<"ERROR: Tolerance has been increased to > 1e-5" <<std::endl;
 
-        if (Va_cnt==0) {
-            params.use_tolerance_eq();  //relaxed tolerance for equil. run
-            params.use_w_eq();
-            Va = 0;
-        }
-        else {
-            Va = params.Va_min+params.increment*(Va_cnt-1);
-        }
+        Va = params.Va_min+params.increment*(Va_cnt-1);
+
         if (Va_cnt == 1) {
             params.use_tolerance_i();  //reset tolerance back
             params.use_w_i();
             //PhotogenRate = photogen.getPhotogenRate();    //otherwise PhotogenRate is pre-initialized to 0 in this main.cpp when declared
         }
+
+        if (params.tolerance > 1e-5)
+            std::cerr<<"ERROR: Tolerance has been increased to > 1e-5" <<std::endl;
+
         std::cout << "Va = " << Va <<std::endl;
 
         //Reset top and bottom BCs (outside of loop b/c don't change iter to iter)
         poisson.set_V_bottomBC(params, Va);
         poisson.set_V_topBC(params, Va);
 
+       //correct through  here
 
-        std::cerr << "it is at 226 " << std::endl;
+        poisson.setup_matrix();  //I VERIFIED that size of sparse matrix is correct
 
-        poisson.setup_matrix();
+        std::cout << poisson.get_sp_matrix() << std::endl;
+        exit(1);
 
         //-----------------------------------------------------------
         error_np = 1.0;
@@ -260,32 +249,25 @@ exit(1);
 
             input = poisson.get_sp_matrix();
 
-            //gets through here usually
-//            if (iter == 0)
-//                BiCGStab_solver.analyzePattern(input);
-//            BiCGStab_solver.factorize(input);  //this computes preconditioner, if use along with analyzePattern (for 1st iter)
-//            //BiCGStab_solver.compute(input);  //this computes the preconditioner..compute(input);
-//            soln_V = BiCGStab_solver.solveWithGuess(poisson.get_rhs(), p_Xd);  //NOTE: use solve with Guess...., b/c need initial guess
+            if (iter == 0)
+                BiCGStab_solver.analyzePattern(input);
+            BiCGStab_solver.factorize(input);  //this computes preconditioner, if use along with analyzePattern (for 1st iter)
+            //BiCGStab_solver.compute(input);  //this computes the preconditioner..compute(input);
+            soln_V = BiCGStab_solver.solveWithGuess(poisson.get_rhs(), p_Xd);  //NOTE: use solve with Guess...., b/c need initial guess
 
-////fails here--> I think it's bicgstab issue!!
-//            std::cerr << "test" << std::endl;
-  std::cout << poisson.get_sp_matrix() << std::endl;  //the matrix is not being filled!!!
+//            if (iter == 0) {  //This is slower than  LU
+//                SCholesky.analyzePattern(poisson.get_sp_matrix());
+//                SCholesky.factorize(poisson.get_sp_matrix());         //since numerical values of Poisson matrix don't change for 1 set of BC's, can factorize, just on 1st iter
+//            }
+//            soln_V = SCholesky.solve(poisson.get_rhs());
 
-  exit(1);
-            if (iter == 0) {  //This is slower than  LU
-                SCholesky.analyzePattern(poisson.get_sp_matrix());
-                SCholesky.factorize(poisson.get_sp_matrix());         //since numerical values of Poisson matrix don't change for 1 set of BC's, can factorize, just on 1st iter
-            }
-            soln_V = SCholesky.solve(poisson.get_rhs());
-
-            //got all 0's for the solution..., so something might be wrong!!
 
             //std::cout << poisson.get_sp_matrix() << std::endl;
              //std::cout << "Poisson solver error " << poisson.get_sp_matrix() * soln_Xd - poisson.get_rhs() << std::endl;
 
             //RECALL, I am starting my V vector from index of 1, corresponds to interior pts...
-            for (int i = 1; i<=num_rows; i++) {
-                newV(i,1,1) = soln_V(i-1);   //fill VectorXd  rhs of the equation
+            for (int i = 0; i < num_rows; i++) {
+                newV(i,0,0) = soln_V(i);   //fill VectorXd  rhs of the equation
                 //NOTE: newV is a Tensor now, so use () to access
             }
 
@@ -296,12 +278,40 @@ exit(1);
                 V = newV;
 
             //update the Eigen Vector_Xd for the initial guess--> LATER DO ALL THIS MORE EFFICIENTLY
-            for (int i = 1; i<=num_rows; i++) {
-                V_Xd(i-1) = V(i,1,1);
+            for (int i = 0; i < num_rows; i++) {
+                V_Xd(i) = V(i,0,0);
             }
 
             //reshape solution to a V_matrix
-            V_matrix = V.reshape(to_matrix_sizes);
+            V_matrix = V.reshape(to_matrix_sizes); // reshapes using z, y, x ordering
+            //need to permute before using for fullV
+            temp_permuted = V_matrix.shuffle(permutation);  //need to use a temp variable for this to work
+
+            //fill the fullV
+            //SHOULD MOVE THIS TO A FUNCTION!
+            for (int k = 1; k <= num_cell_z; k++)
+               for (int j = 1; j <= num_cell_y; j++)
+                   for (int i = 1; i <= num_cell_x; i++)
+                       fullV(i,j,k) = temp_permuted(i-1,j-1,k-1);  //-1 b/c temp_permuted from V_matrix was filled from 0
+
+            for (int j = 0; j <= num_cell_y; j++)
+                for (int i = 0; i <= num_cell_x; i++)
+                    fullV(i,j,0) = poisson.get_V_bottomBC(i,j);
+
+            for (int k = 1; k <= num_cell_z; k++)
+               for (int j = 1; j <= num_cell_y; j++)
+                   fullV(0,j,k) = temp_permuted(num_cell_x-1,j-1,k-1);  //x BC's
+
+            for (int k = 1; k <= num_cell_z; k++)
+               for (int i = 1; i <= num_cell_x; i++)
+                   fullV(i,0,k) = temp_permuted(i-1,num_cell_y-1,k-1);  //y BC's
+
+            //fill edges
+            for (int k = 1; k <= num_cell_z; k++)
+                fullV(0,0,k) = temp_permuted(num_cell_x-1,0,k-1);
+
+
+           //works through here but doesn't look correct.
 
             //------------------------------Calculate Net Generation Rate----------------------------------------------------------
 
@@ -309,15 +319,16 @@ exit(1);
             //FOR NOW CAN USE 0 FOR R_Langevin
 
             if (Va_cnt > 0) {
-                for (int i = 1; i <= num_rows; i++) {
+                for (int i = 0; i < num_rows; i++) {
                     Up[i] = 0; //params.Photogen_scaling;  //This is what was used in Matlab version for testing.   photogen.getPhotogenRate()(i,j); //- R_Langevin(i,j);
                 }
             }
 
             //--------------------------------Solve equation for p------------------------------------------------------------
 
-            continuity_p.setup_eqn(poisson.get_V_matrix(), Up, p);
+            continuity_p.setup_eqn(fullV, Up, p);  //pass it fullV...
             //std::cout << continuity_p.get_sp_matrix() << std::endl;   //Note: get rhs, returns an Eigen VectorXd
+
             oldp = p;
 
             input = continuity_p.get_sp_matrix();
@@ -327,6 +338,9 @@ exit(1);
             //BiCGStab_solver.compute(input);  //this computes the preconditioner..compute(input);
             soln_p = BiCGStab_solver.solveWithGuess(continuity_p.get_rhs(), p_Xd);
 
+          //std::cout << soln_p << std::endl;
+
+//works through here
 
 //            if (iter == 0 )
 //                cont_p_LU.analyzePattern(continuity_p.get_sp_matrix());
@@ -334,15 +348,17 @@ exit(1);
 //            soln_Xd = cont_p_LU.solve(continuity_p.get_rhs());
 
             //save results back into n std::vector. RECALL, I am starting my V vector from index of 1, corresponds to interior pts...
-            for (int i = 1; i<=num_rows; i++) {
-                newp(i,1,1) = soln_p(i-1);   //newp is now a tensor....
+            for (int i = 0; i < num_rows; i++) {
+                newp(i,0,0) = soln_p(i);   //newp is now a tensor....
             }
+
+            // the solve for newp is wrong!
 
             //------------------------------------------------
 
             //if get negative p's or n's set them = 0
-            for (int i = 1; i <= num_rows; i++) {
-                if (newp(i,1,1) < 0.0) newp(i,1,1) = 0;
+            for (int i = 0; i < num_rows; i++) {
+                if (newp(i,0,0) < 0.0) newp(i,0,0) = 0;
                 //if (newn[i] < 0.0) newn[i] = 0;
             }
 
@@ -350,13 +366,14 @@ exit(1);
             old_error = error_np;
 
             //THIS CAN BE MOVED TO A FUNCTION IN UTILS
-            for (int i = 1; i <= num_rows; i++) {
-                if (newp(i,1,1)!=0) {
-                    error_np_vector[i] = (abs(newp(i,1,1)-oldp(i,1,1)))/abs(oldp(i,1,1));
+            for (int i = 0; i < num_rows; i++) {
+                if (newp(i,0,0)!=0) {
+                    error_np_vector[i] = (abs(newp(i,0,0)-oldp(i,0,0)))/abs(oldp(i,0,0));
                 }
             }
-            error_np = *std::max_element(error_np_vector.begin()+1,error_np_vector.end());  //+1 b/c we are not using the 0th element
+            error_np = *std::max_element(error_np_vector.begin(),error_np_vector.end());
             std::fill(error_np_vector.begin(), error_np_vector.end(),0.0);  //refill with 0's so have fresh one for next iter
+
 
             //auto decrease w if not converging
             if (error_np >= old_error)
@@ -370,20 +387,48 @@ exit(1);
             p = utils.linear_mix(params, newp, oldp);
 
             //update the Eig vector for initial guess --> LATER SHOULD DO ALL OF THIS MORE EFFICIENTLY
-            for (int i = 1; i<=num_rows; i++) {
-                p_Xd(i-1) = p(i,1,1);
+            for (int i = 0; i < num_rows; i++) {
+                p_Xd(i) = p(i,0,0);
             }
 
-            //note: top and bottom BC's don't need to be changed for now, since assumed to be constant... (they are set when initialize continuity objects)
-
             //Convert p to p_matrix
-            p_matrix = p.reshape(to_matrix_sizes);
+            p_matrix = p.reshape(to_matrix_sizes);  // this reshapes based on z,y,x ordering
+
+            //need to permute before using for fullV
+            temp_permuted = p_matrix.shuffle(permutation);  //need to use a temp variable for this to work
+
+            //fill the fullp
+            //SHOULD MOVE THIS TO A FUNCTION!
+            for (int k = 1; k <= num_cell_z; k++)
+               for (int j = 1; j <= num_cell_y; j++)
+                   for (int i = 1; i <= num_cell_x; i++)
+                       fullp(i,j,k) = temp_permuted(i-1,j-1,k-1);  //-1 b/c temp_permuted from V_matrix was filled from 0
+
+            for (int j = 0; j <= num_cell_y; j++)
+                for (int i = 0; i <= num_cell_x; i++)
+                    fullp(i,j,0) = continuity_p.get_p_bottomBC(i,j);
+
+            for (int k = 1; k <= num_cell_z; k++)
+               for (int j = 1; j <= num_cell_y; j++)
+                   fullp(0,j,k) = temp_permuted(num_cell_x-1,j-1,k-1);  //x BC's
+
+            for (int k = 1; k <= num_cell_z; k++)
+               for (int i = 1; i <= num_cell_x; i++)
+                   fullp(i,0,k) = temp_permuted(i-1,num_cell_y-1,k-1);  //y BC's
+
+            //fill edges
+            for (int k = 1; k <= num_cell_z; k++)
+                fullp(0,0,k) = temp_permuted(num_cell_x-1,0,k-1);
+
+
             //continuity_p.set_p_matrix(p_matrix);  //update member variable  //DON'T USE THIS B/C CAUSES ISSUES, just use the p matrix form main
 
-            //std::cout << error_np << std::endl;
+            std::cout << error_np << std::endl;
             //std::cout << "weighting factor = " << params.w << std::endl << std::endl;
 
             iter = iter+1;
+//works through  here!
+
         }
 
         //-------------------Calculate Currents using Scharfetter-Gummel definition--------------------------

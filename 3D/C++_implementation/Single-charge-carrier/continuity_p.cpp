@@ -115,10 +115,10 @@ Continuity_p::Continuity_p(const Parameters &params)
 //}
 
 //Calculates Bernoulli fnc values, then sets the diagonals and rhs
-void Continuity_p::setup_eqn(const Eigen::Tensor<double, 3> &V_matrix, const std::vector<double> &Up, const Eigen::Tensor<double, 3> &p)
+void Continuity_p::setup_eqn(const Eigen::Tensor<double, 3> &fullV, const std::vector<double> &Up, const Eigen::Tensor<double, 3> &p)
 {
     trp_cnt = 0;  //reset triplet count
-    Bernoulli_p(V_matrix);
+    Bernoulli_p(fullV);
 
     set_lowest_diag();
     set_lower_diag_Xs();   //lower diag corresponding to X direction finite differences
@@ -347,19 +347,20 @@ void Continuity_p::set_highest_diag()
 
 //---------------------------
 
-void Continuity_p::Bernoulli_p(const Eigen::Tensor<double, 3> &V_matrix)
+void Continuity_p::Bernoulli_p(const Eigen::Tensor<double, 3> &fullV)
 {
-    Eigen::Tensor<double, 3> dV_X(num_cell_x+1, num_cell_y+1, num_cell_z+1),  dV_Y(num_cell_x+1, num_cell_y+1, num_cell_z+1),  dV_Z(num_cell_x+1, num_cell_y+1, num_cell_z+1);  //1 less than matlab, b/c my bndries are at 0 indices
+    Eigen::Tensor<double, 3> dV_X(num_cell_x+2, num_cell_y+2, num_cell_z+2),  dV_Y(num_cell_x+2, num_cell_y+2, num_cell_z+2),  dV_Z(num_cell_x+2, num_cell_y+2, num_cell_z+2);
     dV_X.setZero();
     dV_Y.setZero();
     dV_Z.setZero();
 
+
      for (int k = 1; k <= num_cell_z; k++) {
         for (int j = 1; j <= num_cell_y; j++) {
             for (int i = 1; i <= num_cell_x; i++) {
-                dV_X(i,j,k) = V_matrix(i,j,k) - V_matrix(i-1,j,k);   //NOTE: all the dV_X are ~0, b/c in x direction I made there be no difference in electric potential
-                dV_Y(i,j,k) = V_matrix(i,j,k) - V_matrix(i,j-1,k);
-                dV_Z(i,j,k) = V_matrix(i,j,k) - V_matrix(i,j,k-1);
+                dV_X(i,j,k) = fullV(i,j,k) - fullV(i-1,j,k);   //NOTE: all the dV_X are ~0, b/c in x direction I made there be no difference in electric potential
+                dV_Y(i,j,k) = fullV(i,j,k) - fullV(i,j-1,k);
+                dV_Z(i,j,k) = fullV(i,j,k) - fullV(i,j,k-1);
 
                 //add boundary case for num_cell+2 on Z value--> that dV = 0
                 //from the Neuman boundary condition! And where we do have tip,
@@ -370,20 +371,21 @@ void Continuity_p::Bernoulli_p(const Eigen::Tensor<double, 3> &V_matrix)
                 dV_Z(i,j, num_cell_z+1) = 0;
 
                 //add on the wrap around dV's
-                dV_X(i,num_cell_y+1,k) = V_matrix(i,0,k) - V_matrix(i-1,0,k);   //NOTE: all the dV_X are ~0, b/c in x direction I made there be no difference in electric potential
-                dV_Y(i,num_cell_y+1,k) = V_matrix(i,0,k) - V_matrix(i,num_cell_y,k);
-                dV_Z(i,num_cell_y+1,k) = V_matrix(i,0,k) - V_matrix(i,0,k-1);
+                dV_X(i,num_cell_y+1,k) = fullV(i,0,k) - fullV(i-1,0,k);   //NOTE: all the dV_X are ~0, b/c in x direction I made there be no difference in electric potential
+                dV_Y(i,num_cell_y+1,k) = fullV(i,0,k) - fullV(i,num_cell_y,k);
+                dV_Z(i,num_cell_y+1,k) = fullV(i,0,k) - fullV(i,0,k-1);
 
             }
             //add on the wrap around dV's and right boundary pt dV's
-            dV_X(num_cell_x+1,j,k) = V_matrix(0,j,k) - V_matrix(num_cell_x,j,k);   //NOTE: all the dV_X are ~0, b/c in x direction I made there be no difference in electric potential
-            dV_Y(num_cell_x+1,j,k) = V_matrix(0,j,k) - V_matrix(0,j-1,k);  //use 0's b/c num_cell+2 is same as the 1st pt--> PBC's
-            dV_Z(num_cell_x+1,j,k) = V_matrix(0,j,k) - V_matrix(0,j,k-1);
+            dV_X(num_cell_x+1,j,k) = fullV(0,j,k) - fullV(num_cell_x,j,k);   //NOTE: all the dV_X are ~0, b/c in x direction I made there be no difference in electric potential
+            dV_Y(num_cell_x+1,j,k) = fullV(0,j,k) - fullV(0,j-1,k);  //use 0's b/c num_cell+2 is same as the 1st pt--> PBC's
+            dV_Z(num_cell_x+1,j,k) = fullV(0,j,k) - fullV(0,j,k-1);
         }
-        dV_X(num_cell_x+1,num_cell_y+1,k) = V_matrix(0,num_cell_y,k) - V_matrix(num_cell_x,num_cell_y,k);   //NOTE: all the dV_X are ~0, b/c in x direction I made there be no difference in electric potential
-        dV_Y(num_cell_x+1,num_cell_y+1,k) = V_matrix(0,num_cell_y,k) - V_matrix(0,num_cell_y-1,k);  //use 0's b/c num_cell+2 is same as the 1st pt--> PBC's
-        dV_Z(num_cell_x+1,num_cell_y+1,k) = V_matrix(0,num_cell_y,k) - V_matrix(0,num_cell_y,k-1);
+        dV_X(num_cell_x+1,num_cell_y+1,k) = fullV(0,num_cell_y,k) - fullV(num_cell_x,num_cell_y,k);   //NOTE: all the dV_X are ~0, b/c in x direction I made there be no difference in electric potential
+        dV_Y(num_cell_x+1,num_cell_y+1,k) = fullV(0,num_cell_y,k) - fullV(0,num_cell_y-1,k);  //use 0's b/c num_cell+2 is same as the 1st pt--> PBC's
+        dV_Z(num_cell_x+1,num_cell_y+1,k) = fullV(0,num_cell_y,k) - fullV(0,num_cell_y,k-1);
     }
+
 
     // matrix operations for Bernoulli's
     Bp_posX = dV_X/(dV_X.exp() - 1.0);  //pay attention!: is  . notation for exp() component wise operation
@@ -415,6 +417,7 @@ void Continuity_p::Bernoulli_p(const Eigen::Tensor<double, 3> &V_matrix)
             }
         }
     }
+
 }
 
 
@@ -424,7 +427,7 @@ void Continuity_p::Bernoulli_p(const Eigen::Tensor<double, 3> &V_matrix)
 void Continuity_p::set_rhs(const std::vector<double> &Up)
 {
     //calculate main part here
-    for (int i = 1; i <= num_elements; i++)
+    for (int i = 0; i < num_elements; i++)
         rhs[i] = Cp*Up[i];
 
     //add on BC's
@@ -444,9 +447,11 @@ void Continuity_p::set_rhs(const std::vector<double> &Up)
     }
 
     //set up VectorXd Eigen vector object for sparse solver
-    for (int i = 1; i<=num_elements; i++) {
-        VecXd_rhs(i-1) = rhs[i];   //fill VectorXd  rhs of the equation
+    for (int i = 0; i < num_elements; i++) {
+        VecXd_rhs(i) = rhs[i];   //fill VectorXd  rhs of the equation
     }
+
+    //std::cout << VecXd_rhs << std::endl;
 }
 
 

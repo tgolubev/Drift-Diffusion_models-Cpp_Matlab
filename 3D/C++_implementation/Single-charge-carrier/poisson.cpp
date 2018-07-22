@@ -11,9 +11,10 @@ Poisson::Poisson(const Parameters &params)
     Ny = num_cell_y - 1;
     Nz = num_cell_z - 1;
     num_elements = params.num_elements;
-    V_matrix = Eigen::Tensor<double, 3> (num_cell_x+1, num_cell_y+1, num_cell_z+1);    //useful for calculating currents at end of each Va
-    V_matrix.setZero();
-    netcharge = Eigen::Tensor<double, 3> (num_cell_x+1, num_cell_y+1, num_cell_z+1);
+    //we already have a V_matrix in main--> don't make 1 of them!
+    //V_matrix = Eigen::Tensor<double, 3> (num_cell_x+1, num_cell_y+1, num_cell_z+1);    //useful for calculating currents at end of each Va
+    //V_matrix.setZero();
+    netcharge = Eigen::Tensor<double, 3> (num_cell_x, num_cell_y, num_cell_z);  //only contains elements which are included in matrix (exclude bottom BC's)
     netcharge.setZero();
 
     //these diags vectors are not needed
@@ -22,9 +23,9 @@ Poisson::Poisson(const Parameters &params)
 //    lower_diag.resize(num_elements+1);
 //    far_lower_diag.resize(num_elements+1);
 //    far_upper_diag.resize(num_elements+1);
-    rhs.resize(num_elements+1);  //+1 b/c I am filling from index 1
+    rhs.resize(num_elements);
 
-    V_bottomBC.resize(num_cell_x+1, num_cell_y+1);
+    V_bottomBC.resize(num_cell_x+1, num_cell_y+1);  //these are the full planes of BC's (include even the left boundaries)
     V_topBC.resize(num_cell_x+1, num_cell_y+1);
 
     //----------------------------------------------------------------------------------------------------------
@@ -67,11 +68,14 @@ Poisson::Poisson(const Parameters &params)
             epsilon_avg_Z(i,j,num_cell_z+1) = epsilon(i,j,num_cell_z);
         }
     }
+    */
     //Scale the epsilons for using in the matrix
     epsilon_avg_X = ((params.dz*params.dz)/(params.dx*params.dx))*epsilon/18.;  //JUST DO THIS FOR NOW, SINCE ALL EPSILONS ARE THE SAME((params.dz*params.dz)/(params.dx*params.dx))*epsilon_avg_X/18.;  //scale
     epsilon_avg_Y = ((params.dz*params.dz)/(params.dy*params.dy))*epsilon/18.; //((params.dz*params.dz)/(params.dy*params.dy))*epsilon_avg_Y/18.;  //to take into account possible dz dx dy difference, multipy by coefficient...
     epsilon_avg_Z = epsilon/18.; //epsilon_avg_Z/18.;
-    */
+
+    //THESE ARE CORRECT, i checked
+
 
 
     //===========================================================
@@ -118,10 +122,8 @@ void Poisson::set_V_bottomBC(const Parameters &params, double Va)
 void Poisson::setup_matrix()  //Note: this is on purpose different than the setup_eqn used for Continuity eqn's, b/c I need to setup matrix only once
 {
 
-
-    std::cerr<<"is inside the setup matrix fnc" << std::endl;
-
-    set_lowest_diag();
+    trp_cnt = 0;  //NEED TO START THE COUNT!
+    set_lowest_diag();  //BREAKS HERE
     set_lower_diag_Xs();   //lower diag corresponding to X direction finite differences
     set_lower_diag_Y_PBCs(); //lower diag corresponding to Y periodic boundary conditions
     set_lower_diag_Ys();
@@ -147,6 +149,7 @@ void Poisson::setup_matrix()  //Note: this is on purpose different than the setu
 //X's left PBC
 void Poisson::set_lowest_diag()
 {
+
     int index = 1;
     int i = 1;     //since is PBC, this is always i = 1
     for (int j = 1; j <= Ny+1; j++) {
@@ -157,6 +160,7 @@ void Poisson::set_lowest_diag()
             trp_cnt++;
             index = index +1;
         }
+        index = index + 1;  //to take care of Dirichlet BC's
     }
 }
 
@@ -164,13 +168,14 @@ void Poisson::set_lowest_diag()
 void Poisson::set_lower_diag_Xs()
 {
     int index = 1;
-    for (int i = 2; i <= Nx+1; i++) {
+    for (int i = 1; i <= Nx; i++) {
         for (int j = 1; j <= Ny+1; j++) {
             for (int k = 1; k <= Nz; k++) {// only to Nz b/c of Dirichlet BCs
                 triplet_list[trp_cnt] = {index-1+(Nz+1)*(Ny+1), index-1, -epsilon_avg_X(i,j,k)};
                 trp_cnt++;
                 index = index +1;
             }
+            index = index + 1;  //to take care of Dirichlet BC's
         }
     }
 }
@@ -183,10 +188,11 @@ void Poisson::set_lower_diag_Y_PBCs()
     int j = 1;   //always 1 b/c are bndry elements
     for (int i = 1; i <= Nx+1; i++) {
         for (int k = 1; k <= Nz; k++) { // only to Nz b/c of Dirichlet BCs
-            triplet_list[trp_cnt] = {index-1+(Nz+1)*(Ny+1), index-1, -epsilon_avg_Y(i,j,k)};
+            triplet_list[trp_cnt] = {index-1+(Nz+1)*(Ny), index-1, -epsilon_avg_Y(i,j,k)};
             trp_cnt++;
             index = index +1;
         }
+        index = index + 1;  //to take care of Dirichlet BC's
         index = index + (Nz+1)*(Ny);  // to skip the 0's subblocks
     }
 
@@ -198,12 +204,13 @@ void Poisson::set_lower_diag_Ys()
 {
     int index = 1;
     for (int i = 1; i <= Nx+1; i++) {
-        for (int j = 2; j <= Ny+1; j++) {
+        for (int j = 1; j <= Ny; j++) {
             for (int k = 1; k <= Nz; k++) {// only to Nz b/c of Dirichlet BCs
                 triplet_list[trp_cnt] = {index-1+(Nz+1), index-1, -epsilon_avg_Y(i,j,k)};
                 trp_cnt++;
                 index = index +1;
             }
+            index = index + 1;  //to take care of Dirichlet BC's
         }
         index = index + (Nz+1);  // to skip the 0's subblocks
     }
@@ -217,11 +224,12 @@ void Poisson::set_main_lower_diag()
     int index = 1;
     for (int i = 1; i <= Nx+1; i++) {
         for (int j = 1; j <= Ny+1; j++) {
-            for (int k = 2; k <= Nz; k++) {// only to Nz b/c of Dirichlet BCs
+            for (int k = 1; k <= Nz-1; k++) {// only to Nz-1 b/c of Dirichlet BCs and b/c is lower diag
                 triplet_list[trp_cnt] = {index, index-1, -epsilon_avg_Z(i,j,k)};
                 trp_cnt++;
                 index = index +1;
             }
+            index = index + 1;  //to take care of 0 for Dirichlet BC
             index = index + 1;  //skip the corner elements which are zero
         }
     }
@@ -238,7 +246,6 @@ void Poisson::set_main_diag()
             for (int k = 1; k <= Nz; k++) { // only to Nz b/c of Dirichlet BCs
                 triplet_list[trp_cnt] = {index-1, index-1, epsilon_avg_X(i,j,k) + epsilon_avg_X(i+1,j,k) + epsilon_avg_Y(i,j,k) + epsilon_avg_Y(i,j+1,k) + epsilon_avg_Z(i,j,k) + epsilon_avg_Z(i,j,k+1)};
                 trp_cnt++;
-                std::cout << epsilon_avg_X(i,j,k) << std::endl;
                 index = index +1;
             }
             //add the Dirichlet BC's element --> in matrix just have a 1
@@ -256,7 +263,7 @@ void Poisson::set_main_upper_diag()
     int index = 1;  //note: unlike Matlab, can always start index at 1 here, b/c not using any spdiags fnc
     for (int i = 1; i <= Nx+1; i++) {
         for (int j = 1; j <= Ny+1; j++) {
-            for (int k = 2; k <= Nz; k++) { // only to Nz b/c of Dirichlet BCs
+            for (int k = 2; k <= Nz+1; k++) { //to Nz+1 here b/c corresponds to +1 value since upper diag...
                 triplet_list[trp_cnt] = {index-1, index, -epsilon_avg_Z(i,j,k)};
                 trp_cnt++;
                 index = index +1;
@@ -274,9 +281,11 @@ void Poisson::set_upper_diag_Ys()
         for (int j = 2; j <= Ny+1; j++) {
             for (int k = 1; k <= Nz; k++) { // only to Nz b/c of Dirichlet BCs
                 triplet_list[trp_cnt] = {index-1, index-1+(Nz+1), -epsilon_avg_Y(i,j,k)};
+                std::cout << -epsilon_avg_Y(i,j,k)<< std::endl;
                 trp_cnt++;
                 index = index +1;
             }
+            index = index + 1;  //to take care of Dirichlet BC's
         }
         index = index + (Nz+1);  // to skip the 0's subblocks
     }
@@ -290,10 +299,11 @@ void Poisson::set_upper_diag_Y_PBCs()
     int j = Ny+1;  //corresponds to right y boundary
     for (int i = 1; i <= Nx+1; i++) {
         for (int k = 1; k <= Nz; k++) { // only to Nz b/c of Dirichlet BCs
-            triplet_list[trp_cnt] = {index-1, index-1+(Nz+1), -epsilon_avg_Y(i,j,k)};
+            triplet_list[trp_cnt] = {index-1, index-1+(Nz+1)*Ny, -epsilon_avg_Y(i,j,k)};
             trp_cnt++;
             index = index +1;
         }
+        index = index + 1;  //to take care of Dirichlet BC's
         index = index + (Nz+1)*(Ny);  // to skip the 0's subblocks
     }
 }
@@ -310,6 +320,7 @@ void Poisson::set_upper_diag_Xs()
                 trp_cnt++;
                 index = index +1;
             }
+            index = index + 1;  //to take care of Dirichlet BC's
         }
     }
 }
@@ -325,6 +336,7 @@ void Poisson::set_highest_diag()
             trp_cnt++;
             index = index +1;
         }
+        index = index + 1;  //to take care of Dirichlet BC's
     }
 }
 
@@ -332,7 +344,7 @@ void Poisson::set_highest_diag()
 
 void Poisson::set_rhs(const Eigen::Tensor<double, 3> &p)
 {
-    for (int i = 1; i <= num_elements; i++)
+    for (int i = 0; i < num_elements; i++)
         rhs[i] = CV*(p(i))/18.; //NOTE: later need to make this scaling automatically determined //Note: this uses full device
         //NOTE: p is now a tensor, so need to use () to access it's elements, NOT [].
 
@@ -341,20 +353,21 @@ void Poisson::set_rhs(const Eigen::Tensor<double, 3> &p)
     for (int i = 1; i <= Nx+1; i++) {  //num_cell +1 for i and j b/c of the PBC's/including boundary pt--> but are setting to 1 anyway..., so doesn't matter much
         for (int j = 1; j <= Ny+1; j++) {
             for (int k = 1; k <= Nz+1; k++) {
-                index++;
                 if (k == 1) //bottom BC
                     rhs[index] += (epsilon(i,j,0)/18.)*V_bottomBC(i,j);  //Note: scaled here, b/c of scaling in the matrix
 
-                if (k == Nz + 1) //top BC
+                if (k == Nz+1) //top BC
                     rhs[index] = V_topBC(i,j);
+                index++;
 
             }
         }
     }
 
     //set up VectorXd Eigen vector object for sparse solver
-    for (int i = 1; i<=num_elements; i++) {
-        VecXd_rhs(i-1) = rhs[i];   //fill VectorXd  rhs of the equation
+    //THIS CAN BE REMOVED LATER, AND CAN DIRECTLY SET IT UP IN ABOVE LOOP
+    for (int i = 0; i < num_elements; i++) {
+        VecXd_rhs(i) = rhs[i];   //fill VectorXd  rhs of the equation
     }
 
 }

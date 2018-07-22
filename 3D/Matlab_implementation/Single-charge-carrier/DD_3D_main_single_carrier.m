@@ -1,4 +1,4 @@
-)%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %         3D Drift Diffusion for Holes with Finite Differences
 
 %           THIS IS THE SINGLE CARRIER VERSION--> NO GENERATION 
@@ -61,11 +61,11 @@ tolerance_i =  5*10^-12;     %initial error tolerance, will be increased if can'
 
 %% System Setup
 
-Lx = 80.0000001e-9;     %there's some integer rounding issue, so use this .0000001
-Ly = 80.0000001e-9;
-Lz = 80.0000001e-9;   
-dx = 10e-9;                        %mesh size
-dy = 10e-9;  
+Lx = 6.0000001e-9;     %there's some integer rounding issue, so use this .0000001
+Ly = 6.0000001e-9;
+Lz = 6.0000001e-9;   
+dx = 2e-9;                        %mesh size
+dy = 2e-9;  
 dz = 2e-9;  
 num_cell_x = floor(Lx/dx);
 num_cell_y = floor(Ly/dy);
@@ -333,7 +333,8 @@ for Va_cnt = 1:num_V
         fullV(2:Nx+2,1,2:Nz+2) = V_matrix(:,Ny+1,:);
         %fill edges
         fullV(1,1,2:Nz+2) = V_matrix(Nx+1,1,:);  %left = right
-        fullV(1,Ny+2,2:Nz+2) = V_matrix(1,Ny+1,:);
+         fullV(1,Ny+2,2:Nz+2) = V_matrix(1,Ny+1,:);  %this one seems
+%         unneeded
         
         
         
@@ -363,6 +364,8 @@ for Va_cnt = 1:num_V
 %                   newp = Ap\bp;
 
         [newp, ~] = bicgstab(Ap, bp, 10^-14, 1000, [], [], p);  %Note: if don't specify an initial guess, bicgstab FAILS! 
+        
+   
 
 %-------------------------------
 %NOTE: BE VERY CAREFUL WITH  BICGSTAB, CHECK THE OUTPUT INFOR--> IT

@@ -10,8 +10,8 @@ Continuity_p::Continuity_p(const Parameters &params)
     Ny = num_cell_y - 1;
     Nz = num_cell_z - 1;
 
-    p_matrix = Eigen::Tensor<double, 3> (num_cell_x+1, num_cell_y+1, num_cell_z+1);
-    //NOTE: the p_matrix in here isn't really used now--> since using a different defined p_matrix inside of main
+    p_matrix = Eigen::Tensor<double, 3> (num_cell_x+1, num_cell_y+1, num_cell_z+1);  //note: this variable is updated every type find a new p_matrix inside main
+    //later, can somehow make this more efficient
 
     //these diags vectors are not needed
 //    main_diag.resize(num_elements+1);
@@ -41,10 +41,11 @@ Continuity_p::Continuity_p(const Parameters &params)
     p_bottomBC.resize(num_cell_x+1, num_cell_y+1);
     p_topBC.resize(num_cell_x+1, num_cell_y+1);
 
-    J_coeff = (q*Vt*params.N_dos*params.mobil)/params.dx;
+    J_coeff_x = (q*Vt*params.N_dos*params.mobil)/params.dx;
+    J_coeff_y = (q*Vt*params.N_dos*params.mobil)/params.dy;
+    J_coeff_z = (q*Vt*params.N_dos*params.mobil)/params.dz;
 
     //------------------------------------------------------------------------------------------
-    //MUST FILL WITH THE VALUES OF p_mob!!  WILL NEED TO MODIFY THIS WHEN HAVE SPACE VARYING
     p_mob = Eigen::Tensor<double, 3> (num_cell_x+2, num_cell_y+2, num_cell_z+2);
     p_mob_avg_X = Eigen::Tensor<double, 3> (num_cell_x+2, num_cell_y+2, num_cell_z+2);
     p_mob_avg_Y = Eigen::Tensor<double, 3> (num_cell_x+2, num_cell_y+2, num_cell_z+2);
@@ -374,14 +375,14 @@ void Continuity_p::Bernoulli_p(const Eigen::Tensor<double, 3> &V_matrix)
     }
 
     // matrix operations for Bernoulli's
-    Bp_posX = dV_X/(exp(dV_X) - 1.0);
-    Bp_negX = Bp_posX*exp(dV_X);
+    Bp_posX = dV_X/(dV_X.exp() - 1.0);  //pay attention!: is  . notation for exp() component wise operation
+    Bp_negX = Bp_posX*dV_X.exp();
 
-    Bp_posY = dV_Y/(exp(dV_Y) - 1.0);
-    Bp_negY = Bp_posY*exp(dV_Y);
+    Bp_posY = dV_Y/(dV_Y.exp() - 1.0);
+    Bp_negY = Bp_posY*dV_Y.exp();
 
-    Bp_posZ = dV_Z/(exp(dV_Z) - 1.0);
-    Bp_negZ = Bp_posZ*exp(dV_Z);
+    Bp_posZ = dV_Z/(dV_Z.exp() - 1.0);
+    Bp_negZ = Bp_posZ*dV_Y.exp();
 
     //I THINK THIS IS STILL OK TO USE--> only a ffefcts the small dV's--> i.e.
     //which are negligible. For larger dV's, we use the real Bernoulli eqn's...
@@ -417,109 +418,20 @@ void Continuity_p::set_rhs(const std::vector<double> &Up)
 
     //add on BC's
     int index = 0;
-    for (int k = 1; k <= N; k++) {
-        if (k == 1) {
-            for (int j = 1; j <= N; j++) {
-                if (j == 1)  {//different for 1st subblock
-                    for (int i = 1; i <= N; i++) {
-                        index++;
-                        if (i == 1)      //1st element has 2 BC's
-                            rhs[index] += p_mob(i,j,k)*p_leftBC_X(1,1)*Bp_posX(i,j,k) + p_mob(i,j,k)*p_leftBC_Y(1,1)*Bp_posY(i,j,k) + p_mob(i,j,k)*p_bottomBC(i,j)*Bp_posZ(i,j,k);
-                        else if (i == N)
-                            rhs[index] += p_mob(N+1, 1, 1)*p_rightBC_X(1,1)*Bp_negX(i+1,j,k) + p_mob(N, 0, 1)*p_leftBC_Y(N,1)*Bp_posY(i,j,k) + p_mob(N, 1, 0)*p_bottomBC(i,j)*Bp_posZ(i,j,k);
-                        else //middle elements in 1st subblock
-                            rhs[index] += p_mob(i, 0, 1)*p_leftBC_Y(i, 1)*Bp_posY(i,j,k) + p_mob(i, 1, 0)*p_bottomBC(i,j)*Bp_posZ(i,j,k);
-                    }
-                } else if (j == N) {      //different for last subblock
-                    for (int i = 1; i <= N; i++) {
-                        index++;
-                        if (i == 1)  //1st element has 2 BC's
-                            rhs[index] += p_mob(0, N, 1)*p_leftBC_X(N,1)*Bp_posX(i,j,k) + p_mob(1, N+1, 1)*p_rightBC_Y(1,1)*Bp_negY(i,j+1,k) + p_mob(1, N, 0)*p_bottomBC(i,j)*Bp_posZ(i,j,k);
-                        else if (i==N)
-                            rhs[index] += p_mob(N+1, N, 1)*p_rightBC_X(N,1)*Bp_negX(i+1,j,k) + p_mob(N, N+1, 1)*p_rightBC_Y(N,1)*Bp_negY(i,j+1,k) + p_mob(N,N, 0)*p_bottomBC(i,j)*Bp_posZ(i,j,k);
-                        else //inner rows of Nth subblock
-                            rhs[index] += p_mob(i,N+1, 1)*p_rightBC_Y(i,1)*Bp_negY(i,j+1,k) + p_mob(i, N, 0)*p_bottomBC(i,j)*Bp_posZ(i,j,k);
-                    }
-                } else {     //interior subblocks of 1st (k = 1) subblock group
-                    for (int i = 1; i <= N; i++) {
-                        index++;
-                        if (i == 1)
-                            rhs[index] += p_mob(0, j, 1)*p_leftBC_X(j,1)*Bp_posX(i,j,k) + p_mob(1, j, 0)*p_bottomBC(i,j)*Bp_posZ(i,j,k);
-                        else if (i == N)
-                            rhs[index] += p_mob(N+1, j, 1)*p_rightBC_X(j,1)*Bp_negX(i+1,j,k) + p_mob(N, j, 0)*p_bottomBC(i,j)*Bp_posZ(i,j,k);
-                        else
-                            rhs[index] += p_mob(i, j, 0)*p_bottomBC(i,j)*Bp_posZ(i,j,k);
-                    }
-                }
-            }
-        } else if (k == N) {
-            for (int j = 1; j <= N; j++) {
-                if (j == 1)  {//different for 1st subblock
-                    for (int i = 1; i <= N; i++) {
-                        index++;
-                        if (i == 1)      //1st element has 2 BC's
-                            rhs[index] += p_mob(0,1,N)*p_leftBC_X(1,N)*Bp_posX(i,j,k) + p_mob(1,0,N)*p_leftBC_Y(1,N)*Bp_posY(i,j,k) + p_mob(1,1,N+1)*p_topBC(i,j)*Bp_negZ(i,j,k+1);
-                        else if (i == N)
-                            rhs[index] += p_mob(N+1, 1, N)*p_rightBC_X(1,N)*Bp_negX(i+1,j,k) + p_mob(N, 0, N)*p_leftBC_Y(N,N)*Bp_posY(i,j,k) + p_mob(N, 1, N+1)*p_topBC(i,j)*Bp_negZ(i,j,k+1);
-                        else //middle elements in 1st subblock
-                            rhs[index] += p_mob(i, 0, N)*p_leftBC_Y(i, N)*Bp_posY(i,j,k) + p_mob(i, 1, N+1)*p_topBC(i,j)*Bp_negZ(i,j,k+1);
-                    }
-                } else if (j == N) {      //different for last subblock within k=N subblock group
-                    for (int i = 1; i <= N; i++) {
-                        index++;
-                        if (i == 1)  //1st element has 2 BC's
-                            rhs[index] += p_mob(0,N, N)*p_leftBC_X(N,N)*Bp_posX(i,j,k) + p_mob(1, N+1, N)*p_rightBC_Y(1,N)*Bp_negY(i,j+1,k) + p_mob(1, N, N+1)*p_topBC(i,j)*Bp_negZ(i,j,k+1);
-                        else if (i==N)
-                            rhs[index] += p_mob(N+1,N, N)*p_rightBC_X(N,N)*Bp_negX(i+1,j,k) + p_mob(N, N+1, N)*p_rightBC_Y(N,N)*Bp_negY(i,j+1,k) + p_mob(N,N, N+1)*p_topBC(i,j)*Bp_negZ(i,j,k+1);
-                        else //inner rows of Nth subblock
-                            rhs[index] += p_mob(i,N+1, N)*p_rightBC_Y(i,N)*Bp_negY(i,j+1,k) + p_mob(i, N, N+1)*p_topBC(i,j)*Bp_negZ(i,j,k+1);
-                    }
-                } else {    //interior subblocks of last (k = N) subblock group
-                    for (int i = 1; i <= N; i++) {
-                        index++;
-                        if (i == 1)
-                            rhs[index] += p_mob(0, j, N)*p_leftBC_X(j,N)*Bp_posX(i,j,k) + p_mob(1, j, N+1)*p_topBC(i,j)*Bp_negZ(i,j,k+1);
-                        else if (i == N)
-                            rhs[index] += p_mob(N+1, j, N)*p_rightBC_X(j,N)*Bp_negX(i+1,j,k) + p_mob(N, j, N+1)*p_topBC(i,j)*Bp_negZ(i,j,k+1);
-                        else
-                            rhs[index] += p_mob(i, j, N+1)*p_topBC(i,j)*Bp_negZ(i,j,k+1);
-                    }
-                }
-            }
-        } else {  //interior subblock groups (k=2:N-1)
-            for (int j = 1; j <= N; j++) {
-                if (j == 1)  {//different for 1st subblock
-                    for (int i = 1; i <= N; i++) {
-                        index++;
-                        if (i == 1)      //1st element has 2 BC's
-                            rhs[index] += p_mob(0, 1, k)*p_leftBC_X(1,k)*Bp_posX(i,j,k)  + p_mob(1, 0, k)*p_leftBC_Y(1,k)*Bp_posY(i,j,k);
-                        else if (i == N)
-                            rhs[index] += p_mob(N+1, 1, k)*p_rightBC_X(1,k)*Bp_negX(i+1,j,k) + p_mob(N, 0, k)*p_leftBC_Y(N,k)*Bp_posY(i,j,k);
-                        else //middle elements in 1st subblock
-                            rhs[index] += p_mob(i, 0, k)*p_leftBC_Y(i, k)*Bp_posY(i,j,k);
-                    }
-                } else if (j == N) {      //different for last subblock within k=N subblock group
-                    for (int i = 1; i <= N; i++) {
-                        index++;
-                        if (i == 1)  //1st element has 2 BC's
-                            rhs[index] += p_mob(0,N, k)*p_leftBC_X(N,k)*Bp_posX(i,j,k) + p_mob(1, N+1, k)*p_rightBC_Y(1,k)*Bp_negY(i,j+1,k);
-                        else if (i==N)
-                            rhs[index] += p_mob(N+1,N, k)*p_rightBC_X(N,k)*Bp_negX(i+1,j,k) + p_mob(N, N+1, k)*p_rightBC_Y(N,k)*Bp_negY(i,j+1,k);
-                        else //inner rows of Nth subblock
-                            rhs[index] += p_mob(i,N+1, k)*p_rightBC_Y(i,k)*Bp_negY(i,j+1,k);
-                    }
-                } else {    //interior subblocks of last (k = N) subblock group
-                    for (int i = 1; i <= N; i++) {
-                        index++;
-                        if (i == 1)
-                            rhs[index] += p_mob(0, j, k)*p_leftBC_X(j,k)*Bp_posX(i,j,k) ;
-                        else if (i == N)
-                            rhs[index] += p_mob(N+1, j, k)*p_rightBC_X(j,k)*Bp_negX(i+1,j,k);
-                    }
-                }
+    for (int i = 1; i <= Nx+1; i++) {  //num_cell +1 for i and j b/c of the PBC's/including boundary pt--> but are setting to 1 anyway..., so doesn't matter much
+        for (int j = 1; j <= Ny+1; j++) {
+            for (int k = 1; k <= Nz+1; k++) {
+                index++;
+                if (k == 1) //bottom BC
+                    rhs[index] += p_mob(i,j,0)*p_bottomBC(i,j)*Bp_posZ(i,j,k); //note: no +1's on Bp_posZ b/c I'm using shifted by 1 from Matlab, i.e. dV(1)-dV(0) = Bp(1)
+
+                if (k == Nz + 1) //top BC
+                    rhs[index] = p_topBC(i,j);
+
             }
         }
     }
+
     //set up VectorXd Eigen vector object for sparse solver
     for (int i = 1; i<=num_elements; i++) {
         VecXd_rhs(i-1) = rhs[i];   //fill VectorXd  rhs of the equation
@@ -529,12 +441,12 @@ void Continuity_p::set_rhs(const std::vector<double> &Up)
 
 void Continuity_p::calculate_currents()
 {
-    for (int i = 1; i <= num_cell; i++) {
-        for (int j = 1; j < num_cell; j++) {
-            for (int k = 1; k < num_cell; k++) {
-            Jp_Z(i,j,k) = -J_coeff * p_mob(i,j,k) * (p_matrix(i,j,k)*Bp_negZ(i,j,k) - p_matrix(i,j,k-1)*Bp_posZ(i,j,k));
-            Jp_Y(i,j,k) = -J_coeff * p_mob(i,j,k) * (p_matrix(i,j,k)*Bp_negY(i,j,k) - p_matrix(i,j-1,k)*Bp_posY(i,j,k));
-            Jp_X(i,j,k) = -J_coeff * p_mob(i,j,k) * (p_matrix(i,j,k)*Bp_negX(i,j,k) - p_matrix(i-1,j,k)*Bp_posX(i,j,k));
+    for (int i = 1; i <= num_cell_x; i++) {
+        for (int j = 1; j < num_cell_y; j++) {
+            for (int k = 1; k < num_cell_z; k++) {
+            Jp_Z(i,j,k) = -J_coeff_x * p_mob(i,j,k) * (p_matrix(i,j,k)*Bp_negZ(i,j,k) - p_matrix(i,j,k-1)*Bp_posZ(i,j,k));
+            Jp_Y(i,j,k) = -J_coeff_y * p_mob(i,j,k) * (p_matrix(i,j,k)*Bp_negY(i,j,k) - p_matrix(i,j-1,k)*Bp_posY(i,j,k));
+            Jp_X(i,j,k) = -J_coeff_z * p_mob(i,j,k) * (p_matrix(i,j,k)*Bp_negX(i,j,k) - p_matrix(i-1,j,k)*Bp_posX(i,j,k));
             }
         }
     }

@@ -177,6 +177,7 @@ int main()
     //USE THE RESHAPE FUNCTION!
     Eigen::array<ptrdiff_t, 3> to_matrix_sizes{{Nx+1, Ny+1, Nz+1}};  //this is a reshape before solving, so keep in x,y,z format
     Eigen::Tensor<double, 3> p_matrix = p.reshape(to_matrix_sizes);
+    continuity_p.set_p_matrix(p_matrix);  //save p_matrix to continuity_p member variable--> THIS MIGHT BE INEFFIIENT, BUT DO IT FOR NOW
 
     //////////////////////MAIN LOOP////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -324,6 +325,7 @@ int main()
 
             //Convert p to p_matrix
             p_matrix = p.reshape(to_matrix_sizes);
+            continuity_p.set_p_matrix(p_matrix);  //update member variable
 
             //std::cout << error_np << std::endl;
             //std::cout << "weighting factor = " << params.w << std::endl << std::endl;

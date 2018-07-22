@@ -36,6 +36,7 @@ public:
     void set_p_rightBC_X(const std::vector<double> &p);
     void set_p_leftBC_Y(const std::vector<double> &p);
     void set_p_rightBC_Y(const std::vector<double> &p);
+    void set_p_matrix(Eigen::Tensor<double, 3> p_matrix_input) {p_matrix = p_matrix_input;}
 
 
     //getters
@@ -91,7 +92,7 @@ private:
 
     std::vector<Trp> triplet_list;
     int trp_cnt;  //for counting the triplets
-    double J_coeff;  //coefficient for curents eqn
+    double J_coeff_x, J_coeff_y, J_coeff_z;  //coefficients for curents eqn
 
     Eigen::Tensor<double, 3> values;  //temporary variable to store values for diagonal filling
     Eigen::Tensor<double, 3> values2, values3, values4;  //these additional temp variables needed for main diag filling

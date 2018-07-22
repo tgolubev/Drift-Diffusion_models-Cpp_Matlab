@@ -319,12 +319,24 @@ void Poisson::set_highest_diag()
 
 void Poisson::set_rhs(const Eigen::Tensor<double, 3> &p)
 {
-
     for (int i = 1; i <= num_elements; i++)
-        rhs[i] = CV*(p[i]);  //Note: this uses full device
+        rhs[i] = CV*(p[i])/18.; //NOTE: later need to make this scaling automatically determined //Note: this uses full device
 
     //add on BC's
+    int index = 0;
+    for (int i = 1; i <= Nx+1; i++) {  //num_cell +1 for i and j b/c of the PBC's/including boundary pt--> but are setting to 1 anyway..., so doesn't matter much
+        for (int j = 1; j <= Ny+1; j++) {
+            for (int k = 1; k <= Nz+1; k++) {
+                index++;
+                if (k == 1) //bottom BC
+                    rhs[index] += (epsilon(i,j,0)/18.)*V_bottomBC(i,j);  //Note: scaled here, b/c of scaling in the matrix
 
+                if (k == Nz + 1) //top BC
+                    rhs[index] = V_topBC(i,j);
+
+            }
+        }
+    }
 
     //set up VectorXd Eigen vector object for sparse solver
     for (int i = 1; i<=num_elements; i++) {

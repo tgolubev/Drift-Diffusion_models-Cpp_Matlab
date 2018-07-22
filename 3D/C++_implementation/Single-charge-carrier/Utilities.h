@@ -16,8 +16,9 @@ public:
     Utilities();
 
     //!Applies linear mixing (result = w*new_value + (1-w)*old_value) where w is the mixing factor.
-    //! The mixing factor is in the \param params object. The new_values and old_values are of Eigen::Tensor type (to allow reshaping later).
-    std::vector<double> linear_mix(const Parameters &params, const Eigen::Tensor<double, 3> &new_values, const Eigen::Tensor<double, 3> &old_values);
+    //! The mixing factor is in the \param params object. The new_values and old_values are of Eigen::Tensor type (to allow reshaping later) and return value is
+    //! also of Tensor type.
+    Eigen::Tensor<double, 3> linear_mix(const Parameters &params, const Eigen::Tensor<double, 3> &new_values, const Eigen::Tensor<double, 3> &old_values);
 
     //!This writes to output files the details of voltage \param V, carrier densities \param p and \param n, current \param J_total, net electron generation rate \param Un.
     //! The files are named according to the applied voltage \param Va of this data.

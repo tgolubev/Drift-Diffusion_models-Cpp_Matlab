@@ -320,7 +320,8 @@ void Poisson::set_highest_diag()
 void Poisson::set_rhs(const Eigen::Tensor<double, 3> &p)
 {
     for (int i = 1; i <= num_elements; i++)
-        rhs[i] = CV*(p[i])/18.; //NOTE: later need to make this scaling automatically determined //Note: this uses full device
+        rhs[i] = CV*(p(i))/18.; //NOTE: later need to make this scaling automatically determined //Note: this uses full device
+        //NOTE: p is now a tensor, so need to use () to access it's elements, NOT [].
 
     //add on BC's
     int index = 0;

@@ -5,12 +5,12 @@ Utilities::Utilities()
 {
 }
 
-std::vector<double> Utilities::linear_mix(const Parameters &params, const Eigen::Tensor<double, 3> &new_values, const Eigen::Tensor<double, 3> &old_values)
+Eigen::Tensor<double, 3> Utilities::linear_mix(const Parameters &params, const Eigen::Tensor<double, 3> &new_values, const Eigen::Tensor<double, 3> &old_values)
 {
-    static std::vector<double> result(params.num_elements+1);  //static so only allocate at 1st fnc call
+    static Eigen::Tensor<double, 3> result(params.num_elements+1, 1, 1);  //static so only allocate at 1st fnc call
 
     for (int i = 1; i <= params.num_elements; i++) {  //note: all the changing values in vectors start from 1 (0th index is a BC)
-        result[i] = new_values[i]*params.w + old_values[i]*(1.0 - params.w);
+        result(i,1,1) = new_values(i,1,1)*params.w + old_values(i,1,1)*(1.0 - params.w);  //since now dealing with Tensor's, neeed to use (), otherwise will get "YOU MADE A PROGRAMMING MISTAKE" ERROR, about brackets....
     }
 
     return result;

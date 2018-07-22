@@ -170,7 +170,7 @@ int main()
     //double min_dense = std::min (continuity_n.get_n_bottomBC(1,1), continuity_p.get_p_topBC(1,1));  //Note: I defined the get fnc to take as arguments the i,j values... //Note: the bc's along bottom and top are currently uniform, so index, doesn't really matter.
     for (int i = 1; i<= num_rows; i++) {
         //n[i] = min_dense;
-        p[i] = min_dense;
+        p(i) = min_dense;  //NOTE: p is tensor now, so need () to access elements
     }
 
     //Convert the n and p to n_matrix and p_matrix
@@ -242,7 +242,8 @@ int main()
 
             //RECALL, I am starting my V vector from index of 1, corresponds to interior pts...
             for (int i = 1; i<=num_rows; i++) {
-                newV[i] = soln_Xd(i-1);   //fill VectorXd  rhs of the equation
+                newV(i,1,1) = soln_Xd(i-1);   //fill VectorXd  rhs of the equation
+                //NOTE: newV is a Tensor now, so use () to access
             }
 
             //Mix old and new solutions for V
@@ -287,14 +288,14 @@ int main()
 
             //save results back into n std::vector. RECALL, I am starting my V vector from index of 1, corresponds to interior pts...
             for (int i = 1; i<=num_rows; i++) {
-                newp[i] = soln_Xd(i-1);   //fill VectorXd  rhs of the equation
+                newp(i,1,1) = soln_Xd(i-1);   //newp is now a tensor....
             }
 
             //------------------------------------------------
 
             //if get negative p's or n's set them = 0
             for (int i = 1; i <= num_rows; i++) {
-                if (newp[i] < 0.0) newp[i] = 0;
+                if (newp(i,1,1) < 0.0) newp(i,1,1) = 0;
                 //if (newn[i] < 0.0) newn[i] = 0;
             }
 
@@ -303,8 +304,8 @@ int main()
 
             //THIS CAN BE MOVED TO A FUNCTION IN UTILS
             for (int i = 1; i <= num_rows; i++) {
-                if (newp[i]!=0) {
-                    error_np_vector[i] = (abs(newp[i]-oldp[i]))/abs(oldp[i]);
+                if (newp(i,1,1)!=0) {
+                    error_np_vector[i] = (abs(newp(i,1,1)-oldp(i,1,1)))/abs(oldp(i,1,1));
                 }
             }
             error_np = *std::max_element(error_np_vector.begin()+1,error_np_vector.end());  //+1 b/c we are not using the 0th element

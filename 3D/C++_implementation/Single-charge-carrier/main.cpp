@@ -322,8 +322,8 @@ int main()
 
             //note: top and bottom BC's don't need to be changed for now, since assumed to be constant... (they are set when initialize continuity objects)
 
-            //Convert p to  p_matrix
-            p.reshape(to_matrix_sizes);
+            //Convert p to p_matrix
+            p_matrix = p.reshape(to_matrix_sizes);
 
             //std::cout << error_np << std::endl;
             //std::cout << "weighting factor = " << params.w << std::endl << std::endl;
@@ -341,7 +341,7 @@ int main()
         J_total_Y = continuity_p.get_Jp_Y();// + continuity_n.get_Jn_Y();
 
         //---------------------Write to file----------------------------------------------------------------
-        utils.write_details(params, Va, poisson.get_V_matrix(), p, J_total_Z, Up);  //note just write p twice for now, place holder for n
+        utils.write_details(params, Va, poisson.get_V_matrix(), p_matrix, J_total_Z, Up);  //note just write p twice for now, place holder for n
         if(Va_cnt >0) utils.write_JV(params, JV, iter, Va, J_total_Z);
 
 

@@ -37,6 +37,7 @@ public:
     void set_p_leftBC_Y(const std::vector<double> &p);
     void set_p_rightBC_Y(const std::vector<double> &p);
 
+
     //getters
     Eigen::VectorXd get_rhs() const {return VecXd_rhs;}  //returns the Eigen object
     Eigen::SparseMatrix<double> get_sp_matrix() const {return sp_matrix;}
@@ -60,18 +61,23 @@ public:
     //Eigen::MatrixXd  get_Bp_posZ() const {return Bp_posZ;}
     //Eigen::MatrixXd  get_Bp_negZ() const {return Bp_negZ;}
     //Eigen::MatrixXd get_p_mob() const {return p_mob;}
-    //std::vector<double> get_p_leftBC() const {return p_leftBC;}
-    //std::vector<double> get_p_rightBC() const {return p_rightBC;}
 
 
 private:
-    std::vector<double> far_lower_diag;
-    std::vector<double> far_upper_diag;
-    std::vector<double> main_lower_diag;
-    std::vector<double> main_diag;
-    std::vector<double> main_upper_diag;
-    std::vector<double> upper_diag;
-    std::vector<double> lower_diag;
+    //vectors for the 11 diagonals
+     //I think I can fill the triplet list directly, and don't need these diag vectors
+//    std::vector<double> lowest_diag;
+//    std::vector<double> lower_diag_Xs;
+//    std::vector<double> lower_diag_Y_PBCs;
+//    std::vector<double> lower_diag_Ys;
+//    std::vector<double> main_lower_diag;
+//    std::vector<double> main_diag;
+//    std::vector<double> main_upper_diag;
+//    std::vector<double> upper_diag_Ys;
+//    std::vector<double> upper_diag_Y_PBCs;
+//    std::vector<double> upper_diag_Xs;
+//    std::vector<double> highest_diag;
+
     std::vector<double> rhs;
 
     Eigen::Tensor<double, 3> p_mob;  //!Matrix storing the position dependent holeelectron mobility
@@ -104,6 +110,7 @@ private:
     double Cp;
     int num_elements; //so don't have to keep typing params.
     int Nx, Ny, Nz;
+    int num_cell_x, num_cell_y, num_cell_z;
 
     //!Calculates the Bernoulli functions for dV in x direction and updates member arrays
     void Bernoulli_p_X(const Eigen::Tensor<double, 3> &V_matrix);
@@ -114,14 +121,19 @@ private:
     //!Calculates the Bernoulli functions for dV in z direction and updates member arrays
     void Bernoulli_p_Z(const Eigen::Tensor<double, 3> &V_matrix);
 
-    //matrix setup functions
-    void set_far_lower_diag();
-    void set_lower_diag();
+    //functions for setting up the 11 diagonals
+    void set_lowest_diag();
+    void set_lower_diag_Xs();   //lower diag corresponding to X direction finite differences
+    void set_lower_diag_Y_PBCs(); //lower diag corresponding to Y periodic boundary conditions
+    void set_lower_diag_Ys();
     void set_main_lower_diag();
     void set_main_diag();
-    void set_main_upper_diag();
-    void set_upper_diag();
-    void set_far_upper_diag();
+    void set_main_upper_diag();  //corresponds to Z direction finite differences
+    void set_upper_diag_Ys();
+    void set_upper_diag_Y_PBCs();
+    void set_upper_diag_Xs();
+    void set_highest_diag();
+
     void Continuity_p::set_rhs(const std::vector<double> &Up);
 };
 

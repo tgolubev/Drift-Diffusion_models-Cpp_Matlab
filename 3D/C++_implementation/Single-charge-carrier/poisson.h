@@ -51,23 +51,35 @@ private:
     double CV;    //Note: relative permitivity was moved into the matrix
     int Nx, Ny, Nz;  //for convenience define this --> is the number of points in 1D inside the device
     int num_elements;  //for convience so don't have to keep writing params.
-    int num_cell;
+    int num_cell_x, num_cell_y, num_cell_z;
 
-    void set_far_lower_diag();
-    void set_lower_diag();
+    //functions for setting up the 11 diagonals
+    void set_lowest_diag();
+    void set_lower_diag_Xs();   //lower diag corresponding to X direction finite differences
+    void set_lower_diag_Y_PBCs(); //lower diag corresponding to Y periodic boundary conditions
+    void set_lower_diag_Ys();
     void set_main_lower_diag();
     void set_main_diag();
-    void set_main_upper_diag();
-    void set_upper_diag();
-    void set_far_upper_diag();
+    void set_main_upper_diag();  //corresponds to Z direction finite differences
+    void set_upper_diag_Ys();
+    void set_upper_diag_Y_PBCs();
+    void set_upper_diag_Xs();
+    void set_highest_diag();
 
-    std::vector<double> far_lower_diag;
-    std::vector<double> far_upper_diag;
-    std::vector<double> main_lower_diag;
-    std::vector<double> main_diag;
-    std::vector<double> main_upper_diag;
-    std::vector<double> upper_diag;
-    std::vector<double> lower_diag;
+    //vectors for the 11 diagonals
+    //I think I can fill the triplet list directly, and don't need these diag vectors
+//    std::vector<double> lowest_diag;
+//    std::vector<double> lower_diag_Xs;
+//    std::vector<double> lower_diag_Y_PBCs;
+//    std::vector<double> lower_diag_Ys;
+//    std::vector<double> main_lower_diag;
+//    std::vector<double> main_diag;
+//    std::vector<double> main_upper_diag;
+//    std::vector<double> upper_diag_Ys;
+//    std::vector<double> upper_diag_Y_PBCs;
+//    std::vector<double> upper_diag_Xs;
+//    std::vector<double> highest_diag;
+
     std::vector<double> rhs;
     Eigen::VectorXd VecXd_rhs;  //rhs in Eigen object vector form, for sparse matrix solver
     Eigen::SparseMatrix<double> sp_matrix;

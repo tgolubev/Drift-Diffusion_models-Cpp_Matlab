@@ -17,7 +17,7 @@ std::vector<double> Utilities::linear_mix(const Parameters &params, const Eigen:
 }
 
 
-void Utilities::write_details(const Parameters &params, double Va, const Eigen::Tensor<double, 3> &V_matrix, Eigen::Tensor<double, 3> &p, const Eigen::Tensor<double, 3> &J_total_Z, const std::vector<double>  &Un)
+void Utilities::write_details(const Parameters &params, double Va, const Eigen::Tensor<double, 3> &V_matrix, Eigen::Tensor<double, 3> &p_matrix, const Eigen::Tensor<double, 3> &J_total_Z, const std::vector<double>  &Up)
 {
 
     //CAN ADD AN n and p to matrix conversion inside here, b/c that's the only place that it's used.
@@ -36,7 +36,7 @@ void Utilities::write_details(const Parameters &params, double Va, const Eigen::
             VaData << std::setw(15) << std::setprecision(8) << params.dy*j;
             VaData << std::setw(15) << std::setprecision(8) << params.dz*k;
             VaData << std::setw(15) << std::setprecision(8) << Vt*V_matrix(i,j,k);
-            VaData << std::setw(15) << std::setprecision(8) << params.N_dos*p_matrix(i,j);
+            VaData << std::setw(15) << std::setprecision(8) << params.N_dos*p_matrix(i,j,k);
             //VaData << std::setw(15) << std::setprecision(8) << params.N_dos*n_matrix(i,j);
             VaData << std::setw(15) << std::setprecision(8) << J_total_Z(i,j,k);
             //VaData << std::setw(15) << std::setprecision(8) << Un_matrix(i,j);

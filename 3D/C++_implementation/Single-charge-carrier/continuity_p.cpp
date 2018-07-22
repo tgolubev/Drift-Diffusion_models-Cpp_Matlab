@@ -3,9 +3,15 @@
 Continuity_p::Continuity_p(const Parameters &params)
 {
     num_elements = params.num_elements;
-    N = params.num_cell - 1;
-    num_cell = params.num_cell;
-    p_matrix = Eigen::Tensor<double, 3> (num_cell+1, num_cell+1, num_cell+1);
+    num_cell_x = params.num_cell_x;
+    num_cell_y = params.num_cell_y;
+    num_cell_z = params.num_cell_z;
+    Nx = num_cell_x - 1;
+    Ny = num_cell_y - 1;
+    Nz = num_cell_z - 1;
+
+    p_matrix = Eigen::Tensor<double, 3> (num_cell_x+1, num_cell_y+1, num_cell_z+1);
+    //NOTE: the p_matrix in here isn't really used now--> since using a different defined p_matrix inside of main
 
     main_diag.resize(num_elements+1);
     upper_diag.resize(num_elements+1);
@@ -14,44 +20,61 @@ Continuity_p::Continuity_p(const Parameters &params)
     far_upper_diag.resize(num_elements+1);
     rhs.resize(num_elements+1);  //+1 b/c I am filling from index 1
 
-    Bp_posX = Eigen::Tensor<double, 3> (num_cell+1, num_cell+1, num_cell+1);
-    Bp_negX = Eigen::Tensor<double, 3> (num_cell+1, num_cell+1, num_cell+1);
-    Bp_posY = Eigen::Tensor<double, 3> (num_cell+1, num_cell+1, num_cell+1);
-    Bp_negY = Eigen::Tensor<double, 3> (num_cell+1, num_cell+1, num_cell+1);
-    Bp_posZ = Eigen::Tensor<double, 3> (num_cell+1, num_cell+1, num_cell+1);
-    Bp_negZ = Eigen::Tensor<double, 3> (num_cell+1, num_cell+1, num_cell+1);
+    Bp_posX = Eigen::Tensor<double, 3> (num_cell_x+1, num_cell_y+1, num_cell_z+1);
+    Bp_negX = Eigen::Tensor<double, 3> (num_cell_x+1, num_cell_y+1, num_cell_z+1);
+    Bp_posY = Eigen::Tensor<double, 3> (num_cell_x+1, num_cell_y+1, num_cell_z+1);
+    Bp_negY = Eigen::Tensor<double, 3> (num_cell_x+1, num_cell_y+1, num_cell_z+1);
+    Bp_posZ = Eigen::Tensor<double, 3> (num_cell_x+1, num_cell_y+1, num_cell_z+1);
+    Bp_negZ = Eigen::Tensor<double, 3> (num_cell_x+1, num_cell_y+1, num_cell_z+1);
 
-    values  = Eigen::Tensor<double, 3> (num_cell+1, num_cell+1, num_cell+1);
-    values2 = Eigen::Tensor<double, 3> (num_cell+1, num_cell+1, num_cell+1);
-    values3 = Eigen::Tensor<double, 3> (num_cell+1, num_cell+1, num_cell+1);
-    values4 = Eigen::Tensor<double, 3> (num_cell+1, num_cell+1, num_cell+1);
+    values  = Eigen::Tensor<double, 3> (num_cell_x+1, num_cell_y+1, num_cell_z+1);
+    values2 = Eigen::Tensor<double, 3> (num_cell_x+1, num_cell_y+1, num_cell_z+1);
+    values3 = Eigen::Tensor<double, 3> (num_cell_x+1, num_cell_y+1, num_cell_z+1);
+    values4 = Eigen::Tensor<double, 3> (num_cell_x+1, num_cell_y+1, num_cell_z+1);
 
-    Jp_Z = Eigen::Tensor<double, 3> (num_cell+1, num_cell+1, num_cell+1);
-    Jp_X = Eigen::Tensor<double, 3> (num_cell+1, num_cell+1, num_cell+1);
-    Jp_Y = Eigen::Tensor<double, 3> (num_cell+1, num_cell+1, num_cell+1);
+    Jp_Z = Eigen::Tensor<double, 3> (num_cell_x+1, num_cell_y+1, num_cell_z+1);
+    Jp_X = Eigen::Tensor<double, 3> (num_cell_x+1, num_cell_y+1, num_cell_z+1);
+    Jp_Y = Eigen::Tensor<double, 3> (num_cell_x+1, num_cell_y+1, num_cell_z+1);
 
 
-    p_bottomBC.resize(num_cell+1, num_cell+1);
-    p_topBC.resize(num_cell+1, num_cell+1);
+    p_bottomBC.resize(num_cell_x+1, num_cell_y+1);
+    p_topBC.resize(num_cell_x+1, num_cell_y+1);
 
     J_coeff = (q*Vt*params.N_dos*params.mobil)/params.dx;
 
     //------------------------------------------------------------------------------------------
     //MUST FILL WITH THE VALUES OF p_mob!!  WILL NEED TO MODIFY THIS WHEN HAVE SPACE VARYING
-    p_mob = Eigen::Tensor<double, 3> (num_cell+2, num_cell+2, num_cell+2);
-    p_mob_avg_X = Eigen::Tensor<double, 3> (num_cell+2, num_cell+2, num_cell+2);
-    p_mob_avg_Y = Eigen::Tensor<double, 3> (num_cell+2, num_cell+2, num_cell+2);
-    p_mob_avg_Z = Eigen::Tensor<double, 3> (num_cell+2, num_cell+2, num_cell+2);
+    p_mob = Eigen::Tensor<double, 3> (num_cell_x+2, num_cell_y+2, num_cell_z+2);
+    p_mob_avg_X = Eigen::Tensor<double, 3> (num_cell_x+2, num_cell_y+2, num_cell_z+2);
+    p_mob_avg_Y = Eigen::Tensor<double, 3> (num_cell_x+2, num_cell_y+2, num_cell_z+2);
+    p_mob_avg_Z = Eigen::Tensor<double, 3> (num_cell_x+2, num_cell_y+2, num_cell_z+2);
     p_mob.setConstant(params.p_mob_active/params.mobil);
 
     //Compute averaged mobilities
-    for (int k = 1; k <= num_cell+1; k++) {
-        for (int j = 1; j <= num_cell+1; j++) {
-            for (int i = 1; i <= num_cell+1; i++) {
+    for (int i =  1; i <= num_cell_x; i++) {
+        for (int j = 1; j <= num_cell_y; j++) {
+            for (int k = 1; k <= num_cell_z; k++) {
                 p_mob_avg_X(i,j,k) = (p_mob(i,j,k) + p_mob(i,j+1,k) + p_mob(i,j,k+1) + p_mob(i,j+1,k+1))/4.;
                 p_mob_avg_Y(i,j,k) = (p_mob(i,j,k) + p_mob(i+1,j,k) + p_mob(i,j,k+1) + p_mob(i+1,j,k+1))/4.;
                 p_mob_avg_Z(i,j,k) = (p_mob(i,j,k) + p_mob(i+1,j,k) + p_mob(i,j+1,k) + p_mob(i+1,j+1,k))/4.;
+
+                //add num_cell+2 values for i to account for extra bndry pt
+                p_mob_avg_X(num_cell_x+1,j,k) = p_mob_avg_X(1,j,k);  //2 b/c the p_mob avg indices start from 2 (like Bernoullis)
+                p_mob_avg_Y(num_cell_x+1,j,k) = p_mob_avg_Y(1,j,k);
+                p_mob_avg_Z(num_cell_x+1,j,k) = p_mob_avg_Z(1,j,k);
+
+                //add num_cell+2 values for j to account for extra bndry pt
+                p_mob_avg_X(i,num_cell_y+1,k) = p_mob_avg_X(i,1,k);
+                p_mob_avg_Y(i,num_cell_y+1,k) = p_mob_avg_Y(i,1,k);
+                p_mob_avg_Z(i,num_cell_y+1,k) = p_mob_avg_Z(i,1,k);
             }
+           //NOTE: use inside the device value for the num_cell+2 values b/c
+           //these actually correspond to num_cell values, since with  Neuman
+           //BC's, we use the value inside the device twice, when discretizing
+           //at the boundary.
+            p_mob_avg_X(i,j,num_cell_z+1) = p_mob(i,j,num_cell_z);        //assume the average p_mob at the bndry pt (top electrode) = same as p_mob just inside.
+            p_mob_avg_Y(i,j,num_cell_z+1) = p_mob(i,j,num_cell_z);
+            p_mob_avg_Z(i,j,num_cell_z+1) = p_mob(i,j,num_cell_z);
         }
     }
 
@@ -59,10 +82,10 @@ Continuity_p::Continuity_p(const Parameters &params)
     Cp = (params.dx*params.dx)/(Vt*params.N_dos*params.mobil);  //can't use static, b/c dx wasn't defined as const, so at each initialization of Continuity_p object, new const will be made.
 
     //these BC's for now stay constant throughout simulation, so fill them once, upon Continuity_p object construction
-    for (int j =  0; j <= num_cell; j++) {
-        for (int i = 1; i <= num_cell+1; i++) {
-            p_bottomBC(i,j) = params.N_HOMO*exp(-params.phi_a/Vt)/params.N_dos;
-            p_topBC(i,j) = params.N_HOMO*exp(-(params.E_gap-params.phi_c)/Vt)/params.N_dos;
+    for (int j =  0; j <= num_cell_y; j++) {
+        for (int i = 1; i <= num_cell_x+1; i++) {
+            p_bottomBC(i,j) = 0;
+            p_topBC(i,j) = 1;
         }
     }
 
@@ -71,7 +94,7 @@ Continuity_p::Continuity_p(const Parameters &params)
     VecXd_rhs.resize(num_elements);   //only num_elements, b/c filling from index 0 (necessary for the sparse solver)
 
     //setup the triplet list for sparse matrix
-     triplet_list.resize(5*num_elements);   //approximate the size that need
+     triplet_list.resize(11*num_elements);   //approximate the size that need
 }
 
 //------------------------------------------------------------------
@@ -85,13 +108,17 @@ void Continuity_p::setup_eqn(const Eigen::Tensor<double, 3> &V_matrix, const std
     Bernoulli_p_Y(V_matrix);
     Bernoulli_p_Z(V_matrix);
 
-    set_far_lower_diag();
-    set_lower_diag();
+    set_lowest_diag();
+    set_lower_diag_Xs();   //lower diag corresponding to X direction finite differences
+    set_lower_diag_Y_PBCs(); //lower diag corresponding to Y periodic boundary conditions
+    set_lower_diag_Ys();
     set_main_lower_diag();
     set_main_diag();
-    set_main_upper_diag();
-    set_upper_diag();
-    set_far_upper_diag();
+    set_main_upper_diag();  //corresponds to Z direction finite differences
+    set_upper_diag_Ys();
+    set_upper_diag_Y_PBCs();
+    set_upper_diag_Xs();
+    set_highest_diag();
 
     set_rhs(Up);
 

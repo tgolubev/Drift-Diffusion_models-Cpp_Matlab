@@ -16,11 +16,12 @@ Poisson::Poisson(const Parameters &params)
     netcharge = Eigen::Tensor<double, 3> (num_cell_x+1, num_cell_y+1, num_cell_z+1);
     netcharge.setZero();
 
-    main_diag.resize(num_elements+1);
-    upper_diag.resize(num_elements+1);
-    lower_diag.resize(num_elements+1);
-    far_lower_diag.resize(num_elements+1);
-    far_upper_diag.resize(num_elements+1);
+    //these diags vectors are not needed
+//    main_diag.resize(num_elements+1);
+//    upper_diag.resize(num_elements+1);
+//    lower_diag.resize(num_elements+1);
+//    far_lower_diag.resize(num_elements+1);
+//    far_upper_diag.resize(num_elements+1);
     rhs.resize(num_elements+1);  //+1 b/c I am filling from index 1
 
     V_bottomBC.resize(num_cell_x+1, num_cell_y+1);
@@ -35,7 +36,7 @@ Poisson::Poisson(const Parameters &params)
     epsilon.setConstant(params.eps_active/epsilon_0);
 
     //Compute averaged mobilities
-    for (int i =  1; i <= num_cell_x; i++) {
+    for (int i = 1; i <= num_cell_x; i++) {
         for (int j = 1; j <= num_cell_y; j++) {
             for (int k = 1; k <= num_cell_z; k++) {
                 epsilon_avg_X(i,j,k) = (epsilon(i,j,k) + epsilon(i,j+1,k) + epsilon(i,j,k+1) + epsilon(i,j+1,k+1))/4.;

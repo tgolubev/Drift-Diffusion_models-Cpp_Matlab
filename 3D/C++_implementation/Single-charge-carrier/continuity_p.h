@@ -112,14 +112,8 @@ private:
     int Nx, Ny, Nz;
     int num_cell_x, num_cell_y, num_cell_z;
 
-    //!Calculates the Bernoulli functions for dV in x direction and updates member arrays
-    void Bernoulli_p_X(const Eigen::Tensor<double, 3> &V_matrix);
-
-    //!Calculates the Bernoulli functions for dV in y direction and updates member arrays
-    void Bernoulli_p_Y(const Eigen::Tensor<double, 3> &V_matrix);
-
-    //!Calculates the Bernoulli functions for dV in z direction and updates member arrays
-    void Bernoulli_p_Z(const Eigen::Tensor<double, 3> &V_matrix);
+    //!Calculates the Bernoulli functions for dVs and updates member arrays
+    void Bernoulli_p(const Eigen::Tensor<double, 3> &V_matrix);
 
     //functions for setting up the 11 diagonals
     void set_lowest_diag();

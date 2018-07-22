@@ -24,20 +24,13 @@ public:
     //! since it only depends on dielectric constant, so this function should be called only once.
     void setup_matrix();
 
-    //!Setup the right hand side of Poisson equation. This depends on the electron density \param n,
-    //! hole density \param p, and left and right boundary conditions \param V_leftBC and \param V_rightBC
-    void set_rhs(const std::vector<double> &n, const std::vector<double> &p);
-
-    void Poisson::to_matrix(const std::vector<double> &V);
+    //!Setup the right hand side of Poisson equation. This depends on the hole density \param p.
+    void set_rhs(const Eigen::Tensor<double, 3> &p);
 
     //setters for BC's:
     //for left and right BC's, will use input from the n matrix to determine
     void set_V_topBC(const Parameters &params, double Va);  //need applied voltage input, to know what the BC's are
     void set_V_bottomBC(const Parameters &params, double Va);
-    void set_V_leftBC_X(const std::vector<double> &V);
-    void set_V_rightBC_X(const std::vector<double> &V);
-    void set_V_leftBC_Y(const std::vector<double> &V);
-    void set_V_rightBC_Y(const std::vector<double> &V);
 
     //getters
     Eigen::VectorXd get_rhs() const {return VecXd_rhs;}  //returns the Eigen object
@@ -52,12 +45,11 @@ public:
     //std::vector<double> get_lower_diag() const {return lower_diag;}
     //std::vector<double> get_far_lower_diag() const {return far_lower_diag;}
     //std::vector<double> get_far_upper_diag() const {return far_upper_diag;}
-    //std::vector<double> get_V_leftBC() const {return V_leftBC;}
-    //std::vector<double> get_V_rightBC() const {return V_rightBC;}
+
 
 private:
     double CV;    //Note: relative permitivity was moved into the matrix
-    int N;  //for convenience define this --> is the number of points in 1D inside the device
+    int Nx, Ny, Nz;  //for convenience define this --> is the number of points in 1D inside the device
     int num_elements;  //for convience so don't have to keep writing params.
     int num_cell;
 
@@ -86,7 +78,7 @@ private:
     int trp_cnt;  //for counting the triplets
 
     //Boundary conditions
-    Eigen::MatrixXd V_leftBC_X, V_rightBC_X, V_leftBC_Y, V_rightBC_Y, V_bottomBC, V_topBC;
+    Eigen::MatrixXd V_bottomBC, V_topBC;
 
     //!This matrix stores the possibly position-dependent relative dielectric constant.
     Eigen::Tensor<double, 3> epsilon, epsilon_avg_X, epsilon_avg_Y, epsilon_avg_Z;

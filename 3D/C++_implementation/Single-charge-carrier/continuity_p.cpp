@@ -33,10 +33,6 @@ Continuity_p::Continuity_p(const Parameters &params)
 
     p_bottomBC.resize(num_cell+1, num_cell+1);
     p_topBC.resize(num_cell+1, num_cell+1);
-    p_leftBC_X.resize(num_cell+1, num_cell+1);
-    p_rightBC_X.resize(num_cell+1, num_cell+1);
-    p_leftBC_Y.resize(num_cell+1, num_cell+1);
-    p_rightBC_Y.resize(num_cell+1, num_cell+1);
 
     J_coeff = (q*Vt*params.N_dos*params.mobil)/params.dx;
 
@@ -79,54 +75,10 @@ Continuity_p::Continuity_p(const Parameters &params)
 }
 
 //------------------------------------------------------------------
-//Set BC's
-void Continuity_p::set_p_leftBC_X(const std::vector<double> &p)
-{
-    int index = 0;
-    for (int k = 1; k <= N; k++) {
-        for (int j = 1; j <= N; j++) {
-            p_leftBC_X(j,k) = p[index + (j-1)*N + 1];
-        }
-        index = index+N*N;  //brings us to next vertical subblock set
-    }
-}
-
-void Continuity_p::set_p_rightBC_X(const std::vector<double> &p)
-{
-    int index = 0;
-    for (int k = 1; k <= N; k++) {
-        for (int j = 1; j <= N; j++) {
-            p_rightBC_X(j,k) = p[index + j*N];
-        }
-        index = index+N*N;  //brings us to next vertical subblock set
-    }
-}
-
-void Continuity_p::set_p_leftBC_Y(const std::vector<double> &p)
-{
-    int index = 0;
-    for (int k = 1; k <= N; k++) {
-        for (int i = 1; i <= N; i++) {
-            p_leftBC_Y(i, k) = p[index + i];
-        }
-        index = index + N*N;
-    }
-}
-
-void Continuity_p::set_p_rightBC_Y(const std::vector<double> &p)
-{
-    int index = 0;
-    for (int k = 1; k <= N; k++) {
-        for (int i = 1; i <= N; i++) {
-            p_rightBC_Y(i, k) = p[index + i + N*N - N];
-        }
-        index = index + N*N;
-    }
-}
 
 
 //Calculates Bernoulli fnc values, then sets the diagonals and rhs
-void Continuity_p::setup_eqn(const Eigen::Tensor<double, 3> &V_matrix, const std::vector<double> &Up, const std::vector<double> &p)
+void Continuity_p::setup_eqn(const Eigen::Tensor<double, 3> &V_matrix, const std::vector<double> &Up, const Eigen::Tensor<double, 3> &p)
 {
     trp_cnt = 0;  //reset triplet count
     Bernoulli_p_X(V_matrix);
@@ -140,11 +92,6 @@ void Continuity_p::setup_eqn(const Eigen::Tensor<double, 3> &V_matrix, const std
     set_main_upper_diag();
     set_upper_diag();
     set_far_upper_diag();
-
-    set_p_leftBC_X(p);
-    set_p_rightBC_X(p);
-    set_p_leftBC_Y(p);
-    set_p_rightBC_Y(p);
 
     set_rhs(Up);
 
@@ -480,31 +427,6 @@ void Continuity_p::set_rhs(const std::vector<double> &Up)
         VecXd_rhs(i-1) = rhs[i];   //fill VectorXd  rhs of the equation
     }
 }
-
-//----------------------------------------------
-//NEEDS TO BE REWRITTEN...
-
-void Continuity_p::to_matrix(const std::vector<double> &p)
-{
-    for (int index = 1; index <= num_elements; index++) {
-        int i = index % N;    //this gives the i value for matrix
-        if (i == 0) i = N;
-
-        int j = 1 + static_cast<int>(floor((index-1)/N));  // j value for matrix
-
-        p_matrix(i,j) = p[index];
-    }
-    for (int j = 1; j <= N; j++) {
-        p_matrix(0, j) = p_leftBC[j];
-        p_matrix(num_cell, j) = p_rightBC[j];
-    }
-    for (int i = 0; i <= num_cell; i++) {  //bottom BC's go all the way accross, including corners
-        p_matrix(i, 0) = p_bottomBC[i];
-        p_matrix(i, num_cell) = p_topBC[i];
-    }
-
-}
-
 
 
 void Continuity_p::calculate_currents()

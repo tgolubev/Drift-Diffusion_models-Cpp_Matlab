@@ -24,11 +24,9 @@ public:
     //!\param V stores the voltage and is needed to calculate Bernoulli fnc.'s.
     //!\param Up stores the net generation rate, needed for the right hand side.
     //!\param p the hole density is needed to setup the boundary conditions.
-    void setup_eqn(const Eigen::Tensor<double, 3> &V_matrix, const std::vector<double> &Up, const std::vector<double> &p);
+    void setup_eqn(const Eigen::Tensor<double, 3> &V_matrix, const std::vector<double> &Up, const Eigen::Tensor<double, 3> &p);
 
     void calculate_currents();
-
-    void Continuity_p::to_matrix(const std::vector<double> &p);
 
     //setters for BC's:
     //for left and right BC's, will use input from the n matrix to determine
@@ -104,8 +102,8 @@ private:
     Eigen::Tensor<double, 3> Bp_negZ;  //bernoulli (-dV_z)
 
     double Cp;
-    int num_cell, num_elements; //so don't have to keep typing params.
-    int N;
+    int num_elements; //so don't have to keep typing params.
+    int Nx, Ny, Nz;
 
     //!Calculates the Bernoulli functions for dV in x direction and updates member arrays
     void Bernoulli_p_X(const Eigen::Tensor<double, 3> &V_matrix);

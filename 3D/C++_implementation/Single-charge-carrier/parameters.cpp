@@ -15,10 +15,18 @@ void Parameters::Initialize()
     try{
         std::string comment;  //to "eat" the comments. will only work is comment has no spaces btw words
         parameters >> comment;  //header line
-        parameters >> L >> comment;
-        isPositive(L, comment);
-        parameters >> num_cell >> comment;
-        isPositive(num_cell, comment);
+        parameters >> Lx >> comment;
+        isPositive(Lx, comment);
+        parameters >> Ly >> comment;
+        isPositive(Ly, comment);
+        parameters >> Lz >> comment;
+        isPositive(Lz, comment);
+        parameters >> dx >> comment;
+        isPositive(dx, comment);
+        parameters >> dy >> comment;
+        isPositive(dy, comment);
+        parameters >> dz >> comment;
+        isPositive(dz, comment);
         parameters >> N_LUMO >> comment;  //we will just ignore the comments
         isPositive(N_LUMO,comment);
         parameters >> N_HOMO >> comment;
@@ -63,7 +71,6 @@ void Parameters::Initialize()
         isPositive(w_reduce_factor,comment);
         parameters >> tol_relax_factor >> comment;
         isPositive(tol_relax_factor,comment);
-        parameters >> GenRateFileName >> comment;
         parameters.close();
         N_dos = N_HOMO;     //scaling factor helps CV be on order of 1
 
@@ -73,8 +80,14 @@ void Parameters::Initialize()
         exit(1);
     }
 
-    num_elements = (num_cell-1)*(num_cell-1)*(num_cell-1);
+
+    Nx = num_cell_x - 1;
+    Ny = num_cell_y - 1;
+    Nz = num_cell_z - 1;
+    num_elements = Nx*Ny*Nz;
     Vbi = WF_anode - WF_cathode +phi_a +phi_c;
+
+
 
 }
 

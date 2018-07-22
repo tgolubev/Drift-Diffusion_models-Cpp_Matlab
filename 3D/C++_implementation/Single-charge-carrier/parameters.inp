@@ -1,6 +1,10 @@
 //NOTE:IF-HAVE-ANY-SPACES-IN-COMMENTS-IT-WILL-FAIL
-20.0e-9 //device-thickness(m)
-20      //num_cell
+30.0e-9 //device-lenght(m)X
+30.0e-9 //device-WIDTH(m)Y
+30.0e-9 //device-thickness(m)Z
+2.0e-9  //dx_mesh_size
+2.0e-9  //dy_mesh_size
+2.0e-9  //dz_mesh_size
 1e24  //N-LUMO
 1e24  //N-HOMO
 4e27   //Photogeneration-scaling
@@ -18,13 +22,12 @@
 6e-17   //k_rec
 1.0e-9  //dx
 
--0.5     //Va_min
--0.49    //Va_max
-0.01    //increment
+0.1     //Va_min
+1.0    //Va_max
+0.1    //increment
 0.2    //w_eq
 0.2    //w_i
 5e-12   //tolerance_i
 2.0     //w_reduce_factor
 10.0    //tol_relax_factor
-gen_rate.inp  //GenRateFileName
 

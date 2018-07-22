@@ -79,13 +79,18 @@ int main()
     Parameters params;    //params is struct storing all parameters
     params.Initialize();  //reads parameters from file
 
-    const int num_cell = params.num_cell;   //create a local num_cell so don't have to type params.num_cell everywhere
+    const int num_cell_x = params.num_cell_x;   //create a local num_cell so don't have to type params.num_cell everywhere
+    const int num_cell_y = params.num_cell_y;
+    const int num_cell_z = params.num_cell_z;
 
     const int num_V = static_cast<int>(floor((params.Va_max-params.Va_min)/params.increment))+1;  //floor returns double, explicitely cast to int
-    params.tolerance_eq = 100.*params.tolerance_i;
-    const int N = params.num_cell -1;
-    const int num_rows = N*N*N;  //number of rows in the solution vectors (V, n, p)
-    //NOTE: num_rows is the same as num_elements
+    params.tolerance_eq = params.tolerance_i;
+    const int Nx = params.Nx;
+    const int Ny = params.Ny;
+    const int Nz = params.Nz;
+    const int num_rows = (Nx+1)*(Ny+1)*(Nz+1);  //number of rows in the solution vectors (V, n, p)
+    //NOTE: num_rows is the same as num_elements.
+    //NOTE: we include the top BC inside the matrix and solution vectors to allow in future to use mixed BC's there.
 
     std::ofstream JV;
     JV.open("JV.txt");  //note: file will be created inside the build directory
@@ -94,9 +99,9 @@ int main()
     //-------------------------------------------------------------------------------------------------------
     //Initialize other vectors
     //Will use indicies for n and p... starting from 1 --> since is more natural--> corresponds to 1st node inside the device...
-    //NOTE: ALL THESE INCLUDE THE INTERIOR ELEMENTS ONLY
-    std::vector<double> n(num_rows+1), p(num_rows + 1), oldp(num_rows + 1), newp(num_rows + 1), oldn(num_rows + 1), newn(num_rows + 1);
-    std::vector<double> oldV(num_rows + 1), newV(num_rows + 1), V(num_rows + 1);
+    //Note: these are Tensor type, so can use reshape on them, but these all are just a single column (i.e. the soln column from the matrix eqn).
+    Eigen::Tensor<double, 3> n(num_rows+1, 1, 1), p(num_rows + 1, 1, 1), oldp(num_rows + 1, 1, 1), newp(num_rows + 1, 1, 1), oldn(num_rows + 1, 1, 1), newn(num_rows + 1, 1, 1);
+    Eigen::Tensor<double, 3> oldV(num_rows + 1, 1, 1), newV(num_rows + 1, 1, 1), V(num_rows + 1, 1, 1);
 
     //create matrices to hold the V, n, and p values (including those at the boundaries) according to the (x,z) coordinates.
     //allows to write formulas in terms of coordinates
@@ -105,9 +110,9 @@ int main()
     //For the following, only need gen rate on insides, so N+1 size is enough
     std::vector<double> Un(num_rows+1); //will store generation rate as vector, for easy use in rhs
     std::vector<double> Up = Un;
-    Eigen::Tensor<double, 3> R_Langevin(N+1,N+1,N+1), PhotogenRate(N+1,N+1,N+1);
-    Eigen::Tensor<double, 3> J_total_Z(num_cell+1, num_cell+1, num_cell+1), J_total_X(num_cell+1, num_cell+1, num_cell+1), J_total_Y(num_cell+1, num_cell+1, num_cell+1);                  //matrices for spacially dependent current
-
+    //Eigen::Tensor<double, 3> R_Langevin(N+1,N+1,N+1), PhotogenRate(N+1,N+1,N+1);
+    Eigen::Tensor<double, 3> J_total_Z(num_cell_x+1, num_cell_y+1, num_cell_z+1), J_total_X(num_cell_x+1, num_cell_y+1, num_cell_z+1), J_total_Y(num_cell_x+1, num_cell_y+1, num_cell_z+1);                  //matrices for spacially dependent current
+    Eigen::Tensor<double, 3> V_matrix(num_cell_x+1, num_cell_y+1, num_cell_z+1);  //Note: is actually a Tensor in Eigen
     Eigen::SparseMatrix<double> input; //for feeding input matrix into BiCGSTAB, b/c it crashes if try to call get matrix from the solve call.
 
     std::cout << Eigen::nbThreads( ) << std::endl;  //displays the # of threads that will be used by Eigen--> mine displays 8, but doesn't seem like it's using 8.
@@ -141,23 +146,24 @@ int main()
        //diff[x] = (poisson.get_V_topBC()[x] - poisson.get_V_bottomBC()[x])/num_cell;    //note, the difference can be different at different x values..., diff is in Z directiont
 
     //for now assume diff is constant everywhere...
-    double diff = (poisson.get_V_topBC(0,0) - poisson.get_V_bottomBC(0,0))/num_cell;  //this is  calculated correctly
+    double diff = (poisson.get_V_topBC(0,0) - poisson.get_V_bottomBC(0,0))/num_cell_z;  //this is  calculated correctly
 
-    int index = 0;
-    for (int k = 1; k <= N; k++) {
-        index++;
-        V[index] = poisson.get_V_bottomBC(0,0) + diff*k;   //for now just  use 1 pt on bottom BC, since is uniform anyway
-        for (int i = 2; i <= N*N; i++) {//  %elements along the x and y directions assumed to have same V
-            index++;
-            V[index] = V[index-1];
-        }
-    }
+    for (int k = 1; k <= Nz+1; k++)
+        for (int i = 1; i <= Nx+1; i++)
+            for (int j = 1; j <= Ny+1; j++)
+                V_matrix(i, j, k) = poisson.get_V_bottomBC(i+1,j+1) +  diff*k;
 
-    //side BCs, insulating BC's
-    poisson.set_V_leftBC_X(V);
-    poisson.set_V_rightBC_X(V);
-    poisson.set_V_leftBC_Y(V);
-    poisson.set_V_rightBC_Y(V);
+    //need to permute the matrix, to be consistent with the z,y,x ordering which I use for the matrices when solving.
+    //NOTE: for Tensor shuffle to work, NEED TO EXPLICTELY CREATE AN ARRAY--> this isn't clear from the documentation
+    Eigen::array<int, 3> permutation = {{2,1,0}}; //array should HAVE THE SPECIFIC type:  ptrdiff_t  ==> used for pointer arithmetic and array indexing.
+    //ptrdiff_t is the signed integer type of the result of subtracting 2 pointers.
+
+    V_matrix = V_matrix.shuffle(permutation);  //shuffle permuts the tensor. Note: dimensions are indexed from 0. This is supposed to swap x and z values...
+    //Returns a copy of the input tensor whose dimensions have been reordered according to the specified permutation. The argument shuffle is an array of Index values. Its size is the rank of the input tensor. It must contain a permutation of 0, 1, ..., rank - 1.
+
+    //reshape the matrix to a single column. //Note: even though reshaping to a column, V still must be a TENSOR type for this to work!
+     Eigen::array<ptrdiff_t, 3> reshape_sizes = {{num_rows+1, 1, 1}};  //+1 b/c starts indexing from 0, but we use from 1
+     V = V_matrix.reshape(reshape_sizes);  //Note: even though reshaping to a column, V still must be a TENSOR type for this to work!
 
     //Fill n and p with initial conditions (need for error calculation)
     double min_dense = 0;//continuity_n.get_n_bottomBC(1,1) < continuity_p.get_p_topBC(1,1) ? continuity_n.get_n_bottomBC(1,1):continuity_p.get_p_topBC(1,1);  //this should be same as std::min  fnc which doesn't work for some reason
@@ -168,10 +174,9 @@ int main()
     }
 
     //Convert the n and p to n_matrix and p_matrix
-    //continuity_n.to_matrix(n);
-    continuity_p.to_matrix(p);
-
-    poisson.setup_matrix();  //outside of loop since matrix never changes
+    //USE THE RESHAPE FUNCTION!
+    Eigen::array<ptrdiff_t, 3> to_matrix_sizes{{Nx+1, Ny+1, Nz+1}};  //this is a reshape before solving, so keep in x,y,z format
+    Eigen::Tensor<double, 3> p_matrix = p.reshape(to_matrix_sizes);
 
     //////////////////////MAIN LOOP////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -213,11 +218,9 @@ int main()
             //std::cout << "Va " << Va <<std::endl;
 
             //-----------------Solve Poisson Equation------------------------------------------------------------------
-            poisson.set_rhs(n, p);  //this finds netcharge and sets rhs
+            poisson.set_rhs(p);  //this finds netcharge and sets rhs
             //std::cout << poisson.get_sp_matrix() << std::endl;
             oldV = V;
-
-
 
             if (iter == 0) { //INSTEAD OF HAVING IF here, can move these 2 lines, outside of the loop
                 poisson_LU.analyzePattern(poisson.get_sp_matrix());  //by doing only on first iter, since pattern never changes, save a bit cpu
@@ -247,12 +250,8 @@ int main()
             else
                 V = newV;
 
-            //update side BC's and V_matrix
-            poisson.set_V_leftBC_X(V);
-            poisson.set_V_rightBC_X(V);
-            poisson.set_V_leftBC_Y(V);
-            poisson.set_V_rightBC_Y(V);
-            poisson.to_matrix(V);
+            //reshape solution to a V_matrix
+            V_matrix = V.reshape(to_matrix_sizes);
 
             //------------------------------Calculate Net Generation Rate----------------------------------------------------------
 
@@ -261,49 +260,12 @@ int main()
 
             if (Va_cnt > 0) {
                 for (int i = 1; i <= num_rows; i++) {
-                    Un[i] = 0; //params.Photogen_scaling;  //This is what was used in Matlab version for testing.   photogen.getPhotogenRate()(i,j); //- R_Langevin(i,j);
+                    Up[i] = 0; //params.Photogen_scaling;  //This is what was used in Matlab version for testing.   photogen.getPhotogenRate()(i,j); //- R_Langevin(i,j);
                 }
-                Up = Un;
             }
 
-            //--------------------------------Solve equations for n and p------------------------------------------------------------
+            //--------------------------------Solve equation for p------------------------------------------------------------
 
-            /*
-            continuity_n.setup_eqn(poisson.get_V_matrix(), Un, n);
-            oldn = n;
-
-            //std::chrono::high_resolution_clock::time_point start2 = std::chrono::high_resolution_clock::now();  //start clock timer
-
-            if (iter == 0 ) //can move this outside of the loop, instead of using if here...
-                cont_n_LU.analyzePattern(continuity_n.get_sp_matrix());  //by doing only on first iter, since pattern never changes, save a bit cpu
-            cont_n_LU.factorize(continuity_n.get_sp_matrix());  //need to do on each iter, b/c matrix elements change
-            soln_Xd = cont_n_LU.solve(continuity_n.get_rhs());
-
-            //std::chrono::high_resolution_clock::time_point finish2 = std::chrono::high_resolution_clock::now();
-            //std::chrono::duration<double> time2 = std::chrono::duration_cast<std::chrono::duration<double>>(finish2-start2);
-            //std::cout << "CPU time = " << time2.count() << std::endl;
-
-            //std::cout << "solver error " << continuity_n.get_sp_matrix() * soln_Xd - continuity_n.get_rhs() << std::endl;
-
-            input = continuity_n.get_sp_matrix();
-            if (iter == 0)
-                BiCGStab_solver.analyzePattern(input);
-            BiCGStab_solver.factorize(input);  //this computes preconditioner, if use along with analyzePattern (for 1st iter)
-            //BiCGStab_solver.compute(input);  //this computes the preconditioner.
-            soln_Xd = BiCGStab_solver.solve(continuity_n.get_rhs());
-            //std::cout << soln_Xd << std::endl;
-
-
-            //std::cout << "#iterations:     " << solver.iterations() << std::endl;
-            //std::cout << "estimated error: " << BiCGStab_solver.error()      << std::endl;
-
-            //save results back into n std::vector. RECALL, I am starting my V vector from index of 1, corresponds to interior pts...
-            for (int i = 1; i<=num_rows; i++) {
-                newn[i] = soln_Xd(i-1);   //fill VectorXd  rhs of the equation
-            }
-            */
-
-            //-------------------------------------------------------
             continuity_p.setup_eqn(poisson.get_V_matrix(), Up, p);
             //std::cout << continuity_p.get_sp_matrix() << std::endl;   //Note: get rhs, returns an Eigen VectorXd
             oldp = p;
@@ -343,13 +305,6 @@ int main()
                 if (newp[i]!=0) {
                     error_np_vector[i] = (abs(newp[i]-oldp[i]))/abs(oldp[i]);
                 }
-
-                //for 2 carriers
-                /*
-                if (newp[i]!=0 && newn[i] !=0) {
-                    error_np_vector[i] = (abs(newp[i]-oldp[i]) + abs(newn[i]-oldn[i]))/abs(oldp[i]+oldn[i]);
-                }
-                */
             }
             error_np = *std::max_element(error_np_vector.begin()+1,error_np_vector.end());  //+1 b/c we are not using the 0th element
             std::fill(error_np_vector.begin(), error_np_vector.end(),0.0);  //refill with 0's so have fresh one for next iter
@@ -364,27 +319,11 @@ int main()
             }
 
             p = utils.linear_mix(params, newp, oldp);
-            //n = utils.linear_mix(params, newn, oldn);
 
-            //Apply side continuity equation  BC's
-            //WE ARE UPDATING BC'S here b/c we need them for setting up the n and p matrices below
-            //Bc's are also updated when setup continuity eqn.
-            /*
-            continuity_n.set_n_leftBC_X(n);  //this sets both x and y left BC's
-            continuity_n.set_n_rightBC_X(n);
-            continuity_n.set_n_leftBC_Y(n);  //this sets both x and y left BC's
-            continuity_n.set_n_rightBC_Y(n);
-            */
-
-            continuity_p.set_p_leftBC_X(p);
-            continuity_p.set_p_rightBC_X(p);
-            continuity_p.set_p_leftBC_Y(p);
-            continuity_p.set_p_rightBC_Y(p);
             //note: top and bottom BC's don't need to be changed for now, since assumed to be constant... (they are set when initialize continuity objects)
 
-            //Convert the n and p to n_matrix and p_matrix
-            //continuity_n.to_matrix(n);
-            continuity_p.to_matrix(p);
+            //Convert p to  p_matrix
+            p.reshape(to_matrix_sizes);
 
             //std::cout << error_np << std::endl;
             //std::cout << "weighting factor = " << params.w << std::endl << std::endl;
@@ -402,7 +341,7 @@ int main()
         J_total_Y = continuity_p.get_Jp_Y();// + continuity_n.get_Jn_Y();
 
         //---------------------Write to file----------------------------------------------------------------
-        utils.write_details(params, Va, poisson.get_V_matrix(), p, p, J_total_Z, Up);  //note just write p twice for now, place holder for n
+        utils.write_details(params, Va, poisson.get_V_matrix(), p, J_total_Z, Up);  //note just write p twice for now, place holder for n
         if(Va_cnt >0) utils.write_JV(params, JV, iter, Va, J_total_Z);
 
 

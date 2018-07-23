@@ -61,9 +61,9 @@ tolerance_i =  5*10^-12;     %initial error tolerance, will be increased if can'
 
 %% System Setup
 
-Lx = 6.0000001e-9;     %there's some integer rounding issue, so use this .0000001
-Ly = 6.0000001e-9;
-Lz = 6.0000001e-9;   
+Lx = 10.0000001e-9;     %there's some integer rounding issue, so use this .0000001
+Ly = 10.0000001e-9;
+Lz = 10.0000001e-9;   
 dx = 2e-9;                        %mesh size
 dy = 2e-9;  
 dz = 2e-9;  
@@ -365,7 +365,7 @@ for Va_cnt = 1:num_V
 
         [newp, ~] = bicgstab(Ap, bp, 10^-14, 1000, [], [], p);  %Note: if don't specify an initial guess, bicgstab FAILS! 
         
-   
+
 
 %-------------------------------
 %NOTE: BE VERY CAREFUL WITH  BICGSTAB, CHECK THE OUTPUT INFOR--> IT

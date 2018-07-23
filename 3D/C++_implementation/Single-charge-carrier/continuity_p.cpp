@@ -153,6 +153,7 @@ void Continuity_p::set_lowest_diag()
             trp_cnt++;
             index = index +1;
         }
+        index = index + 1;  //to take care of Dirichlet BC's
     }
 }
 
@@ -162,13 +163,14 @@ void Continuity_p::set_lower_diag_Xs()
     values = -p_mob_avg_X*Bp_posX;
 
     int index = 1;
-    for (int i = 2; i <= Nx+1; i++) {
+    for (int i = 1; i <= Nx; i++) {
         for (int j = 1; j <= Ny+1; j++) {
             for (int k = 1; k <= Nz; k++) {// only to Nz b/c of Dirichlet BCs
-                triplet_list[trp_cnt] = {index-1+(Nz+1)*(Ny+1), index-1, values(i,j,k)};
+                triplet_list[trp_cnt] = {index-1+(Nz+1)*(Ny+1), index-1, values(i+1,j,k)}; //i+1 b/c of the formula...
                 trp_cnt++;
                 index = index +1;
             }
+            index = index + 1;  //to take care of Dirichlet BC's
         }
     }
 }
@@ -183,10 +185,11 @@ void Continuity_p::set_lower_diag_Y_PBCs()
     int j = 1;   //always 1 b/c are bndry elements
     for (int i = 1; i <= Nx+1; i++) {
         for (int k = 1; k <= Nz; k++) { // only to Nz b/c of Dirichlet BCs
-            triplet_list[trp_cnt] = {index-1+(Nz+1)*(Ny+1), index-1, values(i,j,k)};
+            triplet_list[trp_cnt] = {index-1+(Nz+1)*(Ny), index-1, values(i,j,k)};
             trp_cnt++;
             index = index +1;
         }
+        index = index + 1;  //to take care of Dirichlet BC's
         index = index + (Nz+1)*(Ny);  // to skip the 0's subblocks
     }
 }
@@ -199,12 +202,13 @@ void Continuity_p::set_lower_diag_Ys()
 
     int index = 1;
     for (int i = 1; i <= Nx+1; i++) {
-        for (int j = 2; j <= Ny+1; j++) {
+        for (int j = 1; j <= Ny; j++) {
             for (int k = 1; k <= Nz; k++) {// only to Nz b/c of Dirichlet BCs
-                triplet_list[trp_cnt] = {index-1+(Nz+1), index-1, values(i,j,k)};
+                triplet_list[trp_cnt] = {index-1+(Nz+1), index-1, values(i,j+1,k)};
                 trp_cnt++;
                 index = index +1;
             }
+            index = index + 1;  //to take care of Dirichlet BC's
         }
         index = index + (Nz+1);  // to skip the 0's subblocks
     }
@@ -220,11 +224,12 @@ void Continuity_p::set_main_lower_diag()
     int index = 1;
     for (int i = 1; i <= Nx+1; i++) {
         for (int j = 1; j <= Ny+1; j++) {
-            for (int k = 2; k <= Nz; k++) {// only to Nz b/c of Dirichlet BCs
-                triplet_list[trp_cnt] = {index, index-1, values(i,j,k)};
+            for (int k = 1; k <= Nz-1; k++) {// only to Nz-1 b/c of Dirichlet BCs
+                triplet_list[trp_cnt] = {index, index-1, values(i,j,k+1)};  //k+1 b/c that is the Bernoulli continuity eqn formula.....
                 trp_cnt++;
                 index = index +1;
             }
+            index = index + 1;  //to take care of 0 for Dirichlet BC
             index = index + 1;  //skip the corner elements which are zero
         }
     }
@@ -239,6 +244,8 @@ void Continuity_p::set_main_diag()
     values2 = p_mob_avg_X*Bp_posX;  //these have +1+1 in some elements, so need to be seperate
     values3 = p_mob_avg_Y*Bp_posY;
     values4 = p_mob_avg_Z*Bp_posZ;
+
+
 
     int index = 1;
     for (int i = 1; i <= Nx+1; i++) {
@@ -265,8 +272,8 @@ void Continuity_p::set_main_upper_diag()
     int index = 1;  //note: unlike Matlab, can always start index at 1 here, b/c not using any spdiags fnc
     for (int i = 1; i <= Nx+1; i++) {
         for (int j = 1; j <= Ny+1; j++) {
-            for (int k = 2; k <= Nz; k++) { // only to Nz b/c of Dirichlet BCs
-                triplet_list[trp_cnt] = {index-1, index, values(i,j,k)};
+            for (int k = 1; k <= Nz; k++) {
+                triplet_list[trp_cnt] = {index-1, index, values(i,j,k+1)};
                 trp_cnt++;
                 index = index +1;
             }
@@ -282,12 +289,13 @@ void Continuity_p::set_upper_diag_Ys()
 
     int index = 1;
     for (int i = 1; i <= Nx+1; i++) {
-        for (int j = 2; j <= Ny+1; j++) {
+        for (int j = 1; j <= Ny; j++) {
             for (int k = 1; k <= Nz; k++) { // only to Nz b/c of Dirichlet BCs
-                triplet_list[trp_cnt] = {index-1, index-1+(Nz+1), values(i,j,k)};
+                triplet_list[trp_cnt] = {index-1, index-1+(Nz+1), values(i,j+1,k)};
                 trp_cnt++;
                 index = index +1;
             }
+            index = index + 1;  //to take care of Dirichlet BC's
         }
         index = index + (Nz+1);  // to skip the 0's subblocks
     }
@@ -303,10 +311,11 @@ void Continuity_p::set_upper_diag_Y_PBCs()
     int j = Ny+1;  //corresponds to right y boundary
     for (int i = 1; i <= Nx+1; i++) {
         for (int k = 1; k <= Nz; k++) { // only to Nz b/c of Dirichlet BCs
-            triplet_list[trp_cnt] = {index-1, index-1+(Nz+1), values(i,j,k)};
+            triplet_list[trp_cnt] = {index-1, index-1+(Nz+1)*Ny, values(i,j,k)};
             trp_cnt++;
             index = index +1;
         }
+        index = index + 1;  //to take care of Dirichlet BC's
         index = index + (Nz+1)*(Ny);  // to skip the 0's subblocks
     }
 }
@@ -318,13 +327,14 @@ void Continuity_p::set_upper_diag_Xs()
     values = -p_mob_avg_X*Bp_negX;
 
     int index = 1;
-    for (int i = 2; i <= Nx+1; i++) {
+    for (int i = 1; i <= Nx; i++) {
         for (int j = 1; j <= Ny+1; j++) {
             for (int k = 1; k <= Nz; k++) {// only to Nz b/c of Dirichlet BCs
-                triplet_list[trp_cnt] = {index-1, index-1+(Nz+1)*(Ny+1), values(i,j,k)};
+                triplet_list[trp_cnt] = {index-1, index-1+(Nz+1)*(Ny+1), values(i+1,j,k)};
                 trp_cnt++;
                 index = index +1;
             }
+            index = index + 1;  //to take care of Dirichlet BC's
         }
     }
 }
@@ -342,6 +352,7 @@ void Continuity_p::set_highest_diag()
             trp_cnt++;
             index = index +1;
         }
+        index = index + 1;  //to take care of Dirichlet BC's
     }
 }
 
@@ -395,7 +406,8 @@ void Continuity_p::Bernoulli_p(const Eigen::Tensor<double, 3> &fullV)
     Bp_negY = Bp_posY*dV_Y.exp();
 
     Bp_posZ = dV_Z/(dV_Z.exp() - 1.0);
-    Bp_negZ = Bp_posZ*dV_Y.exp();
+    Bp_negZ = Bp_posZ*dV_Z.exp();
+
 
     //I THINK THIS IS STILL OK TO USE--> only a ffefcts the small dV's--> i.e.
     //which are negligible. For larger dV's, we use the real Bernoulli eqn's...
@@ -408,11 +420,11 @@ void Continuity_p::Bernoulli_p(const Eigen::Tensor<double, 3> &fullV)
                 }
                 if(abs(dV_Y(i,j,k)) < 1e-13) { //using real taylor expansion here works fine...
                     Bp_posY(i,j,k) = 1;//1 -  dV_Y(i,j,k)/2 + (dV_Y(i,j,k))^2/12 - (dV_Y(i,j,k))^4/720;
-                    Bp_negY(i,j,k) = Bp_posY(i,j,k)*exp(dV_Y(i,j,k));
+                    Bp_negY(i,j,k) = 1;//Bp_posY(i,j,k)*exp(dV_Y(i,j,k));
                 }
                 if(abs(dV_Z(i,j,k)) < 1e-13) { //using real taylor expansion here works fine...
                     Bp_posZ(i,j,k) = 1;//1 -  dV_Z(i,j,k)/2 + (dV_Z(i,j,k))^2/12 - (dV_Z(i,j,k))^4/720;
-                    Bp_negZ(i,j,k) = Bp_posZ(i,j,k)*exp(dV_Z(i,j,k));
+                    Bp_negZ(i,j,k) = 1;//Bp_posZ(i,j,k)*exp(dV_Z(i,j,k));
                 }
             }
         }
@@ -435,34 +447,35 @@ void Continuity_p::set_rhs(const std::vector<double> &Up)
     for (int i = 1; i <= Nx+1; i++) {  //num_cell +1 for i and j b/c of the PBC's/including boundary pt--> but are setting to 1 anyway..., so doesn't matter much
         for (int j = 1; j <= Ny+1; j++) {
             for (int k = 1; k <= Nz+1; k++) {
-                index++;
                 if (k == 1) //bottom BC
                     rhs[index] += p_mob(i,j,0)*p_bottomBC(i,j)*Bp_posZ(i,j,k); //note: no +1's on Bp_posZ b/c I'm using shifted by 1 from Matlab, i.e. dV(1)-dV(0) = Bp(1)
 
                 if (k == Nz + 1) //top BC
                     rhs[index] = p_topBC(i,j);
 
+                index++;
+
             }
         }
     }
+
 
     //set up VectorXd Eigen vector object for sparse solver
     for (int i = 0; i < num_elements; i++) {
         VecXd_rhs(i) = rhs[i];   //fill VectorXd  rhs of the equation
     }
 
-    //std::cout << VecXd_rhs << std::endl;
 }
 
 
-void Continuity_p::calculate_currents(Eigen::Tensor<double, 3> p_matrix)  //don't use the local p_matrix...!, need to pass it the one from main
+void Continuity_p::calculate_currents(Eigen::Tensor<double, 3> fullp)  //don't use the local p_matrix...!, need to pass it the one from main
 {
     for (int i = 1; i <= num_cell_x; i++) {
         for (int j = 1; j < num_cell_y; j++) {
             for (int k = 1; k < num_cell_z; k++) {
-            Jp_Z(i,j,k) = -J_coeff_x * p_mob(i,j,k) * (p_matrix(i,j,k)*Bp_negZ(i,j,k) - p_matrix(i,j,k-1)*Bp_posZ(i,j,k));
-            Jp_Y(i,j,k) = -J_coeff_y * p_mob(i,j,k) * (p_matrix(i,j,k)*Bp_negY(i,j,k) - p_matrix(i,j-1,k)*Bp_posY(i,j,k));
-            Jp_X(i,j,k) = -J_coeff_z * p_mob(i,j,k) * (p_matrix(i,j,k)*Bp_negX(i,j,k) - p_matrix(i-1,j,k)*Bp_posX(i,j,k));
+            Jp_Z(i,j,k) = -J_coeff_x * p_mob(i,j,k) * (fullp(i,j,k)*Bp_negZ(i,j,k) - fullp(i,j,k-1)*Bp_posZ(i,j,k));
+            Jp_Y(i,j,k) = -J_coeff_y * p_mob(i,j,k) * (fullp(i,j,k)*Bp_negY(i,j,k) - fullp(i,j-1,k)*Bp_posY(i,j,k));
+            Jp_X(i,j,k) = -J_coeff_z * p_mob(i,j,k) * (fullp(i,j,k)*Bp_negX(i,j,k) - fullp(i-1,j,k)*Bp_posX(i,j,k));
             }
         }
     }

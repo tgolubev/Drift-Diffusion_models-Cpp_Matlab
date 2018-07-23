@@ -88,6 +88,8 @@ for i = 2:num_cell_x+2  %num_cell +2 for i and j b/c of the PBC's/including boun
     end
 end
 
+
+
 %create a structure for this function to return all Bernoulli values
 Bernoulli_p_values.Bp_posX = Bp_posX;
 Bernoulli_p_values.Bp_negX = Bp_negX;

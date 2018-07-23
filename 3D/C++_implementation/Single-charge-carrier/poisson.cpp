@@ -171,7 +171,7 @@ void Poisson::set_lower_diag_Xs()
     for (int i = 1; i <= Nx; i++) {
         for (int j = 1; j <= Ny+1; j++) {
             for (int k = 1; k <= Nz; k++) {// only to Nz b/c of Dirichlet BCs
-                triplet_list[trp_cnt] = {index-1+(Nz+1)*(Ny+1), index-1, -epsilon_avg_X(i,j,k)};
+                triplet_list[trp_cnt] = {index-1+(Nz+1)*(Ny+1), index-1, -epsilon_avg_X(i+1,j,k)};
                 trp_cnt++;
                 index = index +1;
             }
@@ -206,7 +206,7 @@ void Poisson::set_lower_diag_Ys()
     for (int i = 1; i <= Nx+1; i++) {
         for (int j = 1; j <= Ny; j++) {
             for (int k = 1; k <= Nz; k++) {// only to Nz b/c of Dirichlet BCs
-                triplet_list[trp_cnt] = {index-1+(Nz+1), index-1, -epsilon_avg_Y(i,j,k)};
+                triplet_list[trp_cnt] = {index-1+(Nz+1), index-1, -epsilon_avg_Y(i,j+1,k)};
                 trp_cnt++;
                 index = index +1;
             }
@@ -225,7 +225,7 @@ void Poisson::set_main_lower_diag()
     for (int i = 1; i <= Nx+1; i++) {
         for (int j = 1; j <= Ny+1; j++) {
             for (int k = 1; k <= Nz-1; k++) {// only to Nz-1 b/c of Dirichlet BCs and b/c is lower diag
-                triplet_list[trp_cnt] = {index, index-1, -epsilon_avg_Z(i,j,k)};
+                triplet_list[trp_cnt] = {index, index-1, -epsilon_avg_Z(i,j,k+1)};
                 trp_cnt++;
                 index = index +1;
             }
@@ -263,8 +263,8 @@ void Poisson::set_main_upper_diag()
     int index = 1;  //note: unlike Matlab, can always start index at 1 here, b/c not using any spdiags fnc
     for (int i = 1; i <= Nx+1; i++) {
         for (int j = 1; j <= Ny+1; j++) {
-            for (int k = 2; k <= Nz+1; k++) { //to Nz+1 here b/c corresponds to +1 value since upper diag...
-                triplet_list[trp_cnt] = {index-1, index, -epsilon_avg_Z(i,j,k)};
+            for (int k = 1; k <= Nz; k++) {
+                triplet_list[trp_cnt] = {index-1, index, -epsilon_avg_Z(i,j,k+1)};
                 trp_cnt++;
                 index = index +1;
             }
@@ -278,10 +278,9 @@ void Poisson::set_upper_diag_Ys()
 {
     int index = 1;
     for (int i = 1; i <= Nx+1; i++) {
-        for (int j = 2; j <= Ny+1; j++) {
+        for (int j = 1; j <= Ny; j++) {
             for (int k = 1; k <= Nz; k++) { // only to Nz b/c of Dirichlet BCs
-                triplet_list[trp_cnt] = {index-1, index-1+(Nz+1), -epsilon_avg_Y(i,j,k)};
-                std::cout << -epsilon_avg_Y(i,j,k)<< std::endl;
+                triplet_list[trp_cnt] = {index-1, index-1+(Nz+1), -epsilon_avg_Y(i,j+1,k)};
                 trp_cnt++;
                 index = index +1;
             }
@@ -313,10 +312,10 @@ void Poisson::set_upper_diag_Y_PBCs()
 void Poisson::set_upper_diag_Xs()
 {
     int index = 1;
-    for (int i = 2; i <= Nx+1; i++) {
+    for (int i = 1; i <= Nx; i++) {
         for (int j = 1; j <= Ny+1; j++) {
             for (int k = 1; k <= Nz; k++) {// only to Nz b/c of Dirichlet BCs
-                triplet_list[trp_cnt] = {index-1, index-1+(Nz+1)*(Ny+1), -epsilon_avg_X(i,j,k)};
+                triplet_list[trp_cnt] = {index-1, index-1+(Nz+1)*(Ny+1), -epsilon_avg_X(i+1,j,k)};
                 trp_cnt++;
                 index = index +1;
             }
@@ -325,7 +324,7 @@ void Poisson::set_upper_diag_Xs()
     }
 }
 
-//far upper diag
+//far upper diag X right PBC's
 void Poisson::set_highest_diag()
 {
     int index = 1;

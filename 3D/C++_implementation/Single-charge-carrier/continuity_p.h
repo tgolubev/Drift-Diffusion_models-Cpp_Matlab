@@ -26,7 +26,7 @@ public:
     //!\param p the hole density is needed to setup the boundary conditions.
     void setup_eqn(const Eigen::Tensor<double, 3> &V_matrix, const std::vector<double> &Up, const Eigen::Tensor<double, 3> &p);
 
-    void calculate_currents(Eigen::Tensor<double, 3> p_matrix);
+    void calculate_currents(Eigen::Tensor<double, 3> fullp);
 
     //setters for BC's:
     //for left and right BC's, will use input from the n matrix to determine

@@ -225,9 +225,6 @@ int main()
 
         poisson.setup_matrix();  //I VERIFIED that size of sparse matrix is correct
 
-        std::cout << poisson.get_sp_matrix() << std::endl;
-        exit(1);
-
         //-----------------------------------------------------------
         error_np = 1.0;
         iter = 0;
@@ -338,9 +335,9 @@ int main()
             //BiCGStab_solver.compute(input);  //this computes the preconditioner..compute(input);
             soln_p = BiCGStab_solver.solveWithGuess(continuity_p.get_rhs(), p_Xd);
 
-          //std::cout << soln_p << std::endl;
+//         std::cout << soln_p << std::endl;
+//         exit(1);
 
-//works through here
 
 //            if (iter == 0 )
 //                cont_p_LU.analyzePattern(continuity_p.get_sp_matrix());
@@ -420,28 +417,31 @@ int main()
             for (int k = 1; k <= num_cell_z; k++)
                 fullp(0,0,k) = temp_permuted(num_cell_x-1,0,k-1);
 
-
             //continuity_p.set_p_matrix(p_matrix);  //update member variable  //DON'T USE THIS B/C CAUSES ISSUES, just use the p matrix form main
 
             std::cout << error_np << std::endl;
             //std::cout << "weighting factor = " << params.w << std::endl << std::endl;
 
             iter = iter+1;
-//works through  here!
 
         }
 
         //-------------------Calculate Currents using Scharfetter-Gummel definition--------------------------
 
         //continuity_n.calculate_currents();
-        continuity_p.calculate_currents(p_matrix); //send it p_matrix, since we find it here anyway
+        continuity_p.calculate_currents(fullp); //send it fullp, since we find it here anyway
 
         J_total_Z = continuity_p.get_Jp_Z();// + continuity_n.get_Jn_Z();
         J_total_X = continuity_p.get_Jp_X();// + continuity_n.get_Jn_X();
         J_total_Y = continuity_p.get_Jp_Y();// + continuity_n.get_Jn_Y();
 
+//        for (int k = 1; k < num_cell_z; k++)
+//            std::cout << J_total_Z(2,2,k) << std::endl;
+//exit(1);
+
         //---------------------Write to file----------------------------------------------------------------
-        utils.write_details(params, Va, poisson.get_V_matrix(), p_matrix, J_total_Z, Up);  //note just write p twice for now, place holder for n
+        utils.write_details(params, Va, fullV, fullp, J_total_Z, Up);  //FAILS HERE
+
         if(Va_cnt >0) utils.write_JV(params, JV, iter, Va, J_total_Z);
 
 

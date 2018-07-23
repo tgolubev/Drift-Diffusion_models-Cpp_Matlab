@@ -1,7 +1,7 @@
 //NOTE:IF-HAVE-ANY-SPACES-IN-COMMENTS-IT-WILL-FAIL
-6.01e-9 //device-lenght(m)X
-6.01e-9 //device-WIDTH(m)Y
-6.01e-9 //device-thickness(m)Z
+10.01e-9 //device-lenght(m)X
+10.01e-9 //device-WIDTH(m)Y
+10.01e-9 //device-thickness(m)Z
 2.0e-9  //dx_mesh_size
 2.0e-9  //dy_mesh_size
 2.0e-9  //dz_mesh_size

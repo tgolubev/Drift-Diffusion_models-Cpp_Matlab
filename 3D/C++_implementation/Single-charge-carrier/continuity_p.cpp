@@ -83,8 +83,8 @@ Continuity_p::Continuity_p(const Parameters &params)
     */
 
     //for now (THERES SOMETHING WRONG WITH ABOVE AVERAGING), USE
-    p_mob_avg_X = p_mob;
-    p_mob_avg_Y = p_mob;
+    p_mob_avg_X = ((params.dz*params.dz)/(params.dx*params.dx))*p_mob;
+    p_mob_avg_Y = ((params.dz*params.dz)/(params.dy*params.dy))*p_mob;
     p_mob_avg_Z = p_mob;
 
      //------------------------------------------------------------------------------------------

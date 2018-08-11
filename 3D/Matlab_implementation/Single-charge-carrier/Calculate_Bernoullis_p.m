@@ -77,12 +77,12 @@ for i = 2:num_cell_x+2  %num_cell +2 for i and j b/c of the PBC's/including boun
                 Bp_negX(i,j,k) =  1;%Bp_posX(i,j)*exp(dV_X(i,j,k));
             end
             if(abs(dV_Y(i,j,k)) < 10^-13)  %using real taylor expansion here works fine...
-                Bp_posY(i,j,k) = 1 -  dV_Y(i,j,k)/2 + (dV_Y(i,j,k))^2/12 - (dV_Y(i,j,k))^4/720;
-                Bp_negY(i,j,k) = Bp_posY(i,j,k)*exp(dV_Y(i,j,k));
+                Bp_posY(i,j,k) = 1;%1 -  dV_Y(i,j,k)/2 + (dV_Y(i,j,k))^2/12 - (dV_Y(i,j,k))^4/720;
+                Bp_negY(i,j,k) = 1;%Bp_posY(i,j,k)*exp(dV_Y(i,j,k));
             end     
             if(abs(dV_Z(i,j,k)) < 10^-13)  %using real taylor expansion here works fine...
-                Bp_posZ(i,j,k) = 1 -  dV_Z(i,j,k)/2 + (dV_Z(i,j,k))^2/12 - (dV_Z(i,j,k))^4/720;
-                Bp_negZ(i,j,k) = Bp_posZ(i,j,k)*exp(dV_Z(i,j,k));
+                Bp_posZ(i,j,k) = 1;%1 -  dV_Z(i,j,k)/2 + (dV_Z(i,j,k))^2/12 - (dV_Z(i,j,k))^4/720;
+                Bp_negZ(i,j,k) = 1;%Bp_posZ(i,j,k)*exp(dV_Z(i,j,k));
             end         
         end
     end

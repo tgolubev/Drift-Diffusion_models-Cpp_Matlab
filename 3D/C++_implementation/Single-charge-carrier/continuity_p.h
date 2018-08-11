@@ -128,7 +128,7 @@ private:
     void set_upper_diag_Xs();
     void set_highest_diag();
 
-    void Continuity_p::set_rhs(const std::vector<double> &Up);
+    void set_rhs(const std::vector<double> &Up);
 };
 
 #endif // CONTINUITY_P_H

@@ -49,21 +49,21 @@ Vt = (kb*T)/q;
 
 %Voltage sweep loop
 Va_min = 0.1;            %volts
-Va_max = 10.0;
+Va_max = 1.0;
 increment = 0.1;         %by which to increase V
 num_V = floor((Va_max-Va_min)/increment)+1;   %number of V points
 
 %Simulation parameters
 w_eq = 0.2;               %linear mixing factor for 1st convergence (0 applied voltage, no generation equilibrium case)
 w_i = 0.2;                 %starting linear mixing factor for Va_min (will be auto decreased if convergence not reached)
-tolerance = 5*10^-12;        %error tolerance
-tolerance_i =  5*10^-12;     %initial error tolerance, will be increased if can't converge to this level
+tolerance = 1*10^-9;        %error tolerance
+tolerance_i =  1*10^-9;     %initial error tolerance, will be increased if can't converge to this level
 
 %% System Setup
 
-Lx = 10.0000001e-9;     %there's some integer rounding issue, so use this .0000001
-Ly = 10.0000001e-9;
-Lz = 10.0000001e-9;   
+Lx = 80.0000001e-9;     %there's some integer rounding issue, so use this .0000001
+Ly = 80.0000001e-9;
+Lz = 80.0000001e-9;   
 dx = 2e-9;                        %mesh size
 dy = 2e-9;  
 dz = 2e-9;  
@@ -210,6 +210,7 @@ for k = 1:Nz+1
 end
 permuted_V_matrix = permute(V_matrix, [3 2 1]);
 V = permuted_V_matrix(:);
+newV = V;  %FOR TESTING OF USING newV as inital guess for bicgstab
 
 
 %-------------------------------------------------------------------------------------------------
@@ -244,6 +245,7 @@ p_topBC(1:Nx+2,1:Ny+2) = 1;
 %conditions for Poisson eqn
 min_dense = min(p_bottomBC(1,1), p_topBC(1,1));
 p = min_dense*ones(num_elements, 1);
+newp = p;  %for testing using newp as initial guess for bicgstab
 % p = n;
 
 %form matrices for easy filling of bp
@@ -307,7 +309,7 @@ for Va_cnt = 1:num_V
         
         %             newV = U\(L\bV);  %much faster to solve pre-factorized matrix. Not applicable to cont. eqn. b/c matrices keep changing.
         %          newV = AV\bV;
-        [newV,~] = bicgstab(AV,bV, 10^-14, 1000, [], [], V); %SPECIFYING AN INITIAL GUESS IS CRUCIAL FOR SPEED!
+        [newV,~] = bicgstab(AV,bV, 10^-13, 1000, [], [], V); %SPECIFYING AN INITIAL GUESS IS CRUCIAL FOR SPEED!
         
         %NOTE: with scaling of AV and bV by 18 (diagonal amount), this
         %bicgstab converges much better!
@@ -363,7 +365,7 @@ for Va_cnt = 1:num_V
         
 %                   newp = Ap\bp;
 
-        [newp, ~] = bicgstab(Ap, bp, 10^-14, 1000, [], [], p);  %Note: if don't specify an initial guess, bicgstab FAILS! 
+        [newp, ~] = bicgstab(Ap, bp, 10^-13, 1000, [], [], p);  %Note: if don't specify an initial guess, bicgstab FAILS! 
         
 
 
@@ -397,7 +399,8 @@ for Va_cnt = 1:num_V
                 error_np_matrix(count) = (abs(newp(i)-oldp(i)))./abs(oldp(i));  %need the dot slash, otherwise it tries to do matrix operation! %ERROR SHOULD BE CALCULATED BEFORE WEIGHTING
             end
         end
-        error_np = max(error_np_matrix)
+        
+        error_np = max(error_np_matrix);
         
         %auto decrease w if not converging
         if(error_np>= old_error)

@@ -54,6 +54,11 @@
 #include <fstream>
 #include <string>
 
+#include <omp.h>
+
+#define EIGEN_USE_MKL_ALL  //is for Intel MKL
+
+//#define EIGEN_NO_DEBUG   //this should turn off eigen asserts, //MAKES NO PERFORMANCE DIFFERENCE!, is I think auto turned off in release mode
 #include <Eigen/Sparse>
 #include <Eigen/Dense>
 #include<Eigen/IterativeLinearSolvers>
@@ -72,9 +77,15 @@
 //#include "photogeneration.h"
 #include "Utilities.h"
 
+#include "mkl.h"
+
 
 int main()
 {
+
+    //trivial MKL function call for testing
+    vcAbs(0, 0, 0);  //MY MKL linking works!!, b/c otherwise it wouldn't recognize this function!
+
     std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();  //start clock timer
     Parameters params;    //params is struct storing all parameters
     params.Initialize();  //reads parameters from file
@@ -115,8 +126,14 @@ int main()
     Eigen::Tensor<double, 3> fullV(num_cell_x+1, num_cell_y+1, num_cell_z+1), fullp(num_cell_x+1, num_cell_y+1, num_cell_z+1);  //for storing all the values in device, including bndrys
     Eigen::SparseMatrix<double> input; //for feeding input matrix into BiCGSTAB, b/c it crashes if try to call get matrix from the solve call.
 
-    std::cout << Eigen::nbThreads( ) << std::endl;  //displays the # of threads that will be used by Eigen--> mine displays 8, but doesn't seem like it's using 8.
+    //test if openmp is working
+    //omp_set_num_threads(8);   //this can allow to set the number of threads that will be used
 
+    std::cout << Eigen::nbThreads() << std::endl;  //displays the # of threads that will be used by Eigen--> mine displays 8, but doesn't seem like it's using 8.
+
+    //this will only make sense if within a region of code which is multithreaded
+//    int nthreads = omp_get_num_threads();  //SAYS ONLY 1 THREAD IS AVAILABLE--> MIGHT HAVE AN ISSUE HERE!
+//    std::cout << nthreads << " treads available " << std::endl;
 //------------------------------------------------------------------------------------
     //Construct objects
     Poisson poisson(params);  //so it can't construct the poisson object
@@ -130,7 +147,10 @@ int main()
 
     Eigen::SparseQR<Eigen::SparseMatrix<double>, Eigen::COLAMDOrdering<int>> SQR;
     Eigen::SparseLU<Eigen::SparseMatrix<double> >  poisson_LU, cont_n_LU, cont_p_LU;
-    Eigen::BiCGSTAB<Eigen::SparseMatrix<double>, Eigen::IncompleteLUT<double>> BiCGStab_solver;  //BiCGStab solver object
+    //Eigen::BiCGSTAB<Eigen::SparseMatrix<double>, Eigen::IncompleteLUT<double>> BiCGStab_solver;  //BiCGStab solver object/ /USING THIS PRECONDITIONER IS WAY TOO SLOW FOR LARGE SYSTEMS!
+    Eigen::BiCGSTAB<Eigen::SparseMatrix<double>, Eigen::DiagonalPreconditioner<double>> BiCGStab_solver;   //NOTE: WORKS MUCH FASTER WITH DIAGONAL PRECONDITIONER, THAN the IncompleteLUT preconditioner!!--> probably b/c
+    //Eigen::BiCGSTAB<Eigen::SparseMatrix<double>, Eigen::IdentityPreconditioner> BiCGStab_solver;  //try with Identity preconditioner, the simplest trivial one
+    BiCGStab_solver.setTolerance(1e-14); //set the tolerance explicitely, so matches Matlab's tolerance
 
     Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::UpLoType::Lower|Eigen::UpLoType::Upper > cg;
 
@@ -154,8 +174,6 @@ int main()
         }
     }
 
-
-
     //need to permute the matrix, to be consistent with the z,y,x ordering which I use for the matrices when solving.
     //NOTE: for Tensor shuffle to work, NEED TO EXPLICTELY CREATE AN ARRAY--> this isn't clear from the documentation
     Eigen::array<ptrdiff_t, 3> permutation = {{2,1,0}}; //array should HAVE THE SPECIFIC type:  ptrdiff_t  ==> used for pointer arithmetic and array indexing.
@@ -174,6 +192,7 @@ int main()
      //prepare initial guess, for 1st iteration of bicgstab
      for (int i = 0; i < num_rows; i++) {
          V_Xd(i) = V(i,0,0);
+         soln_V(i) = V(i,0,0); // do this since we are using soln_V for the inital guess
      }
 
     //Fill p with initial conditions (need for error calculation)
@@ -186,6 +205,7 @@ int main()
     //prepare initial guess, for 1st iteration of bicgstab
     for (int i = 0; i < num_rows; i++) {
         p_Xd(i) = p(i,0,0);  //this is working correctly
+        soln_p(i) = p(i,0,0); // do this since we are using soln_p for the inital guess
     }
 
     //Convert the p to p_matrix
@@ -198,9 +218,12 @@ int main()
     int iter, not_cnv_cnt, Va_cnt;
     bool not_converged;
     double error_np, old_error;  //this stores max value of the error and the value of max error from previous iteration
-    std::vector<double> error_np_vector(num_rows+1);  //note: since n and p solutions are in vector form, can use vector form here also
+    std::vector<double> error_np_vector(num_rows);  //note: since n and p solutions are in vector form, can use vector form here also
 
-    for (Va_cnt = 1; Va_cnt <= num_V+1; Va_cnt++) {  //+1 b/c 1st Va is the equil run
+    poisson.setup_matrix();  //I VERIFIED that size of sparse matrix is correct
+
+
+    for (Va_cnt = 1; Va_cnt <= num_V; Va_cnt++) {  //+1 b/c 1st Va is the equil run
         not_converged = false;
         not_cnv_cnt = 0;
 
@@ -223,8 +246,6 @@ int main()
 
        //correct through  here
 
-        poisson.setup_matrix();  //I VERIFIED that size of sparse matrix is correct
-
         //-----------------------------------------------------------
         error_np = 1.0;
         iter = 0;
@@ -238,26 +259,22 @@ int main()
             //std::cout << poisson.get_sp_matrix() << std::endl;
             oldV = V;
 
-//            if (iter == 0) { //INSTEAD OF HAVING IF here, can move these 2 lines, outside of the loop
-//                poisson_LU.analyzePattern(poisson.get_sp_matrix());  //by doing only on first iter, since pattern never changes, save a bit cpu
-//                poisson_LU.factorize(poisson.get_sp_matrix());
-//            }
-//            soln_Xd = poisson_LU.solve(poisson.get_rhs());
-
             input = poisson.get_sp_matrix();
 
-            if (iter == 0)
+            //as expected, LU, is way too slow for a 3D matrix!!
+
+            if (iter == 0) {
                 BiCGStab_solver.analyzePattern(input);
-            BiCGStab_solver.factorize(input);  //this computes preconditioner, if use along with analyzePattern (for 1st iter)
+                BiCGStab_solver.factorize(input);  //this computes preconditioner, Poisson matrix doesn't change, so can factorize just once
+            }
             //BiCGStab_solver.compute(input);  //this computes the preconditioner..compute(input);
-            soln_V = BiCGStab_solver.solveWithGuess(poisson.get_rhs(), p_Xd);  //NOTE: use solve with Guess...., b/c need initial guess
+            //soln_V = BiCGStab_solver.solve(poisson.get_rhs());
+            soln_V = BiCGStab_solver.solveWithGuess(poisson.get_rhs(), soln_V); //note: using soln_V for initial guess is faster than using V_Xd/NOTE: use solve with Guess...., b/c need initial guess
+            //std::cout << "#iterations:     " << BiCGStab_solver.iterations() << std::endl;
+             //std::cout << BiCGStab_solver.info() << std::endl;
+            //std::cout << soln_V << std::endl;
 
-//            if (iter == 0) {  //This is slower than  LU
-//                SCholesky.analyzePattern(poisson.get_sp_matrix());
-//                SCholesky.factorize(poisson.get_sp_matrix());         //since numerical values of Poisson matrix don't change for 1 set of BC's, can factorize, just on 1st iter
-//            }
-//            soln_V = SCholesky.solve(poisson.get_rhs());
-
+           //CHOLESKY is not accurate!! for 3D solve
 
             //std::cout << poisson.get_sp_matrix() << std::endl;
              //std::cout << "Poisson solver error " << poisson.get_sp_matrix() * soln_Xd - poisson.get_rhs() << std::endl;
@@ -308,48 +325,42 @@ int main()
                 fullV(0,0,k) = temp_permuted(num_cell_x-1,0,k-1);
 
 
-           //works through here but doesn't look correct.
+
 
             //------------------------------Calculate Net Generation Rate----------------------------------------------------------
 
             //R_Langevin = recombo.ComputeR_Langevin(params,n,p);
             //FOR NOW CAN USE 0 FOR R_Langevin
 
-            if (Va_cnt > 0) {
                 for (int i = 0; i < num_rows; i++) {
                     Up[i] = 0; //params.Photogen_scaling;  //This is what was used in Matlab version for testing.   photogen.getPhotogenRate()(i,j); //- R_Langevin(i,j);
                 }
-            }
 
             //--------------------------------Solve equation for p------------------------------------------------------------
 
             continuity_p.setup_eqn(fullV, Up, p);  //pass it fullV...
             //std::cout << continuity_p.get_sp_matrix() << std::endl;   //Note: get rhs, returns an Eigen VectorXd
 
-            oldp = p;
+            for (int i = 0; i < num_rows; i++)
+                oldp(i,0,0) = p(i,0,0);          //explicitely  copy, just in case
 
             input = continuity_p.get_sp_matrix();
-            if (iter == 0)
+            if (iter == 0) {
                 BiCGStab_solver.analyzePattern(input);
-            BiCGStab_solver.factorize(input);  //this computes preconditioner, if use along with analyzePattern (for 1st iter)
+                BiCGStab_solver.factorize(input);  //factorize only for the 1st iteration!!, since matrix doesn't change too much, this still will work!-> means it only  computes preconditioner once per Va!! //this computes preconditioner, if use along with analyzePattern (for 1st iter)
+            }
             //BiCGStab_solver.compute(input);  //this computes the preconditioner..compute(input);
-            soln_p = BiCGStab_solver.solveWithGuess(continuity_p.get_rhs(), p_Xd);
+            soln_p = BiCGStab_solver.solveWithGuess(continuity_p.get_rhs(), soln_p);  //NOTE: if for initial guess use soln_p, INSTEAD OF p_Xd (which is the linearly mixed solution, then does't blow up!!!!!, even with 0.2 = w.
+            //soln_p = BiCGStab_solver.solve(continuity_p.get_rhs());
 
 //         std::cout << soln_p << std::endl;
 //         exit(1);
-
-
-//            if (iter == 0 )
-//                cont_p_LU.analyzePattern(continuity_p.get_sp_matrix());
-//            cont_p_LU.factorize(continuity_p.get_sp_matrix());
-//            soln_Xd = cont_p_LU.solve(continuity_p.get_rhs());
 
             //save results back into n std::vector. RECALL, I am starting my V vector from index of 1, corresponds to interior pts...
             for (int i = 0; i < num_rows; i++) {
                 newp(i,0,0) = soln_p(i);   //newp is now a tensor....
             }
 
-            // the solve for newp is wrong!
 
             //------------------------------------------------
 
@@ -361,21 +372,34 @@ int main()
 
             //calculate the error
             old_error = error_np;
+            int count = 0;  //for counting the error_np_vector_index
 
             //THIS CAN BE MOVED TO A FUNCTION IN UTILS
+            std::fill(error_np_vector.begin(), error_np_vector.end(),0.0);  //refill with 0's so have fresh one
             for (int i = 0; i < num_rows; i++) {
-                if (newp(i,0,0)!=0) {
-                    error_np_vector[i] = (abs(newp(i,0,0)-oldp(i,0,0)))/abs(oldp(i,0,0));
-                }
+                if (newp(i,0,0)!= 0) {
+                    error_np_vector[count] = (std::abs(newp(i,0,0)-oldp(i,0,0)))/std::abs(oldp(i,0,0));
+                    count++;
+//                   if(iter == 2)
+//                       std::cout << error_np_vector[i] << std::endl;
+               }
             }
-            error_np = *std::max_element(error_np_vector.begin(),error_np_vector.end());
-            std::fill(error_np_vector.begin(), error_np_vector.end(),0.0);  //refill with 0's so have fresh one for next iter
 
+//            if(iter == 2) {
+//                for (int i = 0; i < num_rows; i++ ) {
+//                    std::cout <<  newp(i,0,0) << " " << oldp(i,0,0) <<  std::endl;   //FOR LARGE SYSTEMS SEEMS NEWP AND OLDP ARE EXACT SAME--> GETTING 0 ERRORS, BUT THEN BLOWS UP!!  //compare newp and oldp //newp are not 0's --> have numbers...
+//                }
+//                exit(1);
+//            }
+
+            error_np = *std::max_element(error_np_vector.begin(),error_np_vector.end());
+
+            std::cout << error_np << std::endl;
 
             //auto decrease w if not converging
             if (error_np >= old_error)
                 not_cnv_cnt = not_cnv_cnt+1;
-            if (not_cnv_cnt > 2000) {
+            if (not_cnv_cnt > 1000) {  //Note: 100 is too small for C++, sometimes w is reduced when not necessary!!
                 params.reduce_w();
                 params.relax_tolerance();
                 not_cnv_cnt = 0;
@@ -419,11 +443,10 @@ int main()
 
             //continuity_p.set_p_matrix(p_matrix);  //update member variable  //DON'T USE THIS B/C CAUSES ISSUES, just use the p matrix form main
 
-            std::cout << error_np << std::endl;
+           // std::cout << error_np << std::endl;
             //std::cout << "weighting factor = " << params.w << std::endl << std::endl;
 
             iter = iter+1;
-
         }
 
         //-------------------Calculate Currents using Scharfetter-Gummel definition--------------------------
@@ -440,7 +463,7 @@ int main()
 //exit(1);
 
         //---------------------Write to file----------------------------------------------------------------
-        utils.write_details(params, Va, fullV, fullp, J_total_Z, Up);  //FAILS HERE
+        utils.write_details(params, Va, fullV, fullp, J_total_Z, Up);
 
         if(Va_cnt >0) utils.write_JV(params, JV, iter, Va, J_total_Z);
 

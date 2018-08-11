@@ -1,9 +1,9 @@
 //NOTE:IF-HAVE-ANY-SPACES-IN-COMMENTS-IT-WILL-FAIL
-600.01e-9 //device-lenght(m)X
-600.01e-9 //device-WIDTH(m)Y
+80.01e-9 //device-lenght(m)X
+80.01e-9 //device-WIDTH(m)Y
 80.01e-9 //device-thickness(m)Z
-5.0e-9  //dx_mesh_size
-5.0e-9  //dy_mesh_size
+2.0e-9  //dx_mesh_size
+2.0e-9  //dy_mesh_size
 2.0e-9  //dz_mesh_size
 1.25e27  //N-LUMO
 1.25e27  //N-HOMO
@@ -16,7 +16,7 @@
 0.1    //increment
 0.2    //w_eq
 0.2    //w_i
-1e-9  //tolerance_i
+5e-12   //tolerance_i
 2.0     //w_reduce_factor
 10.0    //tol_relax_factor
 

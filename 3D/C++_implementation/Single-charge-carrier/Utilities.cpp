@@ -51,6 +51,6 @@ void Utilities::write_JV(const Parameters &params, std::ofstream &JV, double ite
         int i =  static_cast<int>(floor(params.num_cell_x/2));
         int j =  static_cast<int>(floor(params.num_cell_y/2));
         int k =  static_cast<int>(floor(params.num_cell_z/2));
-        JV << Va << " " << J_total_Z(i,i,i) << " " << iter << "\n";
+        JV << Va << " " << std::setprecision(8) << J_total_Z(i,j,k) << " " << iter << "\n";
     }
 }

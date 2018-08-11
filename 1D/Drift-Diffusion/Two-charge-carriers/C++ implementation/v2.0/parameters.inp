@@ -28,10 +28,3 @@
 10.0    //tol_relax_factor
 gen_rate.inp  //GenRateFileName
 
-//optimization(auto-fit)_parameters
-1     //auto-fit?(1==true,0=false)
-3       //max_iter_for-optimization_loop-(only-needed-if-auto-fit==1)
-1e-2     //fit-tolerance-(only-needed-if-auto-fit==1)
-experiment_JV.inp  //filename_to_fit_to-(only-needed-if-auto-fit==1)
-
-

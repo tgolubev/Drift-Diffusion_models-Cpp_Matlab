@@ -8,13 +8,12 @@ SOURCES += \
     photogeneration.cpp \
     recombination.cpp \
     thomas_tridiag_solve.cpp \
+    main.cpp \
     poisson.cpp \
     continuity_n.cpp \
     continuity_p.cpp \
     parameters.cpp \
-    Utilities.cpp \
-    run_DD.cpp \
-    pso_main.cpp
+    Utilities.cpp
 
 HEADERS += \
     photogeneration.h \
@@ -25,5 +24,4 @@ HEADERS += \
     continuity_p.h \
     constants.h \
     parameters.h \
-    Utilities.h \
-    run_DD.h
+    Utilities.h

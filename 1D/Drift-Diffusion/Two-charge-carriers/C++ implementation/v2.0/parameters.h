@@ -42,11 +42,6 @@ struct Parameters   //parameters need to be accessble, so all members are public
     std::string GenRateFileName;
     double Va_min, Va_max, increment;
 
-    //optimization (auto fitting) parameters
-    bool auto_fit;
-    double fit_tolerance;
-    double optim_max_iter;
-    std::string exp_data_file_name;
 };
 
 #endif // PARAMETERS_H

@@ -22,7 +22,7 @@ public:
 
     //!Writes to a file the JV data. The file contains 3 columns, the applied voltage \param Va, the current \param J_total,
     //! and the number of iterations \param iter required to converge at that voltage.
-    void write_JV(const Parameters &params, std::ofstream &JV, double iter, double Va, const double J_value);
+    void write_JV(const Parameters &params, std::ofstream &JV, double iter, double Va, const std::vector<double> &J_total);
 
 };
 

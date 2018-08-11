@@ -64,19 +64,6 @@ void Parameters::Initialize()
         parameters >> tol_relax_factor >> comment;
         isPositive(tol_relax_factor,comment);
         parameters >> GenRateFileName >> comment;
-
-        parameters >> comment;  //skip line which categorizes the optimization params
-        //optimization parameters
-        parameters >> auto_fit >> comment;
-        //only input the auto_fit parameters if auto fit is set to true
-        if (auto_fit == true) {
-            parameters >> optim_max_iter >> comment;
-            isPositive(optim_max_iter,comment);
-            parameters >> fit_tolerance >> comment;
-            isPositive(fit_tolerance,comment);
-            parameters >> exp_data_file_name >> comment;
-        }
-
         parameters.close();
         N = N_HOMO;     //scaling factor helps CV be on order of 1
 

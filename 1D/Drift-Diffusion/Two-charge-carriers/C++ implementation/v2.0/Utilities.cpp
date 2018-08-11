@@ -39,8 +39,8 @@ void Utilities::write_details(const Parameters &params, double Va, const std::ve
         VaData.close();
 }
 
-void Utilities::write_JV(const Parameters &params, std::ofstream &JV, double iter, double Va, const double J_value)
+void Utilities::write_JV(const Parameters &params, std::ofstream &JV, double iter, double Va, const std::vector<double> &J_total)
 {
     if (JV.is_open())
-        JV << Va << " " << J_value << "\n";
+        JV << Va << " " << J_total[static_cast<int>(floor(params.num_cell/2))] << " " << iter << "\n";
 }

@@ -1,4 +1,5 @@
 #include "optimization.h"
+#include <random>
 
 
 //constructor
@@ -10,6 +11,25 @@ Optim::Gradient_Descent::Gradient_Descent(Parameters &params): Params(params)  /
     inner_iter=1;  //this is iter count for the steps at each order of magnitude vlue, i.e. when devide step size /10, this iter count refreshes
     Photogen_scaling_step = (params.Photogen_scaling_max-params.Photogen_scaling_min)/num_steps;
     overshoot = false;  //this becomes true when have overshot a local min--> needed to properly go back to the min
+
+    //prepare for optimization:
+    //read in experimental curve into vectors--> since it never changes, just do once
+
+    exp_JV.open(params.exp_data_file_name);
+    //check if file was opened
+    if (!exp_JV) {
+        std::cerr << "Unable to open file " << params.exp_data_file_name <<"\n";
+        exit(1);   // call system to stop
+    }
+
+    double temp_V, temp_J;   //for input until end of file
+    while (exp_JV >> temp_V >> temp_J) {  //there are 2 entries / line
+        V_vector.push_back(temp_V);
+        J_vector_exp.push_back(temp_J);
+    }
+
+
+
 
 }
 
@@ -23,12 +43,13 @@ void Optim::Gradient_Descent::run_GD()
         else
             old_lsqr_diff = lsqr_diff;  //save old value for figuring out if are moving towards or away from local minimum
 
-        lsqr_diff = 0;  //rezero
-
         //-----------------------------------------------------------------------------
         // Calculate the least squares difference between experimental and theory curve
 
         lsqr_diff = cost_function();  //this RUNS the DD simulation and computes the lsqr_diff
+
+        //IT DOESN'T GET TO HERE.., exits after run DD
+        std::cout << "got out of cost function  " << std::endl;
 
         //for test:
         std::cout << lsqr_diff << " at iteration " << iter << std::endl;
@@ -84,8 +105,9 @@ void Optim::Gradient_Descent::run_GD()
 }
 
 //Particle struct constructor
-Optim::Particle_swarm::Particle::Particle(int n_vars)
+Optim::Particle_swarm::Particle::Particle(int n_vars, Parameters &params)
 {
+    particle_params = params;   //make particle's parameters = to overall params. NOTE: this makes a copy,
     velocity.resize(n_vars);
     position.resize(n_vars);
     best_position.resize(n_vars);
@@ -95,10 +117,27 @@ Optim::Particle_swarm::Particle::Particle(int n_vars)
 Optim::Particle_swarm::Particle_swarm(Parameters &params) : Params(params)  //NOTE: references must be initialized. //create a reference to the params structure so it can be used by all the member functions
 {
 
-    // Parameters of PSO (these might later need to be moved to the input file and params structure)
-    max_iters = 1000;        // Max # of iterations for PSO
+    //prepare for optimization:
+    //read in experimental curve into vectors--> since it never changes, just do once
 
-    n_particles = 50;          // Population (Swarm) Size
+    exp_JV.open(params.exp_data_file_name);
+    //check if file was opened
+    if (!exp_JV) {
+        std::cerr << "Unable to open file " << params.exp_data_file_name <<"\n";
+        exit(1);   // call system to stop
+    }
+
+    double temp_V, temp_J;   //for input until end of file
+    while (exp_JV >> temp_V >> temp_J) {  //there are 2 entries / line
+        V_vector.push_back(temp_V);
+        J_vector_exp.push_back(temp_J);
+    }
+
+    // Parameters of PSO (these might later need to be moved to the input file and params structure)
+    //MOVE THE PARAMETERS TO AN INPUT FILE LATER.....
+    PSO_max_iters = 100;        // Max # of iterations for PSO
+
+    n_particles = 10;          // Population (Swarm) Size
     n_vars = 1;   //number of variables that are adjusting
 
     //Clerc-Kennedy Constriction
@@ -146,15 +185,22 @@ Optim::Particle_swarm::Particle_swarm(Parameters &params) : Params(params)  //NO
     //---------------------------------------------------------------------------------------
     //Initialization
     for (int i = 1; i <= n_particles; i++) {
-       Particle *particle = new Particle(n_vars);
+       Particle *particle = new Particle(n_vars, Params);
 
 
        for (int dim = 0; dim < n_vars; dim++) {
-            particle->position[dim] = rand();//CALL RANDOM NUMBER GENERATOR
-            particle->velocity[dim] = 0;
+            particle->position[dim] = rand_num(var_min[dim], var_max[dim]); //use uniformly distributed random number btw min and max value of the variable's range
+            particle->velocity[dim] = 0;    
        }
 
-       particle->cost = cost_function(); //run DD to find the cost function for the current particle (parameter set)
+       //NOTE: for each particle, need to use a different parameter set which corresponds to that particle!
+       //for now do like this--> but later need to make more elegant
+
+       //HARD CODE THE 1st parameter:
+       particle->particle_params.Photogen_scaling = particle->position[0];
+
+       particle->cost = cost_function(particle->particle_params); //run DD to find the cost function for the current particle (parameter set)
+       std::cout << "particle position " << particle->position[0] << std::endl;
 
        //update the personal best
        particle->best_position = particle->position;
@@ -175,8 +221,11 @@ Optim::Particle_swarm::Particle_swarm(Parameters &params) : Params(params)  //NO
 void Optim::Particle_swarm::run_PSO()
 {
     //Main loop of PSO
+    int iter = 0;
 
-    for (int it = 1; it <= max_iters; it++) {
+    do {
+        iter++;
+
         for (int i = 0; i < n_particles; i++) {  //from 0 b/c of indexing
             Particle particle = *particles[i]; //need to use this to dereference the pointer and be able to access data memebers
 
@@ -184,8 +233,8 @@ void Optim::Particle_swarm::run_PSO()
             for (int dim = 0; dim < n_vars; dim++) { //update needed for each dimension in cost space
 
                 particle.velocity[dim] = w*particle.velocity[dim]
-                        + c1*rand()*(particle.best_position[dim] - particle.position[dim])
-                        + c2*rand()*(global_best_position[dim] - particle.position[dim]);
+                        + c1*rand_num(0.0, 1.0)*(particle.best_position[dim] - particle.position[dim])
+                        + c2*rand_num(0.0, 1.0)*(global_best_position[dim] - particle.position[dim]);
 
                 //Update Position
                 particle.position[dim] += particle.velocity[dim];
@@ -199,8 +248,20 @@ void Optim::Particle_swarm::run_PSO()
                 particle.position[dim] = std::min(particle.position[dim], var_max[dim]);
             }
 
+            //===================================================================================
             //Evaluation
-            particle.cost = cost_function();//call run_DD here with the current particle's parameters....;
+            //NOTE: for each particle, need to use a different parameter set which corresponds to that particle!
+            //for now do like this--> but later need to make more elegant
+
+            //HARD CODE THE 1st parameter:
+            particle.particle_params.Photogen_scaling = particle.position[0];
+            particle.cost = cost_function(particle.particle_params);//call run_DD here with the current particle's parameters....;
+
+            std::cout << "particle position " << particle.position[0] << std::endl;
+
+            //THIS NEEDS TO BE IMPROVED LATER TO MAKE IT MORE FLEXIBLE/GENERAL!
+
+            //===================================================================================
 
             // Update Personal Best
             if (particle.cost < particle.best_cost) {
@@ -218,13 +279,24 @@ void Optim::Particle_swarm::run_PSO()
         // Store the Best Cost Value at every iteration
         global_best_costs.push_back(global_best_cost);
 
-        std::cout << "Iteration " << ": Best Cost = " << global_best_costs[it];
+        std::cout << "Iteration " << ": Best Cost = " << global_best_costs[iter-1]<< std::endl;  //use iter -1 b/c I'm counting iters from 1, but vectors index from 0
+        std::cout << "Photogenrate value " << global_best_position[0] << std::endl;
 
         //Damp Inertial  Coefficient in each iteration (note: only used when not using Clerc-Kennedy restriction)
         w = w * wdamp;
-    }
+
+    } while (global_best_cost > Params.fit_tolerance && iter < PSO_max_iters);
 }
 
+//generates a uniformly  distributed random number in the range [a,b]
+double Optim::Particle_swarm::rand_num(double a, double b)
+{
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    static std::default_random_engine generator(seed);   //NOTE: need static, so is  called only on 1st call (otherwise, since random #'s are pseudo random, will get same # on each call
+    std::uniform_real_distribution<double> distribution(a, b);
+
+    return distribution(generator);
+}
 
 //-----------------------------------------------------------------------------------------------------------------------------------
 
@@ -273,10 +345,10 @@ void Optim::Particle_swarm::get_exp_data()
 double Optim::Gradient_Descent::cost_function()
 {
    J_vector_model = run_DD(Params);
-
+   lsqr_diff = 0;  //rezero
    //calculate least squares
    //just compare the J values (V values for experiment and theory should be the same)
-   for (int i =0; i < J_vector_model.size(); i++) {
+   for (int i = 0; i < J_vector_model.size(); i++) {
        lsqr_diff += (J_vector_model[i] - J_vector_exp[i])*(J_vector_model[i] - J_vector_exp[i]);
    }
 
@@ -284,10 +356,11 @@ double Optim::Gradient_Descent::cost_function()
 }
 
 
-double Optim::Particle_swarm::cost_function()
+double Optim::Particle_swarm::cost_function(Parameters &particle_params)
 {
-   J_vector_model = run_DD(Params);
-
+    //NOTE: need to run DD based on the particle positions..., so Params should be different for each particle....
+   J_vector_model = run_DD(particle_params);
+   lsqr_diff = 0;  //rezero
    //calculate least squares
    //just compare the J values (V values for experiment and theory should be the same)
    for (int i =0; i < J_vector_model.size(); i++) {

@@ -57,8 +57,9 @@ namespace Optim  //group all the optimization classes
     public:
         Particle_swarm(Parameters &params);
         void run_PSO();
-        double cost_function();
+        double cost_function(Parameters &particle_params);
         void get_exp_data();
+        double rand_num(double a, double b);
 
     private:
 
@@ -75,7 +76,7 @@ namespace Optim  //group all the optimization classes
         std::vector<double> var_min;
         std::vector<double> var_max;
 
-        int max_iters;        // Max # of iterations for PSO
+        int PSO_max_iters;        // Max # of iterations for PSO
 
         int n_particles;          // Population (Swarm) Size
         int n_vars;   //number of variables that are adjusting
@@ -93,7 +94,8 @@ namespace Optim  //group all the optimization classes
 
         struct Particle
         {
-            Particle::Particle(int n_vars);
+            Particle::Particle(int n_vars, Parameters &params);
+            Parameters particle_params;   //NOTE: this is a COPY, not a reference, since want to change each particle's params individually.
             std::vector<double> position;
             std::vector<double> velocity;
             double cost;   //cost (aka objective) function which are minimizing, in our case will be least squares difference

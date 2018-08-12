@@ -51,6 +51,7 @@ int main()
             optim.gradient_descent(params);
         } else if (params.optim_method ==2) {
             Optimization::Particle_swarm PSO(params);  //creating an object of Particle_swarm struct which is member of Optimization class
+            PSO.run_PSO(params);
         } else {
             std::cout << "Invalid optimization method" << std::endl;
             exit(1);

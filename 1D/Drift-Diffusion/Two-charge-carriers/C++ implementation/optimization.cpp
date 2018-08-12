@@ -36,11 +36,6 @@ void Optimization::gradient_descent(Parameters &params)
 
     do {
 
-        J_vector_model = run_DD(params);  //in future this here can be distributed among many processors....
-
-        //-----------------------------------------------------------------------------
-        // Calculate the least squares difference between experimental and theory curve
-
         if (overshoot)
             //don't over-write old_lsqr_diff--> let it be the prev. value b/c will return to that
             old_lsqr_diff = old_lsqr_diff;
@@ -48,10 +43,11 @@ void Optimization::gradient_descent(Parameters &params)
             old_lsqr_diff = lsqr_diff;  //save old value for figuring out if are moving towards or away from local minimum
 
         lsqr_diff = 0;  //rezero
-        //just compare the J values (V values for experiment and theory should be the same)
-        for (int i =0; i < J_vector_model.size(); i++) {
-            lsqr_diff += (J_vector_model[i] - J_vector_exp[i])*(J_vector_model[i] - J_vector_exp[i]);
-        }
+
+        //-----------------------------------------------------------------------------
+        // Calculate the least squares difference between experimental and theory curve
+
+        lsqr_diff = cost_function(params);  //this RUNS the DD simulation and computes the lsqr_diff
 
         //for test:
         std::cout << lsqr_diff << " at iteration " << iter << std::endl;
@@ -108,8 +104,9 @@ void Optimization::gradient_descent(Parameters &params)
 }
 
 //particle swarm constructor
-void Optimization::Particle_swarm::Particle_swarm(Parameters &params)
+Optimization::Particle_swarm::Particle_swarm(Parameters &params)
 {
+
     // Parameters of PSO (these might later need to be moved to the input file and params structure)
     max_iters = 1000;        // Max # of iterations for PSO
 
@@ -121,7 +118,7 @@ void Optimization::Particle_swarm::Particle_swarm(Parameters &params)
     phi1 = 2.05;
     phi2 = 2.05;
     phi = phi1 + phi2;
-    chi = 2*kappa/abs(2-phi - sqrt(phi^2 - 4*phi));
+    chi = 2*kappa/abs(2-phi - sqrt(phi*phi - 4*phi));
 
     /*
     //PSO coefficients (WITHOUT Clerc-Kennedy constriction)
@@ -162,9 +159,12 @@ void Optimization::Particle_swarm::Particle_swarm(Parameters &params)
     //Initialization
     for (int i = 1; i <= n_particles; i++) {
        Particle *particle = new Particle();
-       particle->position = //CALL RANDOM NUMBER GENERATOR
        particle->velocity.resize(n_vars);
-       particle->velocity.fill(0);
+
+       for (int dim = 0; dim <= n_vars; dim++) {
+            particle->position[dim] = rand();//CALL RANDOM NUMBER GENERATOR
+            particle->velocity[dim] = 0;
+       }
 
        particle->cost = cost_function(params); //run DD to find the cost function for the current particle (parameter set)
 
@@ -181,7 +181,7 @@ void Optimization::Particle_swarm::Particle_swarm(Parameters &params)
 
        particles.push_back(particle);
     }
-}
+};
 
 
 
@@ -190,38 +190,40 @@ void Optimization::Particle_swarm::run_PSO(Parameters &params)
     //Main loop of PSO
 
     for (int it = 1; it <= max_iters; it++) {
-        for (int i = 0; i < n_particle; i++) {  //from 0 b/c of indexing
+        for (int i = 0; i < n_particles; i++) {  //from 0 b/c of indexing
+            Particle particle = *particles[i]; //need to use this to dereference the pointer and be able to access data memebers
 
             //Update Velocity
             for (int dim = 0; dim < n_vars; dim++) { //update needed for each dimension in cost space
-                particles[i].velocity[dim] = w*particles[i].velocity[dim]
-                        + c1*rand()*(particles[i].best_position[dim] - particles[i].position[dim])
-                        + c2*rand()*(global_best_position[dim] - particles[i].position[dim]);
+
+                particle.velocity[dim] = w*particle.velocity[dim]
+                        + c1*rand()*(particle.best_position[dim] - particle.position[dim])
+                        + c2*rand()*(global_best_position[dim] - particle.position[dim]);
 
                 //Update Position
-                particles[i].position[dim] += particles[i].velocity[dim];
+                particle.position[dim] += particle.velocity[dim];
 
                 //Apply Velocity Limits
-                particles[i].velocity[dim] = std::max(particles[i].velocity, min_vel[dim]);
-                particles[i].velocity[dim] = std::min(particles[i].velocity, max_vel[dim]);
+                particle.velocity[dim] = std::max(particle.velocity[dim], min_vel[dim]);
+                particle.velocity[dim] = std::min(particle.velocity[dim], max_vel[dim]);
 
                 //Apply Lower and Upper Bound Limits (a clamping mechanism)
-                particles[i].position = max(particles[i].position, var_min[dim]); //if particle position is lower than VarMin, then the position becomes VarMin
-                particles[i].position = min(particle(i).Position, var_max[dim]);
+                particle.position[dim] = std::max(particle.position[dim], var_min[dim]); //if particle position is lower than VarMin, then the position becomes VarMin
+                particle.position[dim] = std::min(particle.position[dim], var_max[dim]);
             }
 
             //Evaluation
-            particles[i].cost = cost_function(params);//call run_DD here with the current particle's parameters....;
+            particle.cost = cost_function(params);//call run_DD here with the current particle's parameters....;
 
             // Update Personal Best
-            if (particles[i].cost < particles[i].best_cost) {
-                 particles[i].best_position = particles[i].position;
-                 particles[i].best_cost = particles[i].cost;
+            if (particle.cost < particle.best_cost) {
+                 particle.best_position = particle.position;
+                 particle.best_cost = particle.cost;
 
                  //Update Global Best
-                 if (particles[i].best_cost < global_best_cost) {
-                    global_best_cost = particles[i].best_cost;
-                    global_best_position = particles[i].position;
+                 if (particle.best_cost < global_best_cost) {
+                    global_best_cost = particle.best_cost;
+                    global_best_position = particle.position;
                  }
 
             }
@@ -234,4 +236,17 @@ void Optimization::Particle_swarm::run_PSO(Parameters &params)
         //Damp Inertial  Coefficient in each iteration (note: only used when not using Clerc-Kennedy restriction)
         w = w * wdamp;
     }
+}
+
+double Optimization::cost_function(Parameters &params)
+{
+   J_vector_model = run_DD(params);
+
+   //calculate least squares
+   //just compare the J values (V values for experiment and theory should be the same)
+   for (int i =0; i < J_vector_model.size(); i++) {
+       lsqr_diff += (J_vector_model[i] - J_vector_exp[i])*(J_vector_model[i] - J_vector_exp[i]);
+   }
+
+   return lsqr_diff;
 }

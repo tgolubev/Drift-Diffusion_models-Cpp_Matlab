@@ -15,22 +15,54 @@
 #include "run_DD.h"
 #include "parameters.h"
 
-class Optimization
+//This provides the namespace and class definitions
+
+namespace Optim  //group all the optimization classes
 {
-public:
-    Optimization::Optimization(Parameters &params);
-    void gradient_descent(Parameters &params);
-    double cost_function(Parameters &params);   //Note: COST FNC IS GENERAL: APPLIES TO BOTH GRADIENT DESCENT AND PARTICLE SWARM
 
 
+    class Gradient_Descent
+    {
+    public:
+        Gradient_Descent(Parameters &params);
+        void run_GD();
+        double cost_function();
+        void get_exp_data();
 
+    private:
+        Parameters &Params; //reference to params so all member functions can use..
+
+        int num_steps;  //number of steps to take for each parameter--> determines the fine-ness of the optimization
+        int sign;    //determines the sign for the parameter adjustment. By default start with +1.
+
+
+        int iter;
+        int inner_iter;  //this is iter count for the steps at each order of magnitude vlue, i.e. when devide step size /10, this iter count refreshes
+        double Photogen_scaling_step;
+        bool overshoot;  //this becomes true when have overshot a local min--> needed to properly go back to the min
+
+
+        std::vector<double> V_vector;
+        std::vector<double> J_vector_exp;
+        double lsqr_diff, old_lsqr_diff;
+        std::vector<double> J_vector_model;
+        std::ifstream exp_JV;
+
+    };
+
+
+    //----------------------------------------------------------------------------------------------------
     class Particle_swarm
     {
-     public:
-        Optimization::Particle_swarm::Particle_swarm(Parameters &paramsdd);
-        void run_PSO(Parameters &params);
+    public:
+        Particle_swarm(Parameters &params);
+        void run_PSO();
+        double cost_function();
+        void get_exp_data();
 
-     private:
+    private:
+
+        Parameters &Params; //reference to params so all member functions can use..
 
         double global_best_cost;
         std::vector<double> global_best_position;
@@ -72,24 +104,17 @@ public:
 
         std::vector<Particle*> particles;  //NOTE: this declaration must follow after the struct Particle definition, otherwise, it doesn't know what a Paricle is!//vector of pointers to particles
 
+        std::vector<double> V_vector;
+        std::vector<double> J_vector_exp;
+        double lsqr_diff, old_lsqr_diff;
+        std::vector<double> J_vector_model;
+
+
+        std::ifstream exp_JV;
 
     };
 
 
-private:
-
-
-    std::vector<double> V_vector;
-    std::vector<double> J_vector_exp;
-    double lsqr_diff, old_lsqr_diff;
-    std::vector<double> J_vector_model;
-
-
-    std::ifstream exp_JV;
-
-
-};
-
-
+}
 
 #endif // OPTIMIZATION_H

@@ -1,39 +1,20 @@
 #include "optimization.h"
 
+
 //constructor
-Optimization::Optimization(Parameters &params)
+Optim::Gradient_Descent::Gradient_Descent(Parameters &params): Params(params)  //NOTE: references must be initialized. //create a reference to the params structure so it can be used by all the member functions
 {
-    //prepare for optimization:
-    //read in experimental curve into vectors--> since it never changes, just do once
-
-    exp_JV.open(params.exp_data_file_name);
-    //check if file was opened
-    if (!exp_JV) {
-        std::cerr << "Unable to open file " << params.exp_data_file_name <<"\n";
-        exit(1);   // call system to stop
-    }
-
-    double temp_V, temp_J;   //for input until end of file
-    while (exp_JV >> temp_V >> temp_J) {  //there are 2 entries / line
-        V_vector.push_back(temp_V);
-        J_vector_exp.push_back(temp_J);
-    }
-
-
+    num_steps = 10;  //number of steps to take for each parameter--> determines the fine-ness of the optimization
+    sign = 1;    //determines the sign for the parameter adjustment. By default start with +1.
+    iter = 1;
+    inner_iter=1;  //this is iter count for the steps at each order of magnitude vlue, i.e. when devide step size /10, this iter count refreshes
+    Photogen_scaling_step = (params.Photogen_scaling_max-params.Photogen_scaling_min)/num_steps;
+    overshoot = false;  //this becomes true when have overshot a local min--> needed to properly go back to the min
 
 }
 
-void Optimization::gradient_descent(Parameters &params)
+void Optim::Gradient_Descent::run_GD()
 {
-    int num_steps = 10;  //number of steps to take for each parameter--> determines the fine-ness of the optimization
-    int sign = 1;    //determines the sign for the parameter adjustment. By default start with +1.
-
-
-    int iter = 1;
-    int inner_iter=1;  //this is iter count for the steps at each order of magnitude vlue, i.e. when devide step size /10, this iter count refreshes
-    double Photogen_scaling_step = (params.Photogen_scaling_max-params.Photogen_scaling_min)/num_steps;
-    bool overshoot = false;  //this becomes true when have overshot a local min--> needed to properly go back to the min
-
     do {
 
         if (overshoot)
@@ -47,27 +28,27 @@ void Optimization::gradient_descent(Parameters &params)
         //-----------------------------------------------------------------------------
         // Calculate the least squares difference between experimental and theory curve
 
-        lsqr_diff = cost_function(params);  //this RUNS the DD simulation and computes the lsqr_diff
+        lsqr_diff = cost_function();  //this RUNS the DD simulation and computes the lsqr_diff
 
         //for test:
         std::cout << lsqr_diff << " at iteration " << iter << std::endl;
-        std::cout << "photogenscalling" << params.Photogen_scaling << "sign " << sign << std::endl;
+        std::cout << "photogenscalling" << Params.Photogen_scaling << "sign " << sign << std::endl;
 
         //-----------------------------------------------------------------------------
         //Adjust the parameters
 
         //at 1st iter, always  start by going to in the direction determined by "sign". ASSUME THAT the selected initial guess value is roughly in the middle of the min, max rangee, since this is logical.
         if (inner_iter ==1) {
-            params.Photogen_scaling += sign*Photogen_scaling_step;
+            Params.Photogen_scaling += sign*Photogen_scaling_step;
         }
 
         //at 2nd iter, need to decide which direction to go (i.e change parameter higher or lower)
         else if (inner_iter ==2) {
             if (lsqr_diff < old_lsqr_diff) { // if less than, then means that moving to in the "sign" direction is reducing lsqr, so continue doing so
-                params.Photogen_scaling += sign*Photogen_scaling_step;
+                Params.Photogen_scaling += sign*Photogen_scaling_step;
             }
             else{  //need to move to the left, past the initial guess, and 1 more step to left
-                params.Photogen_scaling -= sign*2*Photogen_scaling_step;  //2* b/c need to move back 1 and then 1 more to left
+                Params.Photogen_scaling -= sign*2*Photogen_scaling_step;  //2* b/c need to move back 1 and then 1 more to left
                 sign = -1*sign;  //NEED TO CHANGE THE SIGN, since now need to move the other way
             }
         }
@@ -75,15 +56,15 @@ void Optimization::gradient_descent(Parameters &params)
         //for all other iters
         else {
             if (lsqr_diff < old_lsqr_diff)
-                params.Photogen_scaling += sign*Photogen_scaling_step;     //we will optimize Photogeneration-scaling parameter for the test
+                Params.Photogen_scaling += sign*Photogen_scaling_step;     //we will optimize Photogeneration-scaling parameter for the test
             else if (lsqr_diff > old_lsqr_diff) {
-                params.Photogen_scaling -= sign*Photogen_scaling_step;
+                Params.Photogen_scaling -= sign*Photogen_scaling_step;
                 //if lsqr diff is greater in this iter than in previous iter, then means have already passed the minimum, so GO BACK TO previous value of
                 //the parameters, which is the local min value, and start optimizing other parameters
 
                 overshoot = true;  //to not rewrite the old_lsqr value,since taking 1 step back, using this overshoot condition
 
-                std::cout << "The value corresponding to minimum least squares difference is " << params.Photogen_scaling << std::endl;;
+                std::cout << "The value corresponding to minimum least squares difference is " << Params.Photogen_scaling << std::endl;;
                 std::cout << "Will now fine tune the value " << std::endl;
 
                 //-----------------------------------------------------------------------------
@@ -99,12 +80,11 @@ void Optimization::gradient_descent(Parameters &params)
         iter++;
         inner_iter++;
 
-    } while (lsqr_diff > params.fit_tolerance && iter < params.optim_max_iter);
-
+    } while (lsqr_diff > Params.fit_tolerance && iter < Params.optim_max_iter);
 }
 
 //particle swarm constructor
-Optimization::Particle_swarm::Particle_swarm(Parameters &params)
+Optim::Particle_swarm::Particle_swarm(Parameters &params) : Params(params)  //NOTE: references must be initialized. //create a reference to the params structure so it can be used by all the member functions
 {
 
     // Parameters of PSO (these might later need to be moved to the input file and params structure)
@@ -166,7 +146,7 @@ Optimization::Particle_swarm::Particle_swarm(Parameters &params)
             particle->velocity[dim] = 0;
        }
 
-       particle->cost = cost_function(params); //run DD to find the cost function for the current particle (parameter set)
+       particle->cost = cost_function(); //run DD to find the cost function for the current particle (parameter set)
 
        //update the personal best
        particle->best_position = particle->position;
@@ -185,7 +165,7 @@ Optimization::Particle_swarm::Particle_swarm(Parameters &params)
 
 
 
-void Optimization::Particle_swarm::run_PSO(Parameters &params)
+void Optim::Particle_swarm::run_PSO()
 {
     //Main loop of PSO
 
@@ -213,7 +193,7 @@ void Optimization::Particle_swarm::run_PSO(Parameters &params)
             }
 
             //Evaluation
-            particle.cost = cost_function(params);//call run_DD here with the current particle's parameters....;
+            particle.cost = cost_function();//call run_DD here with the current particle's parameters....;
 
             // Update Personal Best
             if (particle.cost < particle.best_cost) {
@@ -238,9 +218,68 @@ void Optimization::Particle_swarm::run_PSO(Parameters &params)
     }
 }
 
-double Optimization::cost_function(Parameters &params)
+
+//-----------------------------------------------------------------------------------------------------------------------------------
+
+//Note: this is not the most elegant way, but for now we use a get_exp_data function definition within each optimization method's class
+
+void Optim::Gradient_Descent::get_exp_data()
 {
-   J_vector_model = run_DD(params);
+    //prepare for optimization:
+    //read in experimental curve into vectors--> since it never changes, just do once
+
+    exp_JV.open(Params.exp_data_file_name);
+    //check if file was opened
+    if (!exp_JV) {
+        std::cerr << "Unable to open file " << Params.exp_data_file_name <<"\n";
+        exit(1);   // call system to stop
+    }
+
+    double temp_V, temp_J;   //for input until end of file
+    while (exp_JV >> temp_V >> temp_J) {  //there are 2 entries / line
+        V_vector.push_back(temp_V);
+        J_vector_exp.push_back(temp_J);
+    }
+}
+
+void Optim::Particle_swarm::get_exp_data()
+{
+    //prepare for optimization:
+    //read in experimental curve into vectors--> since it never changes, just do once
+
+    exp_JV.open(Params.exp_data_file_name);
+    //check if file was opened
+    if (!exp_JV) {
+        std::cerr << "Unable to open file " << Params.exp_data_file_name <<"\n";
+        exit(1);   // call system to stop
+    }
+
+    double temp_V, temp_J;   //for input until end of file
+    while (exp_JV >> temp_V >> temp_J) {  //there are 2 entries / line
+        V_vector.push_back(temp_V);
+        J_vector_exp.push_back(temp_J);
+    }
+}
+
+//-----------------------------------------------------------------------------------------------------------------------------------
+
+double Optim::Gradient_Descent::cost_function()
+{
+   J_vector_model = run_DD(Params);
+
+   //calculate least squares
+   //just compare the J values (V values for experiment and theory should be the same)
+   for (int i =0; i < J_vector_model.size(); i++) {
+       lsqr_diff += (J_vector_model[i] - J_vector_exp[i])*(J_vector_model[i] - J_vector_exp[i]);
+   }
+
+   return lsqr_diff;
+}
+
+
+double Optim::Particle_swarm::cost_function()
+{
+   J_vector_model = run_DD(Params);
 
    //calculate least squares
    //just compare the J values (V values for experiment and theory should be the same)

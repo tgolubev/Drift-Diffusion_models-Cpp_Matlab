@@ -49,6 +49,7 @@ int main()
         if (params.optim_method == 1) {
             Optim::Gradient_Descent GD(params);
             GD.run_GD();
+            std::cout << "running gd " << std::endl;
         } else if (params.optim_method ==2) {
             Optim::Particle_swarm PSO(params);  //creating an object of Particle_swarm struct which is member of Optimization class
             PSO.run_PSO();

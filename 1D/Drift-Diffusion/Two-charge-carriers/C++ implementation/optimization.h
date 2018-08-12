@@ -93,7 +93,7 @@ namespace Optim  //group all the optimization classes
 
         struct Particle
         {
-            Particle::Particle();
+            Particle::Particle(int n_vars);
             std::vector<double> position;
             std::vector<double> velocity;
             double cost;   //cost (aka objective) function which are minimizing, in our case will be least squares difference

@@ -83,6 +83,14 @@ void Optim::Gradient_Descent::run_GD()
     } while (lsqr_diff > Params.fit_tolerance && iter < Params.optim_max_iter);
 }
 
+//Particle struct constructor
+Optim::Particle_swarm::Particle::Particle(int n_vars)
+{
+    velocity.resize(n_vars);
+    position.resize(n_vars);
+    best_position.resize(n_vars);
+}
+
 //particle swarm constructor
 Optim::Particle_swarm::Particle_swarm(Parameters &params) : Params(params)  //NOTE: references must be initialized. //create a reference to the params structure so it can be used by all the member functions
 {
@@ -138,10 +146,10 @@ Optim::Particle_swarm::Particle_swarm(Parameters &params) : Params(params)  //NO
     //---------------------------------------------------------------------------------------
     //Initialization
     for (int i = 1; i <= n_particles; i++) {
-       Particle *particle = new Particle();
-       particle->velocity.resize(n_vars);
+       Particle *particle = new Particle(n_vars);
 
-       for (int dim = 0; dim <= n_vars; dim++) {
+
+       for (int dim = 0; dim < n_vars; dim++) {
             particle->position[dim] = rand();//CALL RANDOM NUMBER GENERATOR
             particle->velocity[dim] = 0;
        }
@@ -157,7 +165,6 @@ Optim::Particle_swarm::Particle_swarm(Parameters &params) : Params(params)  //NO
            global_best_cost = particle->best_cost;
            global_best_position = particle->best_position;
        }
-
 
        particles.push_back(particle);
     }

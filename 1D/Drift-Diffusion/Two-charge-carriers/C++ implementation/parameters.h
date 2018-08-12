@@ -44,6 +44,7 @@ struct Parameters   //parameters need to be accessble, so all members are public
 
     //optimization (auto fitting) parameters
     bool auto_fit;
+    int optim_method;
     double fit_tolerance;
     double optim_max_iter;
     std::string exp_data_file_name;

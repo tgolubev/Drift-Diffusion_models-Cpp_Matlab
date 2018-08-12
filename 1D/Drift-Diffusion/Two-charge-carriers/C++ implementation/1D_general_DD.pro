@@ -14,7 +14,8 @@ SOURCES += \
     parameters.cpp \
     Utilities.cpp \
     run_DD.cpp \
-    pso_main.cpp
+    main.cpp \
+    optimization.cpp
 
 HEADERS += \
     photogeneration.h \
@@ -26,4 +27,5 @@ HEADERS += \
     constants.h \
     parameters.h \
     Utilities.h \
-    run_DD.h
+    run_DD.h \
+    optimization.h

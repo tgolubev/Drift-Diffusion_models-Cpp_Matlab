@@ -70,6 +70,7 @@ void Parameters::Initialize()
         parameters >> auto_fit >> comment;
         //only input the auto_fit parameters if auto fit is set to true
         if (auto_fit == true) {
+            parameters >> optim_method >> comment;
             parameters >> optim_max_iter >> comment;
             isPositive(optim_max_iter,comment);
             parameters >> fit_tolerance >> comment;

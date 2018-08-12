@@ -107,10 +107,131 @@ void Optimization::gradient_descent(Parameters &params)
 
 }
 
-void Optimization::particle_swarm(Parameters &params)
+//particle swarm constructor
+void Optimization::Particle_swarm::Particle_swarm(Parameters &params)
 {
+    // Parameters of PSO (these might later need to be moved to the input file and params structure)
+    max_iters = 1000;        // Max # of iterations for PSO
+
+    n_particles = 50;          // Population (Swarm) Size
+    n_vars = 1;   //number of variables that are adjusting
+
+    //Clerc-Kennedy Constriction
+    kappa = 1;
+    phi1 = 2.05;
+    phi2 = 2.05;
+    phi = phi1 + phi2;
+    chi = 2*kappa/abs(2-phi - sqrt(phi^2 - 4*phi));
+
+    /*
+    //PSO coefficients (WITHOUT Clerc-Kennedy constriction)
+    w = 1;              // Inertia coefficient
+    wdamp = 0.99;       // Damping for Inertia coefficient
+    c1 = 2;             // Personal acceleration coefficient
+    c2 = 2;             // Social (global) acceleration coefficient
+    */
+
+    //PSO coefficients WITH Clerc-Kennedy constriction
+    w = chi;              // Inertia coefficient
+    wdamp = 1;           // Damping for Inertia coefficient
+    c1 = chi*phi1;       // Personal acceleration coefficient
+    c2 = chi*phi2;             // Social (global) acceleration coefficient
+
+    //setup the vector with min and max values  for positions (the variables)
+    var_min.resize(n_vars);
+    var_max.resize(n_vars);
+    var_min[0] = params.Photogen_scaling_min;
+    var_max[0] = params.Photogen_scaling_max;
+
+    //WILL NEED TO ADD OTHER LIMITS TO PARAMETERS WHEN OPTIMIZE FOR MORE PARAMETERS
+
+    //Limit the velocity (for particle movements in parameter space)
+    max_vel.resize(n_vars);
+    min_vel.resize(n_vars);
+    for (int i = 0; i < n_vars; i++) {
+        max_vel[i] = 0.2*(var_max[i]-var_min[i]);  //the max and min velocities are dependent on the max and min values of variables
+        min_vel[i] = -max_vel[i];
+    }
+
+
+    //Initialize global best
+    global_best_cost = 1e200;    //since are minimizing, set global best to be very high
+
+
+    //---------------------------------------------------------------------------------------
+    //Initialization
+    for (int i = 1; i <= n_particles; i++) {
+       Particle *particle = new Particle();
+       particle->position = //CALL RANDOM NUMBER GENERATOR
+       particle->velocity.resize(n_vars);
+       particle->velocity.fill(0);
+
+       particle->cost = cost_function(params); //run DD to find the cost function for the current particle (parameter set)
+
+       //update the personal best
+       particle->best_position = particle->position;
+       particle->best_cost = particle->cost;
+
+       //update global best
+       if (particle->best_cost < global_best_cost) {
+           global_best_cost = particle->best_cost;
+           global_best_position = particle->best_position;
+       }
+
+
+       particles.push_back(particle);
+    }
+}
 
 
 
+void Optimization::Particle_swarm::run_PSO(Parameters &params)
+{
+    //Main loop of PSO
 
+    for (int it = 1; it <= max_iters; it++) {
+        for (int i = 0; i < n_particle; i++) {  //from 0 b/c of indexing
+
+            //Update Velocity
+            for (int dim = 0; dim < n_vars; dim++) { //update needed for each dimension in cost space
+                particles[i].velocity[dim] = w*particles[i].velocity[dim]
+                        + c1*rand()*(particles[i].best_position[dim] - particles[i].position[dim])
+                        + c2*rand()*(global_best_position[dim] - particles[i].position[dim]);
+
+                //Update Position
+                particles[i].position[dim] += particles[i].velocity[dim];
+
+                //Apply Velocity Limits
+                particles[i].velocity[dim] = std::max(particles[i].velocity, min_vel[dim]);
+                particles[i].velocity[dim] = std::min(particles[i].velocity, max_vel[dim]);
+
+                //Apply Lower and Upper Bound Limits (a clamping mechanism)
+                particles[i].position = max(particles[i].position, var_min[dim]); //if particle position is lower than VarMin, then the position becomes VarMin
+                particles[i].position = min(particle(i).Position, var_max[dim]);
+            }
+
+            //Evaluation
+            particles[i].cost = cost_function(params);//call run_DD here with the current particle's parameters....;
+
+            // Update Personal Best
+            if (particles[i].cost < particles[i].best_cost) {
+                 particles[i].best_position = particles[i].position;
+                 particles[i].best_cost = particles[i].cost;
+
+                 //Update Global Best
+                 if (particles[i].best_cost < global_best_cost) {
+                    global_best_cost = particles[i].best_cost;
+                    global_best_position = particles[i].position;
+                 }
+
+            }
+        }
+        // Store the Best Cost Value at every iteration
+        global_best_costs.push_back(global_best_cost);
+
+        std::cout << "Iteration " << ": Best Cost = " << global_best_costs[it];
+
+        //Damp Inertial  Coefficient in each iteration (note: only used when not using Clerc-Kennedy restriction)
+        w = w * wdamp;
+    }
 }

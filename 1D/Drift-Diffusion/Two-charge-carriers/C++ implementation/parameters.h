@@ -47,6 +47,7 @@ struct Parameters   //parameters need to be accessble, so all members are public
     double fit_tolerance;
     double optim_max_iter;
     std::string exp_data_file_name;
+    double Photogen_scaling_min, Photogen_scaling_max;
 };
 
 #endif // PARAMETERS_H

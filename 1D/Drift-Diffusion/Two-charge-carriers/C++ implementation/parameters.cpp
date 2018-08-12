@@ -75,6 +75,12 @@ void Parameters::Initialize()
             parameters >> fit_tolerance >> comment;
             isPositive(fit_tolerance,comment);
             parameters >> exp_data_file_name >> comment;
+
+            parameters >> comment;
+            //now read in the min and max ranges for optimization purpose
+            parameters >> Photogen_scaling_min >> comment;
+            parameters >> Photogen_scaling_max >> comment;
+            //LATER ADD A VERIFICATION HERE TO CONFIRM THAT MAX IS GREATER THAN MIN!
         }
 
         parameters.close();

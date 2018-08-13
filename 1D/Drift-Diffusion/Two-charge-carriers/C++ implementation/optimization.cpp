@@ -216,27 +216,27 @@ Optim::Particle_swarm::Particle_swarm(Parameters &params) : Params(params)  //NO
     n_particles = 10;          // Population (Swarm) Size
     n_vars = Params.vars.size();   //number of variables that are adjusting
 
-    //Clerc-Kennedy Constriction
-    kappa = 1;
-    phi1 = 2.05;
-    phi2 = 2.05;
-    phi = phi1 + phi2;
-    chi = 2*kappa/abs(2-phi - sqrt(phi*phi - 4*phi));
+    if (Params.PSO_Clerc_Kennedy == true) {
+        //Clerc-Kennedy Constriction
+        kappa = 1;
+        phi1 = 2.05;
+        phi2 = 2.05;
+        phi = phi1 + phi2;
+        chi = 2*kappa/abs(2-phi - sqrt(phi*phi - 4*phi));
 
-    /*
-    //PSO coefficients (WITHOUT Clerc-Kennedy constriction)
-    w = 1;              // Inertia coefficient
-    wdamp = 0.99;       // Damping for Inertia coefficient
-    c1 = 2;             // Personal acceleration coefficient
-    c2 = 2;             // Social (global) acceleration coefficient
-    */
-
-    //PSO coefficients WITH Clerc-Kennedy constriction
-    w = chi;              // Inertia coefficient
-    wdamp = 1;           // Damping for Inertia coefficient
-    c1 = chi*phi1;       // Personal acceleration coefficient
-    c2 = chi*phi2;             // Social (global) acceleration coefficient
-
+        //PSO coefficients WITH Clerc-Kennedy constriction
+        w = chi;              // Inertia coefficient
+        wdamp = 1;           // Damping for Inertia coefficient
+        c1 = chi*phi1;       // Personal acceleration coefficient
+        c2 = chi*phi2;             // Social (global) acceleration coefficient
+    }
+    else {
+        //PSO coefficients (WITHOUT Clerc-Kennedy constriction)
+        w = 1;              // Inertia coefficient
+        wdamp = 0.99;       // Damping for Inertia coefficient
+        c1 = 2;             // Personal acceleration coefficient
+        c2 = 2;             // Social (global) acceleration coefficient
+   }
 
     //Limit the velocity (for particle movements in parameter space)
     max_vel.resize(n_vars);
@@ -322,13 +322,11 @@ void Optim::Particle_swarm::run_PSO()
 
 
                 *particle.particle_vars[dim] = particle.position[dim];  //change the vars values (which are addresses of the particle_params which need changing)
-                particle.cost = cost_function(particle.particle_params);//call run_DD here with the current particle's parameters....;
-
                 std::cout << "particle position " << dim << particle.position[dim] << std::endl;
-
             }
 
-            //THIS NEEDS TO BE IMPROVED LATER TO MAKE IT MORE FLEXIBLE/GENERAL!
+            particle.cost = cost_function(particle.particle_params);//call run_DD here with the current particle's parameters....;
+
 
             //===================================================================================
 

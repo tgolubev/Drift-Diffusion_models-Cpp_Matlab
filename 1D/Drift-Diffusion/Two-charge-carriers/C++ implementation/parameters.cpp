@@ -94,6 +94,12 @@ void Parameters::Initialize()
             vars.push_back(&n_mob_active);
             vars_min.push_back(n_mob_active_min);
             vars_max.push_back(n_mob_active_max);
+
+            if (optim_method == 2) {
+                //read in the PSO parameters
+                parameters >> comment;
+                parameters >> PSO_Clerc_Kennedy >> comment;
+            }
         }
 
         parameters.close();

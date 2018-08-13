@@ -28,6 +28,7 @@ namespace Optim  //group all the optimization classes
         void run_GD();
         double cost_function();
         void get_exp_data();
+        double rand_num(double a, double b);   //SHOULD later make this function defined somewhere like a new Utilities class for the code
 
     private:
         Parameters &Params; //reference to params so all member functions can use..
@@ -42,11 +43,13 @@ namespace Optim  //group all the optimization classes
         int inner_iter;  //this is iter count for the steps at each order of magnitude vlue, i.e. when devide step size /10, this iter count refreshes
         double Photogen_scaling_step;
         bool overshoot;  //this becomes true when have overshot a local min--> needed to properly go back to the min
+        int num_restarts;
 
+        std::vector<double> best_vars;
 
         std::vector<double> V_vector;
         std::vector<double> J_vector_exp;
-        double lsqr_diff, old_lsqr_diff;
+        double lsqr_diff, old_lsqr_diff, best_lsqr_diff;
         std::vector<double> J_vector_model;
         std::ifstream exp_JV;
 

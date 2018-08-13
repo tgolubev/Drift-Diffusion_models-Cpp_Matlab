@@ -8,7 +8,7 @@
 0.1    //phi_c
 3.0    //eps_active
 4.5e-6 //p_mob_active
-1.5e-7 //n_mob_active4.5e-6WAS-TRUE-VALUE
+4.5e-6 //n_mob_active4.5e-6WAS-TRUE-VALUE
 5e-6   //mobil
 1.5    //E_gap
 -3.9    //active_CB
@@ -36,7 +36,7 @@ gen_rate.inp  //GenRateFileName
 experiment_JV.inp  //filename_to_fit_to-(only-needed-if-auto-fit==1)
 
 //optimization-parameter-ranges
-1e25             //Photogeneration-scaling-MIN
+1e28             //Photogeneration-scaling-MIN
 1e29             //Photogeneration-scaling-MAX
 1e-8             //n-Mobility-MIN
 1e-4             //n-Mobility-MAX

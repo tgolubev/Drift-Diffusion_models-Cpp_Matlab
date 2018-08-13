@@ -6,10 +6,11 @@
 Optim::Gradient_Descent::Gradient_Descent(Parameters &params): Params(params)  //NOTE: references must be initialized. //create a reference to the params structure so it can be used by all the member functions
 {
     num_steps = 10;  //number of steps to take for each parameter--> determines the fine-ness of the optimization
+
     sign = 1;    //determines the sign for the parameter adjustment. By default start with +1.
     iter = 1;
     inner_iter=1;  //this is iter count for the steps at each order of magnitude vlue, i.e. when devide step size /10, this iter count refreshes
-    Photogen_scaling_step = (params.Photogen_scaling_max-params.Photogen_scaling_min)/num_steps;
+
     overshoot = false;  //this becomes true when have overshot a local min--> needed to properly go back to the min
 
     //prepare for optimization:
@@ -28,80 +29,102 @@ Optim::Gradient_Descent::Gradient_Descent(Parameters &params): Params(params)  /
         J_vector_exp.push_back(temp_J);
     }
 
-
-
-
 }
 
 void Optim::Gradient_Descent::run_GD()
 {
-    do {
 
-        if (overshoot)
-            //don't over-write old_lsqr_diff--> let it be the prev. value b/c will return to that
-            old_lsqr_diff = old_lsqr_diff;
-        else
-            old_lsqr_diff = lsqr_diff;  //save old value for figuring out if are moving towards or away from local minimum
+    for (int var_index = 0; var_index < Params.vars.size(); var_index++) {   //for each variable that are optimizing
 
-        //-----------------------------------------------------------------------------
-        // Calculate the least squares difference between experimental and theory curve
+        //reset iter counts
+        iter = 1;
+        inner_iter = 1;
 
-        lsqr_diff = cost_function();  //this RUNS the DD simulation and computes the lsqr_diff
+        //bool min_found = false;  //used to decide whether to continue iterations for each variable
+        bool fine_tuning = false; //to identify whether have already  did step/10 for fine tuning
 
-        //IT DOESN'T GET TO HERE.., exits after run DD
-        std::cout << "got out of cost function  " << std::endl;
+        double step = (Params.vars_max[var_index]-Params.vars_min[var_index])/num_steps;  //step for the gradient descent
 
-        //for test:
-        std::cout << lsqr_diff << " at iteration " << iter << std::endl;
-        std::cout << "photogenscalling" << Params.Photogen_scaling << "sign " << sign << std::endl;
+        do {
 
-        //-----------------------------------------------------------------------------
-        //Adjust the parameters
-
-        //at 1st iter, always  start by going to in the direction determined by "sign". ASSUME THAT the selected initial guess value is roughly in the middle of the min, max rangee, since this is logical.
-        if (inner_iter ==1) {
-            Params.Photogen_scaling += sign*Photogen_scaling_step;
-        }
-
-        //at 2nd iter, need to decide which direction to go (i.e change parameter higher or lower)
-        else if (inner_iter ==2) {
-            if (lsqr_diff < old_lsqr_diff) { // if less than, then means that moving to in the "sign" direction is reducing lsqr, so continue doing so
-                Params.Photogen_scaling += sign*Photogen_scaling_step;
+            if (overshoot) {
+                //don't over-write old_lsqr_diff--> let it be the prev. value b/c will return to that
+                old_lsqr_diff = old_lsqr_diff;
+                overshoot = false;  //turn it off, after corrected for overshoot
+            } else {
+                old_lsqr_diff = lsqr_diff;  //save old value for figuring out if are moving towards or away from local minimum
             }
-            else{  //need to move to the left, past the initial guess, and 1 more step to left
-                Params.Photogen_scaling -= sign*2*Photogen_scaling_step;  //2* b/c need to move back 1 and then 1 more to left
-                sign = -1*sign;  //NEED TO CHANGE THE SIGN, since now need to move the other way
+
+
+
+            //-----------------------------------------------------------------------------
+            // Calculate the least squares difference between experimental and theory curve
+
+            lsqr_diff = cost_function();  //this RUNS the DD simulation and computes the lsqr_diff
+
+            //for test:
+            std::cout << lsqr_diff << " at iteration " << iter << std::endl;
+            std::cout << "variable # " << var_index << " value " << *Params.vars[var_index] << "sign " << sign << std::endl << std::endl;
+
+            //std::cout << "inner iter " << inner_iter << std::endl;
+            std::cout << "old diff " << old_lsqr_diff << std::endl;
+            std::cout << "new lsqr diff " << lsqr_diff << std::endl << std::endl;
+
+            //-----------------------------------------------------------------------------
+            //Adjust the parameters
+
+            //at 1st iter, always  start by going to in the direction determined by "sign". ASSUME THAT the selected initial guess value is roughly in the middle of the min, max rangee, since this is logical.
+            if (inner_iter ==1) {
+                *Params.vars[var_index] += sign*step; //use dereference (*) to change the value that are pointing to
             }
-        }
 
-        //for all other iters
-        else {
-            if (lsqr_diff < old_lsqr_diff)
-                Params.Photogen_scaling += sign*Photogen_scaling_step;     //we will optimize Photogeneration-scaling parameter for the test
-            else if (lsqr_diff > old_lsqr_diff) {
-                Params.Photogen_scaling -= sign*Photogen_scaling_step;
-                //if lsqr diff is greater in this iter than in previous iter, then means have already passed the minimum, so GO BACK TO previous value of
-                //the parameters, which is the local min value, and start optimizing other parameters
-
-                overshoot = true;  //to not rewrite the old_lsqr value,since taking 1 step back, using this overshoot condition
-
-                std::cout << "The value corresponding to minimum least squares difference is " << Params.Photogen_scaling << std::endl;;
-                std::cout << "Will now fine tune the value " << std::endl;
-
-                //-----------------------------------------------------------------------------
-                //now take the step and divide by 10 again, for the future iterations..., will use the smaller step to fine tune the value
-
-                Photogen_scaling_step = Photogen_scaling_step/10.;
-                std::cout << Photogen_scaling_step << std::endl;
-                sign = 1;  //reset the sign to +1 for the new search, in the finer range
-                inner_iter = 1;  //need to reset inner_iter to 1 so can determine which direction to go.... again
+            //at 2nd iter, need to decide which direction to go (i.e change parameter higher or lower)
+            else if (inner_iter ==2) {
+                if (lsqr_diff < old_lsqr_diff) { // if less than, then means that moving to in the "sign" direction is reducing lsqr, so continue doing so
+                    *Params.vars[var_index] += sign*step;
+                }
+                else{  //need to move to the left, past the initial guess, and 1 more step to left
+                    *Params.vars[var_index] -= sign*2*step;  //2* b/c need to move back 1 and then 1 more to left
+                    std::cout << "are movign to the left " <<  *Params.vars[var_index] << std::endl << std::endl;
+                    sign = -1*sign;  //NEED TO CHANGE THE SIGN, since now need to move the other way
+                }
             }
-        }
 
-        iter++;
-        inner_iter++;
+            //for all other iters
+            else {
+                if (lsqr_diff < old_lsqr_diff)
+                    *Params.vars[var_index] += sign*step;
+                else if (lsqr_diff > old_lsqr_diff) {
+                    *Params.vars[var_index] -= sign*step;
+                    //if lsqr diff is greater in this iter than in previous iter, then means have already passed the minimum, so GO BACK TO previous value of
+                    //the parameters, which is the local min value, and start optimizing other parameters
 
-    } while (lsqr_diff > Params.fit_tolerance && iter < Params.optim_max_iter);
+                    if(fine_tuning) {
+                        std::cout << "Local min for variable # " << var_index << " = " << *Params.vars[var_index] << "has been found." << std::endl;
+                        std::cout << "Cost at local min = " << lsqr_diff << std::endl;
+                        break;           //come out of the while loop, if are fine tuning and lsqr_diff begins increasing, means that have found the local min
+                    }
+                    overshoot = true;  //to not rewrite the old_lsqr value,since taking 1 step back, using this overshoot condition
+
+                    std::cout << "The approx. value corresponding to minimum least squares difference is " << *Params.vars[var_index] << std::endl;;
+                    std::cout << "Will now fine tune the value " << std::endl;
+
+                    //-----------------------------------------------------------------------------
+                    //now take the step and divide by 10 again, for the future iterations..., will use the smaller step to fine tune the value
+
+                    step = step/10.;
+                    fine_tuning = true;
+                    sign = 1;  //reset the sign to +1 for the new search, in the finer range
+                    inner_iter = 1;  //need to reset inner_iter to 1 so can determine which direction to go.... again
+                }
+            }
+
+            iter++;
+            inner_iter++;
+
+        } while (iter < Params.optim_max_iter);  //continue the iterations for a single parameter, while the lsqr_diff is decreasing, and are below max iter #
+
+    }
 }
 
 //Particle struct constructor
@@ -138,7 +161,7 @@ Optim::Particle_swarm::Particle_swarm(Parameters &params) : Params(params)  //NO
     PSO_max_iters = 100;        // Max # of iterations for PSO
 
     n_particles = 10;          // Population (Swarm) Size
-    n_vars = 1;   //number of variables that are adjusting
+    n_vars = Params.vars.size();   //number of variables that are adjusting
 
     //Clerc-Kennedy Constriction
     kappa = 1;
@@ -279,7 +302,7 @@ void Optim::Particle_swarm::run_PSO()
         // Store the Best Cost Value at every iteration
         global_best_costs.push_back(global_best_cost);
 
-        std::cout << "Iteration " << ": Best Cost = " << global_best_costs[iter-1]<< std::endl;  //use iter -1 b/c I'm counting iters from 1, but vectors index from 0
+        std::cout << "Iteration " << iter << ": Best Cost = " << global_best_costs[iter-1]<< std::endl;  //use iter -1 b/c I'm counting iters from 1, but vectors index from 0
         std::cout << "Photogenrate value " << global_best_position[0] << std::endl;
 
         //Damp Inertial  Coefficient in each iteration (note: only used when not using Clerc-Kennedy restriction)

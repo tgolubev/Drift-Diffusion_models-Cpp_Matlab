@@ -82,6 +82,18 @@ void Parameters::Initialize()
             parameters >> Photogen_scaling_min >> comment;
             parameters >> Photogen_scaling_max >> comment;
             //LATER ADD A VERIFICATION HERE TO CONFIRM THAT MAX IS GREATER THAN MIN!
+
+            parameters >> n_mob_active_min >> comment;
+            parameters >> n_mob_active_max >> comment;
+
+            //fill the vars vector here: for parameters which are optimizing
+            vars.push_back(&Photogen_scaling);
+            vars_min.push_back(Photogen_scaling_min);
+            vars_max.push_back(Photogen_scaling_max);
+
+            vars.push_back(&n_mob_active);
+            vars_min.push_back(n_mob_active_min);
+            vars_max.push_back(n_mob_active_max);
         }
 
         parameters.close();

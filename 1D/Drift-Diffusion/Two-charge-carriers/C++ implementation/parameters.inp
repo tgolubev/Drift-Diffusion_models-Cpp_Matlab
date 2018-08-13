@@ -8,7 +8,7 @@
 0.1    //phi_c
 3.0    //eps_active
 4.5e-6 //p_mob_active
-4.5e-6 //n_mob_active
+1.5e-7 //n_mob_active4.5e-6WAS-TRUE-VALUE
 5e-6   //mobil
 1.5    //E_gap
 -3.9    //active_CB
@@ -30,7 +30,7 @@ gen_rate.inp  //GenRateFileName
 
 //optimization(auto-fit)_parameters
 1     //auto-fit?(1==true,0=false)
-2     //optim_method:1==gradient-descent,2==particle-swarm
+1     //optim_method:1==gradient-descent,2==particle-swarm
 50       //max_iter_for-optimization_loop-(only-needed-if-auto-fit==1)
 5000     //fit-tolerance-(only-needed-if-auto-fit==1)-NOTE-this-is-for-sum-of-squares-so-relativelyLARGE
 experiment_JV.inp  //filename_to_fit_to-(only-needed-if-auto-fit==1)
@@ -38,5 +38,7 @@ experiment_JV.inp  //filename_to_fit_to-(only-needed-if-auto-fit==1)
 //optimization-parameter-ranges
 1e25             //Photogeneration-scaling-MIN
 1e29             //Photogeneration-scaling-MAX
+1e-8             //n-Mobility-MIN
+1e-4             //n-Mobility-MAX
 
 

@@ -32,6 +32,8 @@ namespace Optim  //group all the optimization classes
     private:
         Parameters &Params; //reference to params so all member functions can use..
 
+        int n_vars;   //number of variables that are adjusting
+
         int num_steps;  //number of steps to take for each parameter--> determines the fine-ness of the optimization
         int sign;    //determines the sign for the parameter adjustment. By default start with +1.
 

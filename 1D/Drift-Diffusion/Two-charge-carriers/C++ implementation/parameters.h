@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iostream>
 #include <iomanip>
+#include <vector>
 
 
 struct Parameters   //parameters need to be accessble, so all members are public.
@@ -49,6 +50,11 @@ struct Parameters   //parameters need to be accessble, so all members are public
     double optim_max_iter;
     std::string exp_data_file_name;
     double Photogen_scaling_min, Photogen_scaling_max;
+    double n_mob_active_max, n_mob_active_min;
+
+    std::vector<double*> vars;  //will store pointers to the parameters/variables which are optimizing
+    std::vector<double> vars_min;  //stores the min of the ranges
+    std::vector<double> vars_max;
 };
 
 #endif // PARAMETERS_H

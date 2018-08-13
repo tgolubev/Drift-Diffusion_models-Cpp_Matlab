@@ -77,10 +77,6 @@ namespace Optim  //group all the optimization classes
         std::vector<double> min_vel;
         std::vector<double> max_vel;
 
-        //max and min  values for each of variables that are optimizinng
-        std::vector<double> var_min;
-        std::vector<double> var_max;
-
         int PSO_max_iters;        // Max # of iterations for PSO
 
         int n_particles;          // Population (Swarm) Size
@@ -101,6 +97,7 @@ namespace Optim  //group all the optimization classes
         {
             Particle::Particle(int n_vars, Parameters &params);
             Parameters particle_params;   //NOTE: this is a COPY, not a reference, since want to change each particle's params individually.
+            std::vector<double*> particle_vars;  //this vector contains POINTERS to the variables in particle_params which need to be changed
             std::vector<double> position;
             std::vector<double> velocity;
             double cost;   //cost (aka objective) function which are minimizing, in our case will be least squares difference

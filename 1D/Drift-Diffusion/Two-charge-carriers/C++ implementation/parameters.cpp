@@ -91,9 +91,9 @@ void Parameters::Initialize()
             vars_min.push_back(Photogen_scaling_min);
             vars_max.push_back(Photogen_scaling_max);
 
-            //vars.push_back(&n_mob_active);
-            //vars_min.push_back(n_mob_active_min);
-            //vars_max.push_back(n_mob_active_max);
+            vars.push_back(&n_mob_active);
+            vars_min.push_back(n_mob_active_min);
+            vars_max.push_back(n_mob_active_max);
         }
 
         parameters.close();

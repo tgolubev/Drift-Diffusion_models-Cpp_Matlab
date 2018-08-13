@@ -179,6 +179,14 @@ Optim::Particle_swarm::Particle::Particle(int n_vars, Parameters &params)
     velocity.resize(n_vars);
     position.resize(n_vars);
     best_position.resize(n_vars);
+    particle_vars.resize(n_vars);
+
+    //initialize the POINTERS to particle_params for the vars that will need changing
+    //FOR NOW THE  ONLY WAY I SEE TO DO IT IS HARDCODE THE PARAMETERS THAT NEED CHANGING...
+
+    particle_vars[0] = &particle_params.Photogen_scaling;
+    particle_vars[1] = &particle_params.n_mob_active;
+
 }
 
 //particle swarm constructor
@@ -229,46 +237,37 @@ Optim::Particle_swarm::Particle_swarm(Parameters &params) : Params(params)  //NO
     c1 = chi*phi1;       // Personal acceleration coefficient
     c2 = chi*phi2;             // Social (global) acceleration coefficient
 
-    //setup the vector with min and max values  for positions (the variables)
-    var_min.resize(n_vars);
-    var_max.resize(n_vars);
-    var_min[0] = params.Photogen_scaling_min;
-    var_max[0] = params.Photogen_scaling_max;
-
-    //WILL NEED TO ADD OTHER LIMITS TO PARAMETERS WHEN OPTIMIZE FOR MORE PARAMETERS
 
     //Limit the velocity (for particle movements in parameter space)
     max_vel.resize(n_vars);
     min_vel.resize(n_vars);
     for (int i = 0; i < n_vars; i++) {
-        max_vel[i] = 0.2*(var_max[i]-var_min[i]);  //the max and min velocities are dependent on the max and min values of variables
+        max_vel[i] = 0.2*(Params.vars_max[i]-Params.vars_min[i]);  //the max and min velocities are dependent on the max and min values of variables
         min_vel[i] = -max_vel[i];
     }
 
-
     //Initialize global best
     global_best_cost = 1e200;    //since are minimizing, set global best to be very high
-
 
     //---------------------------------------------------------------------------------------
     //Initialization
     for (int i = 1; i <= n_particles; i++) {
        Particle *particle = new Particle(n_vars, Params);
 
-
        for (int dim = 0; dim < n_vars; dim++) {
-            particle->position[dim] = rand_num(var_min[dim], var_max[dim]); //use uniformly distributed random number btw min and max value of the variable's range
+            particle->position[dim] = rand_num(Params.vars_min[dim], Params.vars_max[dim]); //use uniformly distributed random number btw min and max value of the variable's range
             particle->velocity[dim] = 0;    
+
+
+           //NOTE: for each particle, need to use a different parameter set which corresponds to that particle!
+           //for now do like this--> but later need to make more elegant
+
+            *particle->particle_vars[dim] = particle->position[dim];  //change the vars values (which are addresses of the particle_params which need changing)
+            //std::cout << "particle position " << particle->position[dim] << std::endl;
+
        }
 
-       //NOTE: for each particle, need to use a different parameter set which corresponds to that particle!
-       //for now do like this--> but later need to make more elegant
-
-       //HARD CODE THE 1st parameter:
-       particle->particle_params.Photogen_scaling = particle->position[0];
-
        particle->cost = cost_function(particle->particle_params); //run DD to find the cost function for the current particle (parameter set)
-       std::cout << "particle position " << particle->position[0] << std::endl;
 
        //update the personal best
        particle->best_position = particle->position;
@@ -282,7 +281,7 @@ Optim::Particle_swarm::Particle_swarm(Parameters &params) : Params(params)  //NO
 
        particles.push_back(particle);
     }
-};
+}
 
 
 
@@ -312,20 +311,22 @@ void Optim::Particle_swarm::run_PSO()
                 particle.velocity[dim] = std::min(particle.velocity[dim], max_vel[dim]);
 
                 //Apply Lower and Upper Bound Limits (a clamping mechanism)
-                particle.position[dim] = std::max(particle.position[dim], var_min[dim]); //if particle position is lower than VarMin, then the position becomes VarMin
-                particle.position[dim] = std::min(particle.position[dim], var_max[dim]);
+                particle.position[dim] = std::max(particle.position[dim], Params.vars_min[dim]); //if particle position is lower than VarMin, then the position becomes VarMin
+                particle.position[dim] = std::min(particle.position[dim], Params.vars_max[dim]);
+
+
+                //===================================================================================
+                //Evaluation
+                //NOTE: for each particle, need to use a different parameter set which corresponds to that particle!
+                //for now do like this--> but later need to make more elegant
+
+
+                *particle.particle_vars[dim] = particle.position[dim];  //change the vars values (which are addresses of the particle_params which need changing)
+                particle.cost = cost_function(particle.particle_params);//call run_DD here with the current particle's parameters....;
+
+                std::cout << "particle position " << dim << particle.position[dim] << std::endl;
+
             }
-
-            //===================================================================================
-            //Evaluation
-            //NOTE: for each particle, need to use a different parameter set which corresponds to that particle!
-            //for now do like this--> but later need to make more elegant
-
-            //HARD CODE THE 1st parameter:
-            particle.particle_params.Photogen_scaling = particle.position[0];
-            particle.cost = cost_function(particle.particle_params);//call run_DD here with the current particle's parameters....;
-
-            std::cout << "particle position " << particle.position[0] << std::endl;
 
             //THIS NEEDS TO BE IMPROVED LATER TO MAKE IT MORE FLEXIBLE/GENERAL!
 
@@ -349,6 +350,7 @@ void Optim::Particle_swarm::run_PSO()
 
         std::cout << "Iteration " << iter << ": Best Cost = " << global_best_costs[iter-1]<< std::endl;  //use iter -1 b/c I'm counting iters from 1, but vectors index from 0
         std::cout << "Photogenrate value " << global_best_position[0] << std::endl;
+        std::cout << "n_mob value " << global_best_position[1] << std::endl;
 
         //Damp Inertial  Coefficient in each iteration (note: only used when not using Clerc-Kennedy restriction)
         w = w * wdamp;
@@ -356,6 +358,7 @@ void Optim::Particle_swarm::run_PSO()
     } while (global_best_cost > Params.fit_tolerance && iter < PSO_max_iters);
 }
 
+//--------------------------------------------------------------------------------------------------------------------------
 //generates a uniformly  distributed random number in the range [a,b]
 double Optim::Particle_swarm::rand_num(double a, double b)
 {

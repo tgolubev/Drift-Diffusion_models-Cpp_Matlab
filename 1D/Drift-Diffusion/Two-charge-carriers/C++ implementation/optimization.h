@@ -72,6 +72,7 @@ namespace Optim  //group all the optimization classes
 
         double global_best_cost;
         std::vector<double> global_best_position;
+        int cost_fnc_cnt;  //counter for # of times cost function is run
 
         //max and min velocity values (for PSO particle moves)
         std::vector<double> min_vel;

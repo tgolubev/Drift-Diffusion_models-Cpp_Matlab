@@ -201,7 +201,7 @@ std::vector<double> run_DD(Parameters &params) {
 
 
         //---------------------Write to file----------------------------------------------------------------
-        utils.write_details(params, Va, V, p, n, J_total, Un, PhotogenRate, R_Langevin);
+        //utils.write_details(params, Va, V, p, n, J_total, Un, PhotogenRate, R_Langevin);
         if(Va_cnt >0) {
             J_for_JV.push_back(J_total[static_cast<int>(floor(params.num_cell/2))]);    //fill a J vector, will be returned by the run_DD function
             utils.write_JV(params, JV, iter, Va, J_for_JV[Va_cnt]);

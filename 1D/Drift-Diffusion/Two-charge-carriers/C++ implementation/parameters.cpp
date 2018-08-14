@@ -85,6 +85,10 @@ void Parameters::Initialize()
 
             parameters >> n_mob_active_min >> comment;
             parameters >> n_mob_active_max >> comment;
+            parameters >> p_mob_active_min >> comment;
+            parameters >> p_mob_active_max >> comment;
+            parameters >> k_rec_min >> comment;
+            parameters >> k_rec_max >> comment;
 
             //fill the vars vector here: for parameters which are optimizing
             vars.push_back(&Photogen_scaling);
@@ -94,6 +98,14 @@ void Parameters::Initialize()
             vars.push_back(&n_mob_active);
             vars_min.push_back(n_mob_active_min);
             vars_max.push_back(n_mob_active_max);
+
+            vars.push_back(&p_mob_active);
+            vars_min.push_back(p_mob_active_min);
+            vars_max.push_back(p_mob_active_max);
+
+            vars.push_back(&k_rec);
+            vars_min.push_back(k_rec_min);
+            vars_max.push_back(k_rec_max);
 
             if (optim_method == 2) {
                 //read in the PSO parameters

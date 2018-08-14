@@ -6,7 +6,7 @@
 Optim::Gradient_Descent::Gradient_Descent(Parameters &params): Params(params)  //NOTE: references must be initialized. //create a reference to the params structure so it can be used by all the member functions
 {
     num_steps = 10;  //number of steps to take for each parameter--> determines the fine-ness of the optimization
-    num_restarts = 3; //number of GD runs to do (each time starting with random numbers (within specified ranges) for the fitting variables. Is needed to avoid getting a local min.
+    num_restarts = 10; //number of GD runs to do (each time starting with random numbers (within specified ranges) for the fitting variables. Is needed to avoid getting a local min.
 
     sign = 1;    //determines the sign for the parameter adjustment. By default start with +1.
     iter = 1;
@@ -38,6 +38,8 @@ Optim::Gradient_Descent::Gradient_Descent(Parameters &params): Params(params)  /
 
 void Optim::Gradient_Descent::run_GD()
 {
+    int cost_fnc_cnt = 0;  //counter to count # of cost function calls (# of times DD model is run)
+
     for (int GD_runs = 1; GD_runs < num_restarts; GD_runs++) {
 
         for (int var_index = 0; var_index < Params.vars.size(); var_index++) {   //for each variable that are optimizing
@@ -69,6 +71,7 @@ void Optim::Gradient_Descent::run_GD()
                 // Calculate the least squares difference between experimental and theory curve
 
                 lsqr_diff = cost_function();  //this RUNS the DD simulation and computes the lsqr_diff
+                cost_fnc_cnt++;
 
                 //for test:
                 std::cout << lsqr_diff << " at iteration " << iter << std::endl;
@@ -96,12 +99,28 @@ void Optim::Gradient_Descent::run_GD()
                         std::cout << "are movign to the left " <<  *Params.vars[var_index] << std::endl << std::endl;
 
                         //NOTE: IF I HAVE PARAMETERS WHICH ARE SUPPOSED TO BE NEGATIVE, THIS WILL NEED TO BE MODIFIED!!!
+
                         if (*Params.vars[var_index] < 0) {//took too large step, so reduce step size
                             std::cout << "value bacame negative, lower step size " << std::endl;
                             *Params.vars[var_index] += sign*step; //move back 1 step
                             step = step/10.;
                             *Params.vars[var_index] -= sign*step;
                         }
+                        //CHECK for negative value again--> LATER CAN DO THIS IN A WHILE LOOP, UNTIL VALUE IS NO LONGER NEGATIVE
+                        if (*Params.vars[var_index] < 0) {
+                            std::cout << "value AGAIN bacame negative. " << std::endl;
+                            *Params.vars[var_index] -= sign*step; //other way 1 step
+                            step = step/10.;
+                            *Params.vars[var_index] += sign*step;
+                        }
+
+                        //INSTEAD OF REDUCING STEP SIZE, IF VALUE BECOMES NEGATIVE, TRY making value = to the min value in that case..., i.e. binding within the range...
+                        //this is simpler and might be more effective
+                        /*
+                        if (*Params.vars[var_index] < 0) {
+                            *Params.vars[var_index] = Params.vars_min[var_index];
+                        }
+                        */
                         sign = -1*sign;  //NEED TO CHANGE THE SIGN, since now need to move the other way
 
                     }
@@ -118,11 +137,20 @@ void Optim::Gradient_Descent::run_GD()
                             step = step/10.;
                             *Params.vars[var_index] += sign*step;
                         }
-                        //CHECK for negative value again
+                        //CHECK for negative value again--> LATER CAN DO THIS IN A WHILE LOOP, UNTIL VALUE IS NO LONGER NEGATIVE
                         if (*Params.vars[var_index] < 0) {
-                            std::cout << "value AGAIN bacame negative. Will EXIT " << std::endl;
-                            exit(1);
+                            std::cout << "value AGAIN bacame negative. " << std::endl;
+                            *Params.vars[var_index] -= sign*step; //other way 1 step
+                            step = step/10.;
+                            *Params.vars[var_index] += sign*step;
                         }
+                        /*
+                        //INSTEAD OF REDUCING STEP SIZE, IF VALUE BECOMES NEGATIVE, TRY making value = to the min value in that case..., i.e. binding within the range...
+                        //this is simpler and might be more effective
+                        if (*Params.vars[var_index] < 0) {
+                            *Params.vars[var_index] = Params.vars_min[var_index];
+                        }
+                        */
                     }
 
                     else if (lsqr_diff > old_lsqr_diff) {
@@ -162,13 +190,21 @@ void Optim::Gradient_Descent::run_GD()
         if (lsqr_diff < best_lsqr_diff) {
             best_lsqr_diff = lsqr_diff;
             std::cout << "A better parameter set has been found with cost = " << lsqr_diff << std::endl;
-            std::cout << "Best parameter values are " << std::endl;
+            std::cout << "Current best parameter values are " << std::endl;
 
             for (int i = 0; i < Params.vars.size(); i++) {
                 best_vars[i] = *Params.vars[i];
                 std::cout << best_vars[i] << std::endl;
             }
         }
+        std::cout << "cost function count " << cost_fnc_cnt << std::endl;
+    }
+    std::cout << "Run Summary: " << std::endl;
+    std::cout << "Best Cost: " << best_lsqr_diff << std::endl;
+    std::cout << "Current best parameter values are " << std::endl;
+    for (int i = 0; i < Params.vars.size(); i++) {
+        best_vars[i] = *Params.vars[i];
+        std::cout << best_vars[i] << std::endl;
     }
 }
 
@@ -181,11 +217,16 @@ Optim::Particle_swarm::Particle::Particle(int n_vars, Parameters &params)
     best_position.resize(n_vars);
     particle_vars.resize(n_vars);
 
+    //============================================================================================
     //initialize the POINTERS to particle_params for the vars that will need changing
     //FOR NOW THE  ONLY WAY I SEE TO DO IT IS HARDCODE THE PARAMETERS THAT NEED CHANGING...
 
     particle_vars[0] = &particle_params.Photogen_scaling;
     particle_vars[1] = &particle_params.n_mob_active;
+    particle_vars[2] = &particle_params.p_mob_active;
+    particle_vars[3] = &particle_params.k_rec;
+
+    //============================================================================================
 
 }
 
@@ -213,8 +254,10 @@ Optim::Particle_swarm::Particle_swarm(Parameters &params) : Params(params)  //NO
     //MOVE THE PARAMETERS TO AN INPUT FILE LATER.....
     PSO_max_iters = 100;        // Max # of iterations for PSO
 
-    n_particles = 10;          // Population (Swarm) Size
+    n_particles = 20;          // Population (Swarm) Size
     n_vars = Params.vars.size();   //number of variables that are adjusting
+
+    cost_fnc_cnt = 0;  //counter for # of times cost function is run (# of DD runs)
 
     if (Params.PSO_Clerc_Kennedy == true) {
         //Clerc-Kennedy Constriction
@@ -263,11 +306,12 @@ Optim::Particle_swarm::Particle_swarm(Parameters &params) : Params(params)  //NO
            //for now do like this--> but later need to make more elegant
 
             *particle->particle_vars[dim] = particle->position[dim];  //change the vars values (which are addresses of the particle_params which need changing)
-            //std::cout << "particle position " << particle->position[dim] << std::endl;
+            std::cout << "particle position " << particle->position[dim] << std::endl;
 
        }
 
        particle->cost = cost_function(particle->particle_params); //run DD to find the cost function for the current particle (parameter set)
+       cost_fnc_cnt++;
 
        //update the personal best
        particle->best_position = particle->position;
@@ -326,7 +370,7 @@ void Optim::Particle_swarm::run_PSO()
             }
 
             particle.cost = cost_function(particle.particle_params);//call run_DD here with the current particle's parameters....;
-
+            cost_fnc_cnt++;
 
             //===================================================================================
 
@@ -349,6 +393,9 @@ void Optim::Particle_swarm::run_PSO()
         std::cout << "Iteration " << iter << ": Best Cost = " << global_best_costs[iter-1]<< std::endl;  //use iter -1 b/c I'm counting iters from 1, but vectors index from 0
         std::cout << "Photogenrate value " << global_best_position[0] << std::endl;
         std::cout << "n_mob value " << global_best_position[1] << std::endl;
+        std::cout << "p_mob value " << global_best_position[2] << std::endl;
+        std::cout << "k_rec " << global_best_position[3] << std::endl;
+        std::cout << "Cost function count " << cost_fnc_cnt << std::endl;
 
         //Damp Inertial  Coefficient in each iteration (note: only used when not using Clerc-Kennedy restriction)
         w = w * wdamp;

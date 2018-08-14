@@ -51,6 +51,8 @@ struct Parameters   //parameters need to be accessble, so all members are public
     std::string exp_data_file_name;
     double Photogen_scaling_min, Photogen_scaling_max;
     double n_mob_active_max, n_mob_active_min;
+    double p_mob_active_max, p_mob_active_min;
+    double k_rec_max, k_rec_min;
 
     bool PSO_Clerc_Kennedy;
 

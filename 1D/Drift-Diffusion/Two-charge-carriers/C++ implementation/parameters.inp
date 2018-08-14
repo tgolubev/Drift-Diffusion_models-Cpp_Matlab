@@ -47,5 +47,5 @@ experiment_JV.inp  //filename_to_fit_to-(only-needed-if-auto-fit==1)
 
 
 //Particle-swarm-_parameters
-1   //use-clerc-kennedy-constriction(1==true)
+0   //use-clerc-kennedy-constriction(1==true)-SEEMS-SLOWER-CONVERGE-IF-USE
 

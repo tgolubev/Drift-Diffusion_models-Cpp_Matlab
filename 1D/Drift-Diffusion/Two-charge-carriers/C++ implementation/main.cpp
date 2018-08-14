@@ -39,6 +39,7 @@
 
 int main()
 {
+    std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();  //start clock timer
 
     Parameters params;    //params is struct storing all parameters
     params.Initialize();  //reads parameters from file (will set the starting parameter set for PSO)
@@ -61,6 +62,9 @@ int main()
         run_DD(params);  //run once
     }
 
+    std::chrono::high_resolution_clock::time_point finish = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> time = std::chrono::duration_cast<std::chrono::duration<double>>(finish-start);
+    std::cout << "Total CPU time = " << time.count() << std::endl;
 
     return 0;
 }

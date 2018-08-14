@@ -42,150 +42,165 @@ void Optim::Gradient_Descent::run_GD()
 
     for (int GD_runs = 1; GD_runs < num_restarts; GD_runs++) {
 
-        for (int var_index = 0; var_index < Params.vars.size(); var_index++) {   //for each variable that are optimizing
-
-            //choose starting value randomly (need restarts to ensure that are not stuck in a local min)
+        //choose starting value randomly (need restarts to ensure that are not stuck in a local min)
+        //MAKE choice of the random value, OUTSIDE of the other loop over variables, so that all 4 values are chosen randomly, within the bounds
+        //then is a fair test, not using my default values in the parameters file!
+        for (int var_index = 0; var_index < Params.vars.size(); var_index++)
             *Params.vars[var_index] = rand_num(Params.vars_min[var_index], Params.vars_max[var_index]);
 
-            //reset iter counts
-            iter = 1;
-            inner_iter = 1;
+        //TRY: do this going over the variables twice!: the 1st time are using the random values from above, and the 2nd time are using the already, better found values,
+        for (int repeat = 1; repeat <= 2; repeat++) {
 
-            //bool min_found = false;  //used to decide whether to continue iterations for each variable
-            bool fine_tuning = false; //to identify whether have already  did step/10 for fine tuning
+            for (int var_index = 0; var_index < Params.vars.size(); var_index++) {   //for each variable that are optimizing
 
-            double step = (Params.vars_max[var_index]-Params.vars_min[var_index])/num_steps;  //step for the gradient descent
-            //NOTE: there's risk of getting negative numbers when do this way, so need if's to protect from that
+                //reset iter counts
+                iter = 1;
+                inner_iter = 1;
 
-            do {
+                //bool min_found = false;  //used to decide whether to continue iterations for each variable
+                int fine_tuning = 0; //to identify whether have already  did step/10 for fine tuning
 
-                if (overshoot) {
-                    //don't over-write old_lsqr_diff--> let it be the prev. value b/c will return to that
-                    old_lsqr_diff = old_lsqr_diff;
-                    overshoot = false;  //turn it off, after corrected for overshoot
-                } else {
-                    old_lsqr_diff = lsqr_diff;  //save old value for figuring out if are moving towards or away from local minimum
-                }
+                double step = (Params.vars_max[var_index]-Params.vars_min[var_index])/num_steps;  //step for the gradient descent
+                //NOTE: there's risk of getting negative numbers when do this way, so need if's to protect from that
 
-                //-----------------------------------------------------------------------------
-                // Calculate the least squares difference between experimental and theory curve
+                do {
 
-                lsqr_diff = cost_function();  //this RUNS the DD simulation and computes the lsqr_diff
-                cost_fnc_cnt++;
-
-                //for test:
-                std::cout << lsqr_diff << " at iteration " << iter << std::endl;
-                std::cout << "variable # " << var_index << " value " << *Params.vars[var_index] << "sign " << sign << std::endl << std::endl;
-
-                //std::cout << "inner iter " << inner_iter << std::endl;
-                std::cout << "old diff " << old_lsqr_diff << std::endl;
-                std::cout << "new lsqr diff " << lsqr_diff << std::endl << std::endl;
-
-                //-----------------------------------------------------------------------------
-                //Adjust the parameters
-
-                //at 1st iter, always  start by going to in the direction determined by "sign". ASSUME THAT the selected initial guess value is roughly in the middle of the min, max rangee, since this is logical.
-                if (inner_iter ==1) {
-                    *Params.vars[var_index] += sign*step; //use dereference (*) to change the value that are pointing to
-                }
-
-                //at 2nd iter, need to decide which direction to go (i.e change parameter higher or lower)
-                else if (inner_iter ==2) {
-                    if (lsqr_diff < old_lsqr_diff) { // if less than, then means that moving to in the "sign" direction is reducing lsqr, so continue doing so
-                        *Params.vars[var_index] += sign*step;
+                    if (overshoot) {
+                        //don't over-write old_lsqr_diff--> let it be the prev. value b/c will return to that
+                        old_lsqr_diff = old_lsqr_diff;
+                        overshoot = false;  //turn it off, after corrected for overshoot
+                    } else {
+                        old_lsqr_diff = lsqr_diff;  //save old value for figuring out if are moving towards or away from local minimum
                     }
-                    else{  //need to move to the left, past the initial guess, and 1 more step to left
-                        *Params.vars[var_index] -= sign*2*step;  //2* b/c need to move back 1 and then 1 more to left
-                        std::cout << "are movign to the left " <<  *Params.vars[var_index] << std::endl << std::endl;
 
-                        //NOTE: IF I HAVE PARAMETERS WHICH ARE SUPPOSED TO BE NEGATIVE, THIS WILL NEED TO BE MODIFIED!!!
+                    //-----------------------------------------------------------------------------
+                    // Calculate the least squares difference between experimental and theory curve
 
-                        if (*Params.vars[var_index] < 0) {//took too large step, so reduce step size
-                            std::cout << "value bacame negative, lower step size " << std::endl;
-                            *Params.vars[var_index] += sign*step; //move back 1 step
-                            step = step/10.;
+                    //Before putting it into the cost function,
+                    //Apply Lower and Upper Bound Limits (a clamping mechanism)
+                    *Params.vars[var_index] = std::max(*Params.vars[var_index], Params.vars_min[var_index]); //if particle position is lower than VarMin, then the position becomes VarMin
+                    *Params.vars[var_index] = std::min(*Params.vars[var_index], Params.vars_max[var_index]);
+
+                    lsqr_diff = cost_function();  //this RUNS the DD simulation and computes the lsqr_diff
+                    cost_fnc_cnt++;
+
+                    //for test:
+                    std::cout << lsqr_diff << " at iteration " << iter << std::endl;
+                    std::cout << "variable # " << var_index << " value " << *Params.vars[var_index] << "sign " << sign << std::endl << std::endl;
+
+                    //std::cout << "inner iter " << inner_iter << std::endl;
+                    std::cout << "old diff " << old_lsqr_diff << std::endl;
+                    std::cout << "new lsqr diff " << lsqr_diff << std::endl << std::endl;
+
+                    //-----------------------------------------------------------------------------
+                    //Adjust the parameters
+
+                    //at 1st iter, always  start by going to in the direction determined by "sign". ASSUME THAT the selected initial guess value is roughly in the middle of the min, max rangee, since this is logical.
+                    if (inner_iter ==1) {
+                        *Params.vars[var_index] += sign*step; //use dereference (*) to change the value that are pointing to
+                    }
+
+                    //at 2nd iter, need to decide which direction to go (i.e change parameter higher or lower)
+                    else if (inner_iter ==2) {
+                        if (lsqr_diff < old_lsqr_diff) { // if less than, then means that moving to in the "sign" direction is reducing lsqr, so continue doing so
+                            *Params.vars[var_index] += sign*step;
+                        }
+                        else{  //need to move to the left, past the initial guess, and 1 more step to left
+                            *Params.vars[var_index] -= sign*2*step;  //2* b/c need to move back 1 and then 1 more to left
+                            std::cout << "are movign to the left " <<  *Params.vars[var_index] << std::endl << std::endl;
+
+                            //NOTE: IF I HAVE PARAMETERS WHICH ARE SUPPOSED TO BE NEGATIVE, THIS WILL NEED TO BE MODIFIED!!!
+
+                            if (*Params.vars[var_index] < 0) {//took too large step, so reduce step size
+                                std::cout << "value bacame negative, lower step size " << std::endl;
+                                *Params.vars[var_index] += sign*step; //move back 1 step
+                                step = step/10.;
+                                *Params.vars[var_index] -= sign*step;
+                            }
+                            //CHECK for negative value again--> LATER CAN DO THIS IN A WHILE LOOP, UNTIL VALUE IS NO LONGER NEGATIVE
+                            if (*Params.vars[var_index] < 0) {
+                                std::cout << "value AGAIN bacame negative. " << std::endl;
+                                *Params.vars[var_index] -= sign*step; //other way 1 step
+                                step = step/10.;
+                                *Params.vars[var_index] += sign*step;
+                            }
+
+                            //INSTEAD OF REDUCING STEP SIZE, IF VALUE BECOMES NEGATIVE, TRY making value = to the min value in that case..., i.e. binding within the range...
+                            //this is simpler and might be more effective
+                            /*
+                            if (*Params.vars[var_index] < 0) {
+                                *Params.vars[var_index] = Params.vars_min[var_index];
+                            }
+                            */
+                            sign = -1*sign;  //NEED TO CHANGE THE SIGN, since now need to move the other way
+
+                        }
+                    }
+
+                    //for all other iters
+                    else {
+                        if (lsqr_diff < old_lsqr_diff) {
+                            *Params.vars[var_index] += sign*step;
+
+                            if (*Params.vars[var_index] < 0) {//took too large step, so reduce step size
+                                std::cout << "value bacame negative, lower step size " << std::endl;
+                                *Params.vars[var_index] -= sign*step; //other way 1 step
+                                step = step/10.;
+                                *Params.vars[var_index] += sign*step;
+                            }
+                            //CHECK for negative value again--> LATER CAN DO THIS IN A WHILE LOOP, UNTIL VALUE IS NO LONGER NEGATIVE
+                            if (*Params.vars[var_index] < 0) {
+                                std::cout << "value AGAIN bacame negative. " << std::endl;
+                                *Params.vars[var_index] -= sign*step; //other way 1 step
+                                step = step/10.;
+                                *Params.vars[var_index] += sign*step;
+                            }
+                            /*
+                            //INSTEAD OF REDUCING STEP SIZE, IF VALUE BECOMES NEGATIVE, TRY making value = to the min value in that case..., i.e. binding within the range...
+                            //this is simpler and might be more effective
+                            if (*Params.vars[var_index] < 0) {
+                                *Params.vars[var_index] = Params.vars_min[var_index];
+                            }
+                            */
+                        }
+
+                        else if (lsqr_diff >= old_lsqr_diff) {  //USE GREATER or equal, b/c if equal, means is stuck, so should either do fine tunning, or if already in fine tunning, then exit, since it found the min at the edge..., and restart
                             *Params.vars[var_index] -= sign*step;
-                        }
-                        //CHECK for negative value again--> LATER CAN DO THIS IN A WHILE LOOP, UNTIL VALUE IS NO LONGER NEGATIVE
-                        if (*Params.vars[var_index] < 0) {
-                            std::cout << "value AGAIN bacame negative. " << std::endl;
-                            *Params.vars[var_index] -= sign*step; //other way 1 step
+                            //if lsqr diff is greater in this iter than in previous iter, then means have already passed the minimum, so GO BACK TO previous value of
+                            //the parameters, which is the local min value, and start optimizing other parameters
+
+                            if(fine_tuning == 2) { //meanning if are on the 2nd fine tuning
+                                lsqr_diff = old_lsqr_diff;  //b/c I step back 1 from where overshot...
+                                std::cout << "Local min for variable # " << var_index << " = " << *Params.vars[var_index] << "has been found." << std::endl;
+                                std::cout << "Cost at local min = " << lsqr_diff << std::endl; //=old_lsqr_diff b/c
+                                break;           //come out of the while loop, if are fine tuning and lsqr_diff begins increasing, means that have found the local min
+                            }
+                            overshoot = true;  //to not rewrite the old_lsqr value,since taking 1 step back, using this overshoot condition
+
+                            std::cout << "The approx. value corresponding to minimum least squares difference is " << *Params.vars[var_index] << std::endl;;
+                            std::cout << "Will now fine tune the value " << std::endl;
+
+                            //-----------------------------------------------------------------------------
+                            //now take the step and divide by 10 again, for the future iterations..., will use the smaller step to fine tune the value
+
                             step = step/10.;
-                            *Params.vars[var_index] += sign*step;
-                        }
+                            fine_tuning++;
 
-                        //INSTEAD OF REDUCING STEP SIZE, IF VALUE BECOMES NEGATIVE, TRY making value = to the min value in that case..., i.e. binding within the range...
-                        //this is simpler and might be more effective
-                        /*
-                        if (*Params.vars[var_index] < 0) {
-                            *Params.vars[var_index] = Params.vars_min[var_index];
+                            sign = 1;  //reset the sign to +1 for the new search, in the finer range
+                            inner_iter = 1;  //need to reset inner_iter to 1 so can determine which direction to go.... again
                         }
-                        */
-                        sign = -1*sign;  //NEED TO CHANGE THE SIGN, since now need to move the other way
-
-                    }
-                }
-
-                //for all other iters
-                else {
-                    if (lsqr_diff < old_lsqr_diff) {
-                        *Params.vars[var_index] += sign*step;
-
-                        if (*Params.vars[var_index] < 0) {//took too large step, so reduce step size
-                            std::cout << "value bacame negative, lower step size " << std::endl;
-                            *Params.vars[var_index] -= sign*step; //other way 1 step
-                            step = step/10.;
-                            *Params.vars[var_index] += sign*step;
-                        }
-                        //CHECK for negative value again--> LATER CAN DO THIS IN A WHILE LOOP, UNTIL VALUE IS NO LONGER NEGATIVE
-                        if (*Params.vars[var_index] < 0) {
-                            std::cout << "value AGAIN bacame negative. " << std::endl;
-                            *Params.vars[var_index] -= sign*step; //other way 1 step
-                            step = step/10.;
-                            *Params.vars[var_index] += sign*step;
-                        }
-                        /*
-                        //INSTEAD OF REDUCING STEP SIZE, IF VALUE BECOMES NEGATIVE, TRY making value = to the min value in that case..., i.e. binding within the range...
-                        //this is simpler and might be more effective
-                        if (*Params.vars[var_index] < 0) {
-                            *Params.vars[var_index] = Params.vars_min[var_index];
-                        }
-                        */
                     }
 
-                    else if (lsqr_diff > old_lsqr_diff) {
-                        *Params.vars[var_index] -= sign*step;
-                        //if lsqr diff is greater in this iter than in previous iter, then means have already passed the minimum, so GO BACK TO previous value of
-                        //the parameters, which is the local min value, and start optimizing other parameters
+                    iter++;
+                    inner_iter++;
+                    std::cout << "step size " << step << std::endl;
 
-                        if(fine_tuning) {
-                            lsqr_diff = old_lsqr_diff;  //b/c I step back 1 from where overshot...
-                            std::cout << "Local min for variable # " << var_index << " = " << *Params.vars[var_index] << "has been found." << std::endl;
-                            std::cout << "Cost at local min = " << lsqr_diff << std::endl; //=old_lsqr_diff b/c
-                            break;           //come out of the while loop, if are fine tuning and lsqr_diff begins increasing, means that have found the local min
-                        }
-                        overshoot = true;  //to not rewrite the old_lsqr value,since taking 1 step back, using this overshoot condition
+                } while (iter < Params.optim_max_iter);  //continue the iterations for a single parameter, while the lsqr_diff is decreasing, and are below max iter #
 
-                        std::cout << "The approx. value corresponding to minimum least squares difference is " << *Params.vars[var_index] << std::endl;;
-                        std::cout << "Will now fine tune the value " << std::endl;
-
-                        //-----------------------------------------------------------------------------
-                        //now take the step and divide by 10 again, for the future iterations..., will use the smaller step to fine tune the value
-
-                        step = step/10.;
-                        fine_tuning = true;
-                        sign = 1;  //reset the sign to +1 for the new search, in the finer range
-                        inner_iter = 1;  //need to reset inner_iter to 1 so can determine which direction to go.... again
-                    }
-                }
-
-                iter++;
-                inner_iter++;
-                std::cout << "step size " << step << std::endl;
-
-            } while (iter < Params.optim_max_iter);  //continue the iterations for a single parameter, while the lsqr_diff is decreasing, and are below max iter #
+            }
 
         }
+
 
         if (lsqr_diff < best_lsqr_diff) {
             best_lsqr_diff = lsqr_diff;
@@ -254,7 +269,11 @@ Optim::Particle_swarm::Particle_swarm(Parameters &params) : Params(params)  //NO
     //MOVE THE PARAMETERS TO AN INPUT FILE LATER.....
     PSO_max_iters = 100;        // Max # of iterations for PSO
 
-    n_particles = 20;          // Population (Swarm) Size
+    n_particles = 10;          // Population (Swarm) Size
+    //note: online say rule of thumb is to use 3x-4x of the # of dimensions (# of vars to fit), for the swarm size
+    //but seems for my system, maybe even 10 particles works better than 20
+    //at least for testing it's faster, in series
+
     n_vars = Params.vars.size();   //number of variables that are adjusting
 
     cost_fnc_cnt = 0;  //counter for # of times cost function is run (# of DD runs)

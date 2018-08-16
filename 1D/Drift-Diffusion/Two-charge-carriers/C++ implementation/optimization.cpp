@@ -197,21 +197,24 @@ void Optim::Gradient_Descent::run_GD()
 
                 } while (iter < Params.optim_max_iter);  //continue the iterations for a single parameter, while the lsqr_diff is decreasing, and are below max iter #
 
+                //even if not done adjusting all the varialbes, if find an lsqr that is better than best, then add it and save the values!
+                if (lsqr_diff < best_lsqr_diff) {
+                    best_lsqr_diff = lsqr_diff;
+                    std::cout << "A better parameter set has been found with cost = " << lsqr_diff << std::endl;
+                    std::cout << "Current best parameter values are " << std::endl;
+
+                    for (int i = 0; i < Params.vars.size(); i++) {
+                        best_vars[i] = *Params.vars[i];
+                        std::cout << best_vars[i] << std::endl;
+                    }
+                }
+
             }
 
         }
 
 
-        if (lsqr_diff < best_lsqr_diff) {
-            best_lsqr_diff = lsqr_diff;
-            std::cout << "A better parameter set has been found with cost = " << lsqr_diff << std::endl;
-            std::cout << "Current best parameter values are " << std::endl;
 
-            for (int i = 0; i < Params.vars.size(); i++) {
-                best_vars[i] = *Params.vars[i];
-                std::cout << best_vars[i] << std::endl;
-            }
-        }
         std::cout << "cost function count " << cost_fnc_cnt << std::endl;
     }
     std::cout << "Run Summary: " << std::endl;

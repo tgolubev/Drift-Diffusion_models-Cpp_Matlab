@@ -3,12 +3,12 @@
 300      //num_cell
 1e24  //N-LUMO
 1e24  //N-HOMO
-7e27   //Photogeneration-scaling
+7.0e+27   //Photogeneration-scaling
 0.2    //phi_a
 0.1    //phi_c
 3.0    //eps_active
-4.5e-6 //p_mob_active
-4.5e-6 //n_mob_active
+4.5e-06 //p_mob_active
+4.5e-06 //n_mob_active
 5e-6   //mobil
 1.5    //E_gap
 -3.9    //active_CB
@@ -18,8 +18,9 @@
 6e-17   //k_rec
 1.0e-9  //dx
 
+
 -0.5     //Va_min
-1.2      //Va_max
+1.05      //Va_max
 0.01    //increment
 0.01    //w_eq
 0.2    //w_i

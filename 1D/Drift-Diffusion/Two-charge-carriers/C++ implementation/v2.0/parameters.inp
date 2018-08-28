@@ -1,6 +1,5 @@
 //NOTE:IF-HAVE-ANY-SPACES-IN-COMMENTS-IT-WILL-FAIL
 300.0e-9 //device-thickness(m)
-300      //num_cell
 1e24  //N-LUMO
 1e24  //N-HOMO
 7e27   //Photogeneration-scaling
@@ -16,6 +15,7 @@
 4.8     //WF_anode
 3.7     //WF_cathode
 6e-17   //k_rec
+
 1.0e-9  //dx
 
 -0.5     //Va_min

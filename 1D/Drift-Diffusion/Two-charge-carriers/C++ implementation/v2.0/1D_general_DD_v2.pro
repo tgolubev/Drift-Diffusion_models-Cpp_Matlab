@@ -5,15 +5,16 @@ CONFIG -= qt
 #QMAKE_CXXFLAGS_RELEASE += -Ox  //Ox is "full optimization" for Msvc, seems no difference in speedfrom the default -O2
 
 SOURCES += \
+    main.cpp \
     photogeneration.cpp \
     recombination.cpp \
     thomas_tridiag_solve.cpp \
-    main.cpp \
     poisson.cpp \
     continuity_n.cpp \
     continuity_p.cpp \
     parameters.cpp \
     Utilities.cpp
+
 
 HEADERS += \
     photogeneration.h \

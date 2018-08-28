@@ -17,8 +17,6 @@ void Parameters::Initialize()
         parameters >> comment;  //header line
         parameters >> L >> comment;
         isPositive(L, comment);
-        parameters >> num_cell >> comment;
-        isPositive(num_cell, comment);
         parameters >> N_LUMO >> comment;  //we will just ignore the comments
         isPositive(N_LUMO,comment);
         parameters >> N_HOMO >> comment;
@@ -65,7 +63,11 @@ void Parameters::Initialize()
         isPositive(tol_relax_factor,comment);
         parameters >> GenRateFileName >> comment;
         parameters.close();
+
+
         N = N_HOMO;     //scaling factor helps CV be on order of 1
+
+        num_cell = 300;//L/dx;
 
     }
     catch(std::exception &e){

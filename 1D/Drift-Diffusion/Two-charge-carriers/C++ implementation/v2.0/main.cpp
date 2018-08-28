@@ -117,7 +117,7 @@ int main()
             params.use_w_i();
             PhotogenRate = photogen.getPhotogenRate();    //otherwise PhotogenRate is pre-initialized to 0 in this main.cpp when declared
         }
-        std::cout << "Va = " << Va <<std::endl;
+        //std::cout << "Va = " << Va <<std::endl;
 
         //Apply the voltage boundary conditions
         V_leftBC = -((Vbi-Va)/(2*Vt) - params.phi_a/Vt);
@@ -128,8 +128,8 @@ int main()
         error_np = 1.0;
         iter = 0;
         while (error_np > params.tolerance) {
-            std::cout << "error np " << error_np <<std::endl;
-            std::cout << "Va " << Va <<std::endl;
+            //std::cout << "error np " << error_np <<std::endl;
+            //std::cout << "Va " << Va <<std::endl;
 
             //-----------------Solve Poisson Equation------------------------------------------------------------------
 
@@ -200,9 +200,9 @@ int main()
             iter = iter+1;
         }
 
-        std::chrono::high_resolution_clock::time_point finish = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> time = std::chrono::duration_cast<std::chrono::duration<double>>(finish-start);
-        std::cout << "1 Va CPU time = " << time.count() << std::endl;
+        //std::chrono::high_resolution_clock::time_point finish = std::chrono::high_resolution_clock::now();
+        //std::chrono::duration<double> time = std::chrono::duration_cast<std::chrono::duration<double>>(finish-start);
+        //std::cout << "1 Va CPU time = " << time.count() << std::endl;
 
         //-------------------Calculate Currents using Scharfetter-Gummel definition--------------------------
         p[0] = continuity_p.get_p_leftBC();
@@ -214,11 +214,15 @@ int main()
         }
 
         //---------------------Write to file----------------------------------------------------------------
-        utils.write_details(params, Va, V, p, n, J_total, Un, PhotogenRate, R_Langevin);
+        //utils.write_details(params, Va, V, p, n, J_total, Un, PhotogenRate, R_Langevin);
         if(Va_cnt >0) utils.write_JV(params, JV, iter, Va, J_total);
 
     }//end of main loop
     JV.close();
+
+    std::chrono::high_resolution_clock::time_point finish2 = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> time2 = std::chrono::duration_cast<std::chrono::duration<double>>(finish2-start);
+    std::cout << "CPU time = " << time2.count() << std::endl;
 
     return 0;
 }

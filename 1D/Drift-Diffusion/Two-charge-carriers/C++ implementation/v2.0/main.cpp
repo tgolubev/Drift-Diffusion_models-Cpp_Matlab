@@ -55,6 +55,7 @@ int main()
 
     std::ofstream JV;
     JV.open("JV.txt");  //note: file will be created inside the build directory
+    JV << "x           " << ","  << "y            " << "\n"; 
 
     //-------------------------------------------------------------------------------------------------------
     //Construct objects
@@ -72,6 +73,9 @@ int main()
     std::vector<double> Un(num_cell), Up(num_cell), R_Langevin(num_cell), PhotogenRate(num_cell);  //store the results of these..
     std::vector<double> Jp(num_cell),Jn(num_cell), J_total(num_cell);
     std::vector<double> error_np_vector(num_cell);  //for storing errors between iterations
+
+    //NOTE: poisson_rhs(num_cell), continuity_n_rhs, continuity_p_rhs are needed for g++ compiler b/c can't pass return value to a function by reference to Thomas_solve
+    std::vector<double> poisson_rhs(num_cell), continuity_n_rhs(num_cell), continuity_p_rhs(num_cell);
 
     //Initial conditions
     double min_dense = std::min(continuity_n.get_n_leftBC(),  continuity_p.get_p_rightBC());
@@ -127,6 +131,7 @@ int main()
 
         error_np = 1.0;
         iter = 0;
+
         while (error_np > params.tolerance) {
             //std::cout << "error np " << error_np <<std::endl;
             //std::cout << "Va " << Va <<std::endl;
@@ -135,7 +140,8 @@ int main()
 
             poisson.set_rhs(n, p, V_leftBC, V_rightBC);
             oldV = V;
-            newV = Thomas_solve(poisson.get_main_diag(), poisson.get_upper_diag(), poisson.get_lower_diag(), poisson.get_rhs());
+            poisson_rhs = poisson.get_rhs();
+            newV = Thomas_solve(poisson.get_main_diag(), poisson.get_upper_diag(), poisson.get_lower_diag(), poisson_rhs);
             //add on the BC's --> b/c matrix solver just outputs the insides...
             newV[0] = V[0];
             newV[num_cell] = V[num_cell];
@@ -149,6 +155,7 @@ int main()
             V[0] = V_leftBC;
             V[num_cell] = V_rightBC;
 
+
             //------------------------------Calculate Net Generation Rate----------------------------------------------------------
 
             R_Langevin = recombo.ComputeR_Langevin(params,n,p);
@@ -157,15 +164,17 @@ int main()
             }
             Up = Un;
 
-            //--------------------------------Solve equations for n and p------------------------------------------------------------ 
+            //--------------------------------Solve equations for n and p------------------------------------------------------------
 
             continuity_n.setup_eqn(V, Un);
             oldn = n;
-            newn = Thomas_solve(continuity_n.get_main_diag(), continuity_n.get_upper_diag(), continuity_n.get_lower_diag(), continuity_n.get_rhs());
+            continuity_n_rhs = continuity_n.get_rhs(); //need to store the return value here, so can pass it to Thomas solve (only necessary with g++ compiler)
+            newn = Thomas_solve(continuity_n.get_main_diag(), continuity_n.get_upper_diag(), continuity_n.get_lower_diag(), continuity_n_rhs);
 
             continuity_p.setup_eqn(V, Up);
             oldp = p;
-            newp = Thomas_solve(continuity_p.get_main_diag(), continuity_p.get_upper_diag(), continuity_p.get_lower_diag(), continuity_p.get_rhs());
+            continuity_p_rhs = continuity_p.get_rhs();
+            newp = Thomas_solve(continuity_p.get_main_diag(), continuity_p.get_upper_diag(), continuity_p.get_lower_diag(), continuity_p_rhs);
 
             //if get negative p's or n's set them = 0
             for (int i = 1; i < num_cell; i++) {
@@ -173,15 +182,21 @@ int main()
                 if (newn[i] < 0.0) newn[i] = 0;
             }
 
+
+
             //calculate the error
             old_error = error_np;
+
             for (int i = 1; i < num_cell; i++) {
                 if (newp[i]!=0 && newn[i] !=0) {
-                    error_np_vector[i] = (abs(newp[i]-oldp[i]) + abs(newn[i]-oldn[i]))/abs(oldp[i]+oldn[i]);
+                    error_np_vector[i] = (fabs(newp[i]-oldp[i]) + fabs(newn[i]-oldn[i]))/fabs(oldp[i]+oldn[i]);  //NEED TO USE fabs for g++ --> it takes the absolute value of a double!!
+
                 }
             }
+
             error_np = *std::max_element(error_np_vector.begin(),error_np_vector.end());
             std::fill(error_np_vector.begin(), error_np_vector.end(),0.0);  //refill with 0's so have fresh one for next iter
+
 
             //auto decrease w if not converging
             if (error_np >= old_error)
@@ -189,7 +204,7 @@ int main()
             if (not_cnv_cnt > 2000) {
                 params.reduce_w();
                 params.relax_tolerance();
-                not_cnv_cnt = 0;
+//                 not_cnv_cnt = 0;
             }
 
             p = utils.linear_mix(params, newp, oldp);
@@ -198,10 +213,11 @@ int main()
             n[0]  = continuity_n.get_n_leftBC();
 
             iter = iter+1;
+
         }
 
         //std::chrono::high_resolution_clock::time_point finish = std::chrono::high_resolution_clock::now();
-        //std::chrono::duration<double> time = std::chrono::duration_cast<std::chrono::duration<double>>(finish-start);
+       //std::chrono::duration<double> time = std::chrono::duration_cast<std::chrono::duration<double>>(finish-start);
         //std::cout << "1 Va CPU time = " << time.count() << std::endl;
 
         //-------------------Calculate Currents using Scharfetter-Gummel definition--------------------------

@@ -105,9 +105,6 @@ int main()
     for (Va_cnt = 0; Va_cnt <= num_V +1; Va_cnt++) {  //+1 b/c 1st Va is the equil run
         not_converged = false;
         not_cnv_cnt = 0;
-        if (params.tolerance > 1e-5) {
-            std::cerr<<"ERROR: Tolerance has been increased to > 1e-5" <<std::endl;
-        }
         if (Va_cnt==0) {
             params.use_tolerance_eq();  //relaxed tolerance for equil. run
             params.use_w_eq();
@@ -122,6 +119,9 @@ int main()
             PhotogenRate = photogen.getPhotogenRate();    //otherwise PhotogenRate is pre-initialized to 0 in this main.cpp when declared
         }
         //std::cout << "Va = " << Va <<std::endl;
+        if (params.tolerance > 1e-5) {
+            std::cerr<<"ERROR: Tolerance has been increased to > 1e-5" <<std::endl;
+        }
 
         //Apply the voltage boundary conditions
         V_leftBC = -((Vbi-Va)/(2*Vt) - params.phi_a/Vt);
@@ -131,6 +131,8 @@ int main()
 
         error_np = 1.0;
         iter = 0;
+
+        std::cout << " Va   "  << Va << std::endl;
 
         while (error_np > params.tolerance) {
             //std::cout << "error np " << error_np <<std::endl;
@@ -154,7 +156,6 @@ int main()
             //reset BC's
             V[0] = V_leftBC;
             V[num_cell] = V_rightBC;
-
 
             //------------------------------Calculate Net Generation Rate----------------------------------------------------------
 
@@ -182,8 +183,6 @@ int main()
                 if (newn[i] < 0.0) newn[i] = 0;
             }
 
-
-
             //calculate the error
             old_error = error_np;
 
@@ -196,7 +195,6 @@ int main()
 
             error_np = *std::max_element(error_np_vector.begin(),error_np_vector.end());
             std::fill(error_np_vector.begin(), error_np_vector.end(),0.0);  //refill with 0's so have fresh one for next iter
-
 
             //auto decrease w if not converging
             if (error_np >= old_error)
@@ -221,8 +219,6 @@ int main()
         //std::cout << "1 Va CPU time = " << time.count() << std::endl;
 
         //-------------------Calculate Currents using Scharfetter-Gummel definition--------------------------
-        p[0] = continuity_p.get_p_leftBC();
-        n[0]  = continuity_n.get_n_leftBC();
         for (int i = 1; i < num_cell; i++) {
             Jp[i] = -(q*Vt*params.N*params.mobil/params.dx) * continuity_p.get_p_mob()[i] * (p[i]*continuity_p.get_B_p2()[i] - p[i-1]*continuity_p.get_B_p1()[i]);
             Jn[i] =  (q*Vt*params.N*params.mobil/params.dx) * continuity_n.get_n_mob()[i] * (n[i]*continuity_n.get_B_n1()[i] - n[i-1]*continuity_n.get_B_n2()[i]);

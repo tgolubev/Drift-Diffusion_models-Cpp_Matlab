@@ -19,10 +19,10 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 clear; close all; clc;     %clear improves performance over clear all, and still clears all variables.
 
-global G_max num_cell num_elements n_mob p_mob Cp Cn Vt
+global G_max num_cell num_elements n_mob p_mob Cp Cn Vt k_rec E_trap n1 p1 N
 
 %% Parameters
-L = 10e-9;      %device length in meters
+L = 300e-9;      %device length in meters
 dx = 1e-9;                        %mesh size
 num_cell = floor(L/dx);
 
@@ -30,6 +30,8 @@ num_cell = floor(L/dx);
 N_VB = 10^24;         %density of states in valence band (holes)
 N_CB = 10^24;         %density of states in conduction bands (electrons)
 E_gap = 1.5;          %bandgap (in eV)
+active_VB = -5.4;
+active_CB =  -3.9;
 
 N = 10^24.;            %scaling factor helps CV be on order of 1
 
@@ -50,7 +52,7 @@ WF_cathode = 3.7;
 
 Vbi = WF_anode - WF_cathode +inj_a +inj_c;  %built-in field
 
-G_max = 4*10^27; %for photogeneration rate normalization
+G_max = 7*10^27; %for photogeneration rate normalization
 
 % Dielectric constants (can be made position dependent, as long as are
 % piecewise-constant)
@@ -63,9 +65,15 @@ n_mob(1:num_cell +1) = 4.5*10^-6;
 
 mobil = 5.*10^-6;                    %scaling for mobility (for numerical stability when solving matrix equations)
 
+% recombination parameters
+k_rec = 6*10^-17;
+E_trap = active_VB + E_gap/2.0;  %this is assumption used--> trap assisted recombo is most effective when trap is located mid-gap--> take VB and add 1/2 of bandgap
+n1 = N_CB*exp(-(active_CB - E_trap)/Vt);  
+p1 = N_VB*exp(-(E_trap - active_VB)/Vt);
+
 %% JV sweep parameters
 Va_min = -0.5;               %volts
-Va_max = -0.45;
+Va_max = 1.2;
 increment = 0.01;         %for increasing V
 num_V = floor((Va_max-Va_min)/increment)+1;   %number of V points
 
@@ -108,6 +116,8 @@ V_initial = V_initial.';   %transpose to column vector
 
 V = zeros(nx-2,1);  %allocate array for Poisson solution
 
+tic
+
 %% Main voltage loop
 Va_cnt = 0;
 for Va_cnt = 0:num_V +1
@@ -143,6 +153,9 @@ for Va_cnt = 0:num_V +1
     fullV(1) = -((Vbi  -Va)/(2*Vt)-inj_a/Vt);
     fullV(num_cell+1) = (Vbi- Va)/(2*Vt) - inj_c/Vt;
     
+    p_full = [p_full(1), p, p_full(num_cell+1)]; 
+    n_full = [n_full(1), n, n_full(num_cell+1)];
+    
     %% Setup the solver
     iter = 1;
     error_np =  1.0;
@@ -157,6 +170,7 @@ for Va_cnt = 0:num_V +1
     Cn = dx^2/(Vt*N*mobil);
     CV = N*dx^2*q/(epsilon_0*Vt);    %relative permitivity was moved into the matrix
     
+    Va
     while error_np > tolerance
         
         %Poisson equation with tridiagonal solver
@@ -191,12 +205,11 @@ for Va_cnt = 0:num_V +1
         end
         
         %recombination
-        %here can call a function to calculate recombination rates. In this
-        %example I just set it to 0
-        Recombination(1:num_elements) = 0;
+        %here can call a function to calculate recombination rates.
+        R_Langevin_array = R_Langevin(n_full,p_full);
         
         for i = 1:num_elements    %NOTE: i =1 corresponds to x = 2nm, and Langevin array i's are based on real x values, so need to use i+1 in langevin array
-            Un(i) = G(i)- Recombination(i);
+            Un(i) = G(i)- R_Langevin_array(i);
         end
         Up = Un;
         %------------------------------------------------------------------------------------------------
@@ -239,7 +252,7 @@ for Va_cnt = 0:num_V +1
                 error_np_matrix(count) = (abs(newp(i)-old_p(i))+abs(newn(i)-old_n(i)))/abs(old_p(i)+old_n(i));
             end
         end
-        error_np = max(error_np_matrix)
+        error_np = max(error_np_matrix);
         
         %auto decrease w if not converging
         if(error_np>= old_error)
@@ -252,8 +265,8 @@ for Va_cnt = 0:num_V +1
         end
         
         %output w and tolerance
-        w
-        tolerance
+        w;
+        tolerance;
         
         %weighting
         p = newp*w + old_p*(1.-w);
@@ -266,7 +279,7 @@ for Va_cnt = 0:num_V +1
         p_full = [p_full(1), p, p_full(num_cell+1)]; %bndrys already defined above
         n_full = [n_full(1), n, n_full(num_cell+1)];
      
-      iter =  iter+1
+      iter =  iter+1;
        
     end
    
@@ -299,26 +312,26 @@ for Va_cnt = 0:num_V +1
     end
     
     %Save data
-    str = sprintf('%.2f',Va);
-    filename = [str 'V.txt']
-    fid = fopen(fullfile(filename),'w');
-    %fullfile allows to make filename from parts
-    
-    if(Va_cnt ==0)
-        equil = fopen(fullfile('Equil.txt'),'w');
-        for i = 2:num_cell
-            fprintf(equil,'%.8e %.8e %.8e %.8e %.8e\r\n ',x(i), Vt*fullV(i), N*p_full(i), N*n_full(i), E(i));
-        end
-        fclose(equil);
-    end
-    
-    if(Va_cnt > 0)
-        for i = 2:num_cell
-            fprintf(fid,'%.8e %.8e %.8e %.8e %.8e %.8e %.8e %.8e %.8e\r\n ',x(i), Vt*fullV(i), N*p_full(i), N*n_full(i), J_total(Va_cnt,i), E(i), Un(i-1), w, tolerance);
-        end
-    end
-    fclose(fid);
-    
+%     str = sprintf('%.2f',Va);
+%     filename = [str 'V.txt']
+%     fid = fopen(fullfile(filename),'w');
+%     %fullfile allows to make filename from parts
+%     
+%     if(Va_cnt ==0)
+%         equil = fopen(fullfile('Equil.txt'),'w');
+%         for i = 2:num_cell
+%             fprintf(equil,'%.8e %.8e %.8e %.8e %.8e\r\n ',x(i), Vt*fullV(i), N*p_full(i), N*n_full(i), E(i));
+%         end
+%         fclose(equil);
+%     end
+%     
+%     if(Va_cnt > 0)
+%         for i = 2:num_cell
+%             fprintf(fid,'%.8e %.8e %.8e %.8e %.8e %.8e %.8e %.8e %.8e\r\n ',x(i), Vt*fullV(i), N*p_full(i), N*n_full(i), J_total(Va_cnt,i), E(i), Un(i-1), w, tolerance);
+%         end
+%     end
+%     fclose(fid);
+%     
     
 end
 
@@ -328,6 +341,9 @@ for i = 1:Va_cnt
     fprintf(file2, '%.8e %.8e \r\n', V_values(i,1), J_total(i,floor(num_cell/2)));
 end
 fclose(file2);
+
+toc
+
 
 %% Final Plots: done for the last Va
 

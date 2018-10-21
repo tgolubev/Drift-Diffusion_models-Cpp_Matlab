@@ -11,9 +11,11 @@
 std::vector<double> Thomas_solve(const std::vector<double> &a,const  std::vector<double> &b,const  std::vector<double> &c, std::vector<double> &rhs){
 
 int num_elements = a.size()-1;  //matrices indexed from 0, but we use it from 1 here
+
 double cdiag_ratio;
 std::vector<double> x(num_elements+2);
 std::vector<double> diagonal = a;  //this is so the actual a value is unchanged, so can precalculate a before the loop...
+
 
 //Forward substitution
 for (int i = 2; i <= num_elements; i++) {
@@ -21,6 +23,8 @@ for (int i = 2; i <= num_elements; i++) {
     diagonal[i] -= cdiag_ratio*b[i-1];
     rhs[i] -= cdiag_ratio*rhs[i-1];
 }
+
+
 
 //Backward substitution
 x[num_elements] = rhs[num_elements]/diagonal[num_elements]; //linear eqn corresponding to last row

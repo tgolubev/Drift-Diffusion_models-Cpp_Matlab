@@ -8,4 +8,5 @@ PEDOT:PSS/perovskite/C60/BCP.
 
 This code was used to model experimental perovskite devices and results were published in:
 T. Golubev, D. Liu, R. Lunt, P. Duxbury. Understanding the impact of C60 at the interface of perovskite solar cells via drift-diffusion modeling. AIP Advances 9, 035026 (2019)
+https://aip.scitation.org/doi/full/10.1063/1.5068690
 

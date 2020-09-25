@@ -432,7 +432,7 @@ for Va_cnt = 0:num_V +1
         %set
         index = 0;
         for k = 1:N
-            for i =  1:N  %
+            for i =  1:N  
                 p_leftBC_y(i, k) = p(index + i);
                 p_rightBC_y(i, k) = p(index + i + N*N - N);
                 n_leftBC_y(i, k) = n(index + i);

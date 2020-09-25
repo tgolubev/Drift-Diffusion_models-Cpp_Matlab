@@ -227,7 +227,7 @@ for Va_cnt = 0:num_V +1
         %% Set up continuity equation matrix
         Bernoulli_p_values = Calculate_Bernoullis(fullV); %the values are returned as a struct
         Ap = SetAp_2D(p_mob, Bernoulli_p_values);           %send bernoulli values struct to matrix setup function
-        bp = Setbp_2D(Bernoulli_p_values, p_mob, Up);
+        bp = Setbp_2D(Bernoulli_p_values, p_mob, a);
         
         oldp = p;
         newp = Ap\bp;

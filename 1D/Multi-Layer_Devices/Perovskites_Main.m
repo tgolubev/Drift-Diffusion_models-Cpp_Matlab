@@ -60,6 +60,7 @@ epsilon(l_HTL_int +1: l_ETL_int) = 24.1*epsilon_0;  % perovskite
 epsilon(l_ETL_int+1:l_BCP_int) = 4.25*epsilon_0;    % ETL (C60)
 epsilon(l_BCP_int+1:num_cell+1) = 4.25*epsilon_0;   % ETL (BCP)
 
+% Position dependent mobilities
 % Holes
 p_mob(1:l_HTL_int) = 4.5*10^-6;           % HTL          
 p_mob(l_HTL_int + 1: l_ETL_int) = 10^-4;  % perovskite  

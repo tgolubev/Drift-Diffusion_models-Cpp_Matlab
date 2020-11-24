@@ -60,7 +60,6 @@ epsilon(l_HTL_int +1: l_ETL_int) = 24.1*epsilon_0;  % perovskite
 epsilon(l_ETL_int+1:l_BCP_int) = 4.25*epsilon_0;    % ETL (C60)
 epsilon(l_BCP_int+1:num_cell+1) = 4.25*epsilon_0;   % ETL (BCP)
 
-% Position dependent mobilities 
 % Holes
 p_mob(1:l_HTL_int) = 4.5*10^-6;           % HTL          
 p_mob(l_HTL_int + 1: l_ETL_int) = 10^-4;  % perovskite  
@@ -73,7 +72,7 @@ n_mob(l_ETL_int+1:l_BCP_int) = 1.6*10^-4; % ETL (C60)
 n_mob(l_BCP_int+1:num_cell +1)= 2.*10^-9; % ETL (BCP)
 mobil =  5.0*10^-6;       %scaling for mobility (for numerical stability)
 
-Vbi = 4.8-4.3+phi_a +phi_c; % built-in voltage
+Vbi = 4.8-4.3; % built-in voltage
 
 % calculated energy barriers
 HTL_int_VBstep =  abs(perov_VB - HTL_HOMO);     
@@ -137,8 +136,8 @@ for i = 1:num_elements
 end
 
 %set up initial guess of V make V linearly decreasing     
-fullV(1)          = -((Vbi  )/(2*Vt)-phi_a/Vt);  
-fullV(num_cell+1) = (Vbi )/(2*Vt)-phi_c/Vt; 
+fullV(1)          = -Vbi/(2*Vt);  
+fullV(num_cell+1) = Vbi/(2*Vt); 
 diff = (fullV(num_cell+1)-fullV(1))/num_cell;   
 for i = 2:num_elements+1
     fullV(i) = fullV(i-1)+diff;
@@ -181,8 +180,8 @@ for Va_cnt = 0:num_V+1   %+1 b/c 1st Va is the equil. Va = 0 run
         Va = Va_min+increment*(Va_cnt-1);     %set Va value
     end
      % apply voltage boundary conditions
-     fullV(1)          = -((Vbi  -Va)/(2*Vt)-phi_a/Vt);  
-     fullV(num_cell+1) = (Vbi-phi_c  - Va)/(2*Vt) - phi_c/Vt;
+     fullV(1)          = -(Vbi-Va)/(2*Vt);  
+     fullV(num_cell+1) = (Vbi-Va)/(2*Vt);
      
      % Concatenate charge densities BCs with charge densities solution
      p_full = [p_full(1), p, p_full(num_cell+1)]; 

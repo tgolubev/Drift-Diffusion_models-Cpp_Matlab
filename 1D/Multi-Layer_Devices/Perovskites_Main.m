@@ -24,10 +24,10 @@ L_BCP = 7.5*10^-9;
 L = (L_HTL+L_perovskite+L_ETL + L_BCP);   %device length in meters: 
 dx = 0.5*10^-9;
 
-num_cell = L/dx;            % number of cells   
-l_HTL_int = L_HTL/dx + 1;                           % position of HTL/perovskite interface (+1 b/c position 1 corresponds to x = 0)   
-l_ETL_int = (L_HTL + L_perovskite)/dx + 1;          % position of perovskite/C60 (ETL) interface 
-l_BCP_int = (L_HTL + L_perovskite + L_ETL)/dx + 1;  % position of C60/BCP (ETL) interface
+num_cell = floor(L/dx);            % number of cells   
+l_HTL_int = floor(L_HTL/dx) + 1;                           % position of HTL/perovskite interface (+1 b/c position 1 corresponds to x = 0)   
+l_ETL_int = floor((L_HTL + L_perovskite)/dx) + 1;          % position of perovskite/C60 (ETL) interface 
+l_BCP_int = floor((L_HTL + L_perovskite + L_ETL)/dx) + 1;  % position of C60/BCP (ETL) interface
 
 % Physical Constants
 q =  1.60217646*10^-19;         % elementary charge, C

@@ -13,7 +13,7 @@ clear; close all; clc;
 %% Declare global variables  (accessible by all functions)
 global L num_cell num_elements Cp Cn  N q kb T Vt dx p_mob n_mob l_HTL_int;
 global l_ETL_int HTL_traps ETL_traps l_BCP_int BCP_int_VBstep BCP_int_CBstep;
-global N_LUMO N_HOMO cap_n cap_p k_rec phi_c phi_a n1 p1 HTL_int_VBstep ETL_int_VBstep ETL_int_CBstep HTL_int_CBstep G_max;
+global N_LUMO N_HOMO cap_n cap_p k_rec n1 p1 HTL_int_VBstep ETL_int_VBstep ETL_int_CBstep HTL_int_CBstep G_max;
 
 %% Parameters
 %Thicknesses (in m)
@@ -250,7 +250,7 @@ for Va_cnt = 0:num_V+1   %+1 b/c 1st Va is the equil. Va = 0 run
          end
          Up = Un;  % assume holes generation rate equals that of electrons
          
-         % 5 nm trap-assited recombination regions, near the ETL and HTL
+         % 5 nm trap-assisted recombination regions, near the ETL and HTL
          % boundaries.
          for i =  l_ETL_int-9:l_ETL_int  
              Up(i-1) = Up(i-1) - R_SRH_ETL_array(i);       

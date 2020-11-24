@@ -1,6 +1,6 @@
 % This is the Bernoulli function for electrons from Scharfetter-Gummel discretization
 function B_n = BernoulliFnc_n(fullV)
-global num_cell Vt ETL_int_CBstep l_ETL_int phi_c HTL_int_CBstep phi_a l_HTL_int L_int L_int_eachside BCP_int_CBstep l_BCP_int
+global num_cell Vt ETL_int_CBstep l_ETL_int HTL_int_CBstep l_HTL_int BCP_int_CBstep l_BCP_int
 
 dV = zeros(1,num_cell+1);
 B_n = zeros(2, num_cell+1);

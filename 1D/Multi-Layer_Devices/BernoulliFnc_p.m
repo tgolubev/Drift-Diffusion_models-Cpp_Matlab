@@ -1,6 +1,6 @@
 % This is the Bernoulli function for holes from Scharfetter-Gummel discretization
 function B_p = BernoulliFnc_p(fullV)
-global num_cell l_HTL_int Vt HTL_int_VBstep phi_a l_ETL_int ETL_int_VBstep phi_c L_int L_int_eachside BCP_int_VBstep l_BCP_int
+global num_cell l_HTL_int Vt HTL_int_VBstep l_ETL_int ETL_int_VBstep BCP_int_VBstep l_BCP_int
 
 dV = zeros(1,num_cell+1);
 B_p = zeros(2, num_cell+1);

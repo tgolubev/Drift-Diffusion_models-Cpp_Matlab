@@ -15,3 +15,8 @@ Also include the openmp compiler flag to allow for Eigen to parallelize the matr
 
 ------------------------------------------------
 The Matlab implementations only require Matlab.
+
+-----------------------------------------------
+If you use this code in a scientific publication, I would appreciate citations to the following paper:
+
+T. Golubev, D. Liu, R. Lunt, P. Duxbury. Understanding the impact of C60 at the interface of perovskite solar cells via drift-diffusion modeling. AIP Advances 9, 035026 (2019) https://aip.scitation.org/doi/full/10.1063/1.5068690
